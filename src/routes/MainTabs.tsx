@@ -22,6 +22,7 @@ export function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
+        headerShown: false,
         headerStyle: { backgroundColor: '#f5f5f5' },
         headerTintColor: '#333',
         headerTitleStyle: { fontWeight: '600' },
@@ -54,6 +55,7 @@ export function MainTabs() {
         component={MyScreen}
         options={{
           title: '我的',
+          headerShown: false,
           tabBarLabel: '我的',
           tabBarIcon: ({ color }) => <Text style={[styles.tabIcon, { color }]}>我的</Text>,
         }}
