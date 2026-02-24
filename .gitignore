@@ -1,9 +1,35 @@
-# OSX
-#
-.DS_Store
+# ===============================
+# 环境变量与密钥（禁止上传）
+# ===============================
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.keystore
+!debug.keystore
+*.jks
+*.mobileprovision
+credentials.json
+secrets/
+*.secret
 
-# Xcode
-#
+# ===============================
+# 系统与 OS
+# ===============================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===============================
+# Xcode / iOS 构建与本地配置
+# ===============================
 build/
 *.pbxuser
 !default.pbxuser
@@ -13,63 +39,112 @@ build/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
-xcuserdata
+xcuserdata/
 *.xccheckout
 *.moved-aside
-DerivedData
+DerivedData/
 *.hmap
 *.ipa
 *.xcuserstate
 **/.xcode.env.local
+*.moved-aside
+*.xcworkspace
+!default.xcworkspace
 
-# Android/IntelliJ
-#
-build/
-.idea
-.gradle
+# ===============================
+# Android / IntelliJ
+# ===============================
+.idea/
+.gradle/
 local.properties
 *.iml
 *.hprof
 .cxx/
-*.keystore
-!debug.keystore
 .kotlin/
+android/app/debug.keystore
+android/app/release.keystore
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
 
-# node.js
-#
+# ===============================
+# Node.js / 依赖与锁文件（可选）
+# ===============================
 node_modules/
-npm-debug.log
-yarn-error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn-integrity
+*.tsbuildinfo
 
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
+# ===============================
+# Metro / React Native 缓存
+# ===============================
+.metro-health-check*
+.temp/
+tmp/
+temp/
+*.log
+watchman/
 
+# ===============================
+# Bundle 产物（不应提交）
+# ===============================
+*.jsbundle
+*.bundle
+ios/build/
+android/app/build/
+
+# ===============================
+# Ruby / CocoaPods
+# ===============================
+**/Pods/
+/vendor/bundle/
+*.podspec.lock
+Podfile.lock
+
+# ===============================
+# Fastlane
+# ===============================
 **/fastlane/report.xml
 **/fastlane/Preview.html
 **/fastlane/screenshots
 **/fastlane/test_output
 
-# Bundle artifact
-*.jsbundle
-
-# Ruby / CocoaPods
-**/Pods/
-/vendor/bundle/
-
-# Temporary files created by Metro to check the health of the file watcher
-.metro-health-check*
-
-# testing
+# ===============================
+# 测试与覆盖率
+# ===============================
 /coverage
+*.lcov
+.jest/
 
+# ===============================
+# 编辑器 / IDE（按需保留 .vscode 共享配置）
+# ===============================
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+.cursorignore
+
+# ===============================
 # Yarn
+# ===============================
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# ===============================
+# 其他本地/临时
+# ===============================
+*.orig
+*.bak
+*.tmp
+.cache/
