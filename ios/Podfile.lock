@@ -1,4 +1,9 @@
 PODS:
+<<<<<<< HEAD
+=======
+  - BVLinearGradient (2.8.3):
+    - React-Core
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   - FBLazyVector (0.84.0)
   - hermes-engine (250829098.0.7):
     - hermes-engine/Pre-built (= 250829098.0.7)
@@ -1944,10 +1949,62 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+<<<<<<< HEAD
+=======
+    - Yoga
+  - RNSVG (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNSVG/common (= 15.15.3)
+    - Yoga
+  - RNSVG/common (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
     - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+<<<<<<< HEAD
+=======
+  - BVLinearGradient (from `../node_modules/react-native-linear-gradient`)
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2025,9 +2082,18 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNScreens (from `../node_modules/react-native-screens`)
+<<<<<<< HEAD
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 EXTERNAL SOURCES:
+=======
+  - RNSVG (from `../node_modules/react-native-svg`)
+  - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
+
+EXTERNAL SOURCES:
+  BVLinearGradient:
+    :path: "../node_modules/react-native-linear-gradient"
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2181,10 +2247,16 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
+<<<<<<< HEAD
+=======
+  BVLinearGradient: 880f91a7854faff2df62518f0281afb1c60d49a3
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   FBLazyVector: c12d2108050e27952983d565a232f6f7b1ad5e69
   hermes-engine: 9301b6ce3396af41ef1fc0fdfc0de6fb5bd08c84
   RCTDeprecation: 3280799c14232a56e5a44f92981a8ee33bc69fd9
@@ -2261,7 +2333,12 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: b28671c52762975ccfcc8a79e9dc0a201066abdf
   RNGestureHandler: 6d378fd1aa991c7ab62a4215ee6cc417895a6954
   RNScreens: fb11b7412bcbdc0ffafcaf9174938d998d4e2bc4
+<<<<<<< HEAD
   Yoga: 0a3b1e85da3524bdc3e0161818c8881ad363f97b
+=======
+  RNSVG: 13970bfde0ea9c9e10e01ab0d7b4a6cde11fca1b
+  Yoga: 772166513f9cd2d61a6251d0dacbbfaa5b537479
+>>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
 
 PODFILE CHECKSUM: ff734f770f80c8960182b49f5c2d9b9d6bcca0db
 

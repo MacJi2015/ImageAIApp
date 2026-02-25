@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Pressable, Text } from 'react-native';
 import { MainTabs } from './MainTabs';
-import { DetailScreen } from '../screens/DetailScreen';
+import { DetailsScreen } from '../screens/Details';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
@@ -25,7 +25,8 @@ export function RootNavigator() {
         component={MainTabs}
         options={{ headerShown: false, title: '' }}
       />
-      <Stack.Screen name="Detail" component={DetailScreen} options={{ title: '详情' }} />
+      <Stack.Screen name="Detail" component={DetailsScreen}  options={{ headerShown: false }} />
+    
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
