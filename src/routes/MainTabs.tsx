@@ -110,6 +110,7 @@ export function MainTabs() {
         component={MyScreen}
         options={{
           title: 'My',
+          headerShown: false,
           tabBarIcon: renderMyIcon,
         }}
       />

@@ -11,6 +11,10 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Detail: { id: string; title?: string };
+  Settings: undefined;
+  EditProfile: undefined;
+  WebView: { url: string; title: string };
+  Feedback: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =

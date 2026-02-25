@@ -4,3 +4,6 @@ export { HomeScreen } from './HomeScreen';
 export { DetailsScreen } from './Details';
 export { AddScreen } from './AddScreen';
 export { MyScreen } from './MyScreen';
+export { SettingsScreen } from './SettingsScreen';
+export { WebViewScreen } from './WebViewScreen';
+export { FeedbackScreen } from './FeedbackScreen';
