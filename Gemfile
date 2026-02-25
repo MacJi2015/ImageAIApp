@@ -14,3 +14,5 @@ gem 'bigdecimal'
 gem 'logger'
 gem 'benchmark'
 gem 'mutex_m'
+# activesupport 依赖，Ruby 3.4 下需显式声明
+gem 'minitest', '>= 5.1'

@@ -195,21 +195,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   rowLabel: {
+    fontFamily: 'Space Grotesk',
     flex: 1,
     fontSize: 16,
     color: TEXT_MAIN,
   },
   rowRight: {
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     color: TEXT_MUTED,
     marginRight: 8,
   },
   chevron: {
+    fontFamily: 'Space Grotesk',
     fontSize: 18,
     color: TEXT_MUTED,
     fontWeight: '300',
   },
   version: {
+    fontFamily: 'Space Grotesk',
     alignSelf: 'center',
     marginTop: 32,
     fontSize: 14,
@@ -227,6 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   feedbackBtnText: {
+    fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
     color: TEXT_MAIN,
@@ -240,6 +245,7 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
   },
   logoutBtnText: {
+    fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
     color: TEXT_MAIN,

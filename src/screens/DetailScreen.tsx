@@ -26,10 +26,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
+    fontFamily: 'Space Grotesk',
     fontSize: 24,
     marginBottom: 12,
   },
   id: {
+    fontFamily: 'Space Grotesk',
     fontSize: 16,
     color: '#666',
     marginBottom: 24,

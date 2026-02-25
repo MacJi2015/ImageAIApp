@@ -17,10 +17,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
+    fontFamily: 'Space Grotesk',
     fontSize: 24,
     marginBottom: 12,
   },
   hint: {
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     color: '#666',
   },

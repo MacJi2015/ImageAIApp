@@ -5,6 +5,10 @@ export interface UserInfo {
   name: string;
   avatar?: string;
   email?: string;
+  /** 是否会员，不传或 false 为免费版 */
+  isPremium?: boolean;
+  /** 会员到期日 ISO 字符串，如 "2025-03-24"，用于展示 "X days remaining" */
+  premiumExpireAt?: string;
 }
 
 export interface UserState {
@@ -18,10 +22,21 @@ export interface UserState {
   logout: () => void;
 }
 
+/** 演示用：设为 true 时初始为会员状态，便于查看 PRO 徽章、PRO MEMBER、RENEW NOW 等 */
+const DEMO_MEMBER = false;
+
+const defaultMemberUser: UserInfo = {
+  id: '1',
+  name: 'SpacePup',
+  email: 'sparky@petsgo.ai',
+  isPremium: true,
+  premiumExpireAt: '2026-04-24',
+};
+
 export const useUserStore = create<UserState>(set => ({
-  isLoggedIn: false,
-  token: null,
-  user: null,
+  isLoggedIn: DEMO_MEMBER,
+  token: DEMO_MEMBER ? 'demo' : null,
+  user: DEMO_MEMBER ? defaultMemberUser : null,
 
   setToken: token => set({ token, isLoggedIn: !!token }),
   setUser: user => set({ user }),

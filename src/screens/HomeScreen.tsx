@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: COLORS.accent,
-    fontFamily: 'Pacifico-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 18,
     fontWeight: '400',
     left: 16,
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   proText: {
     alignItems: 'center',
     color: COLORS.accent,
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '700',
     justifyContent: 'center',
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   tabEffects: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     fontWeight: '700',
     height: 14,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   tabFeed: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     fontWeight: '700',
     height: 14,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.accent,
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 36,
     fontWeight: '700',
     height: 72,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   subtitle: {
     alignItems: 'center',
     color: '#3a4a65',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     fontWeight: '400',
     height: 14,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   cardUsername1: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   cardLikeCount1: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   cardUsername2: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   cardLikeCount2: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   cardUsername3: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   cardLikeCount3: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   cardUsername4: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   cardLikeCount4: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   cardUsername5: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   cardLikeCount5: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   cardUsername6: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Bold',
+    fontFamily: 'Space Grotesk',
     fontSize: 12,
     fontWeight: '700',
     height: 12,
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
   cardLikeCount6: {
     alignItems: 'center',
     color: '#ffffff',
-    fontFamily: 'Space Grotesk-Regular',
+    fontFamily: 'Space Grotesk',
     fontSize: 10,
     fontWeight: '400',
     height: 10,
@@ -804,6 +804,7 @@ const styles = StyleSheet.create({
     height: 12,
   },
   cardLikeCountInside: {
+    fontFamily: 'Space Grotesk',
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '400',
@@ -861,6 +862,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bottomNavPlusText: {
+    fontFamily: 'Space Grotesk',
     color: '#ffffff',
     fontSize: 24,
     fontWeight: '600',

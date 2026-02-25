@@ -17,7 +17,7 @@ export function RootNavigator() {
       screenOptions={{
         headerStyle: { backgroundColor: '#f5f5f5' },
         headerTintColor: '#333',
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontFamily: 'Space Grotesk', fontWeight: '600' },
       }}
     >
       <Stack.Screen
@@ -33,7 +33,7 @@ export function RootNavigator() {
           title: 'Settings',
           headerLeft: () => (
             <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 22 }}>←</Text>
+              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
           headerStyle: { backgroundColor: '#0f1419' },
@@ -48,7 +48,7 @@ export function RootNavigator() {
           title: 'Edit',
           headerLeft: () => (
             <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 22 }}>←</Text>
+              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
           headerStyle: { backgroundColor: '#0f1419' },
@@ -73,7 +73,7 @@ export function RootNavigator() {
           title: 'Feedback',
           headerLeft: () => (
             <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 22 }}>←</Text>
+              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
           headerStyle: { backgroundColor: '#0f1419' },

@@ -70,10 +70,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     minHeight: 160,
+    fontFamily: 'Space Grotesk',
     fontSize: 16,
     color: TEXT_MAIN,
   },
   hint: {
+    fontFamily: 'Space Grotesk',
     marginTop: 12,
     fontSize: 14,
     color: TEXT_MUTED,
@@ -86,6 +88,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitBtnText: {
+    fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
     color: TEXT_MAIN,
