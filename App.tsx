@@ -14,7 +14,6 @@ import { RootNavigator } from './src/routes';
 
 function App() {
   const systemDark = useColorScheme() === 'dark';
-  const isDarkMode = useAppStore(state => state.isDarkMode);
   const setDarkMode = useAppStore(state => state.setDarkMode);
 
   useEffect(() => {
@@ -23,7 +22,7 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle="light-content" backgroundColor="#050a14" />
       <NavigationContainer>
         <RootNavigator />
       </NavigationContainer>

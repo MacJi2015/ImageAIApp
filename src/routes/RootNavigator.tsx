@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabs } from './MainTabs';
-import { DetailScreen } from '../screens/DetailScreen';
+import { DetailsScreen } from '../screens/Details';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,7 +20,7 @@ export function RootNavigator() {
         component={MainTabs}
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="Detail" component={DetailScreen} options={{ title: '详情' }} />
+      <Stack.Screen name="Detail" component={DetailsScreen}  options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
