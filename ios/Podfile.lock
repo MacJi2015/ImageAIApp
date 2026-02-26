@@ -1,9 +1,6 @@
 PODS:
-<<<<<<< HEAD
-=======
   - BVLinearGradient (2.8.3):
     - React-Core
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   - FBLazyVector (0.84.0)
   - hermes-engine (250829098.0.7):
     - hermes-engine/Pre-built (= 250829098.0.7)
@@ -1405,6 +1402,28 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+  - react-native-image-picker (8.2.1):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.6.2):
     - hermes-engine
     - RCTRequired
@@ -1949,8 +1968,6 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-<<<<<<< HEAD
-=======
     - Yoga
   - RNSVG (15.15.3):
     - hermes-engine
@@ -1996,15 +2013,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
     - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
-<<<<<<< HEAD
-=======
   - BVLinearGradient (from `../node_modules/react-native-linear-gradient`)
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2044,6 +2057,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2082,18 +2096,12 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNScreens (from `../node_modules/react-native-screens`)
-<<<<<<< HEAD
-  - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
-
-EXTERNAL SOURCES:
-=======
   - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 EXTERNAL SOURCES:
   BVLinearGradient:
     :path: "../node_modules/react-native-linear-gradient"
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2171,6 +2179,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-webview:
@@ -2253,12 +2263,9 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-<<<<<<< HEAD
-=======
   BVLinearGradient: 880f91a7854faff2df62518f0281afb1c60d49a3
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
   FBLazyVector: c12d2108050e27952983d565a232f6f7b1ad5e69
-  hermes-engine: 9301b6ce3396af41ef1fc0fdfc0de6fb5bd08c84
+  hermes-engine: e0812c5cae9977730cc2fa6edfb696e427a215da
   RCTDeprecation: 3280799c14232a56e5a44f92981a8ee33bc69fd9
   RCTRequired: 9854a51b0f65ccf43ea0b744df4d70fce339db32
   RCTSwiftUI: 96986e49a4fdc2c2103929dee2641e1b57edf33d
@@ -2267,7 +2274,7 @@ SPEC CHECKSUMS:
   React: 7ef36630d07638043a134a7dd2ec17e0be10fc3c
   React-callinvoker: af4e8fe1d60ab63dd8d74c2a68988064c2848954
   React-Core: c0fb1df65eb0ed7a8633841831f05f93c3eb3aff
-  React-Core-prebuilt: b89a5c9d7297a912bd70ec3dbf42273023d24aca
+  React-Core-prebuilt: b7ef8f7e9ee4ff90e3af1f2402d25cbbfccf882b
   React-CoreModules: 7dfe7962360355f1547c85ab52e1fc4b57f17127
   React-cxxreact: 9e9c7f1710bc58abebf924813b5e825b99adb8e5
   React-debug: 38389b86e3570558ec73dd4cbc0cd2f2eec47a51
@@ -2295,6 +2302,7 @@ SPEC CHECKSUMS:
   React-logger: e40cc24a61d3a54c09bf4e83d5556b3b9d4c90aa
   React-Mapbuffer: 53f28c81b84767a0b2fb4c0109dd7e4571226f76
   React-microtasksnativemodule: ddaf25a8d69f694bc880fb6055e34d79f1d50138
+  react-native-image-picker: 7793e84ad7b802351cf687c18bb42ad30150b29b
   react-native-safe-area-context: 53f796cb6c814661bbe99fbdfd0585d07b996cdd
   react-native-webview: a0107c12442bf2ac454d509f615daef00f34df47
   React-NativeModulesApple: 14a8919451154ede904f2bca84b27703a09028ba
@@ -2330,16 +2338,12 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 625d2f6d9d5ef01acc9dfe2b5385504bbffd2ad0
   ReactCodegen: 27937747ddc743fcb66a8dc19e8edf60188d94cc
   ReactCommon: cc0e38600f82487c5fe5d29150abb6fa9d981986
-  ReactNativeDependencies: b28671c52762975ccfcc8a79e9dc0a201066abdf
+  ReactNativeDependencies: afee8e62101e4aae2d20f1ec7ff669a7234a3ef7
   RNGestureHandler: 6d378fd1aa991c7ab62a4215ee6cc417895a6954
   RNScreens: fb11b7412bcbdc0ffafcaf9174938d998d4e2bc4
-<<<<<<< HEAD
-  Yoga: 0a3b1e85da3524bdc3e0161818c8881ad363f97b
-=======
   RNSVG: 13970bfde0ea9c9e10e01ab0d7b4a6cde11fca1b
   Yoga: 772166513f9cd2d61a6251d0dacbbfaa5b537479
->>>>>>> 819dba4d08d8567292e87dd817c59e8224525f86
 
 PODFILE CHECKSUM: ff734f770f80c8960182b49f5c2d9b9d6bcca0db
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2
