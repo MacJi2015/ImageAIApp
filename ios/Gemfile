@@ -1,0 +1,8 @@
+# 固定 CocoaPods 与 Ruby 依赖，避免系统环境缺 gem
+source 'https://rubygems.org'
+
+# Ruby 3.4 将 kconv 移出标准库，kconv 由 nkf gem 提供，CFPropertyList/xcodeproj 依赖
+gem 'nkf'
+
+gem 'cocoapods', '~> 1.16'
+gem 'minitest', '>= 5.1'

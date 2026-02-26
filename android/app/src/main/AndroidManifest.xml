@@ -1,5 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- SDK 30+ 包可见性：react-native-share shareSingle 调起社交应用 -->
+    <queries>
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.twitter.android" />
+        <package android:name="com.zhiliaoapp.musically" />
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application

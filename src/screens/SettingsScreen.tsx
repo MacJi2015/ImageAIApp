@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '../store';
+import { setAuthToken } from '../api/request';
+import { clearAuth } from '../services/authStorage';
 
 const BG = '#0f1419';
 /** 设计稿列表背景： #303E57 20% 透明度 */
@@ -120,7 +122,9 @@ export function SettingsScreen() {
     [navigation, openUrl]
   );
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await clearAuth();
+    setAuthToken(null);
     logout();
     navigation.goBack();
   };

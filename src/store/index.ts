@@ -1,5 +1,5 @@
 export { useAppStore } from './useAppStore';
-export type { AppState } from './useAppStore';
+export type { AppState, SharePayload } from './useAppStore';
 
 export { useUserStore } from './useUserStore';
 export type { UserState, UserInfo } from './useUserStore';

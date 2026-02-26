@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUserStore } from '../store';
+import { useUserStore, useAppStore } from '../store';
 
 const settingsIcon = require('../assets/my/settings.png');
 const editIcon = require('../assets/my/edit.png');
@@ -47,6 +47,9 @@ export function MyScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const user = useUserStore(state => state.user);
+  const isLoggedIn = useUserStore(state => state.isLoggedIn);
+  const openLoginModal = useAppStore(state => state.openLoginModal);
+  const openShareModal = useAppStore(state => state.openShareModal);
   const gap = 8;
   const colCount = 3;
   const cellSize = (width - 24 - gap * (colCount - 1)) / colCount;
@@ -142,8 +145,8 @@ export function MyScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* 头像 */}
-        <View style={styles.avatarWrap}>
+        {/* 头像：点击弹出登录弹窗 */}
+        <Pressable style={styles.avatarWrap} onPress={openLoginModal}>
           <View style={styles.avatarCircle}>
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
@@ -153,11 +156,11 @@ export function MyScreen() {
           </View>
           <Pressable
             style={styles.editAvatarBtn}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={(e) => { e.stopPropagation(); navigation.navigate('EditProfile'); }}
           >
             <Image source={editIcon} style={styles.editAvatarIconImage} resizeMode="contain" />
           </Pressable>
-        </View>
+        </Pressable>
 
         <View style={styles.userNameRow}>
           <Text style={styles.userName}>{displayName}</Text>
@@ -187,8 +190,11 @@ export function MyScreen() {
           ))}
         </View>
 
-        {/* 免费版：GET PREMIUM；会员版：RENEW NOW + X days remaining */}
-        <Pressable style={styles.premiumBtn}>
+        {/* 免费版：GET PREMIUM；会员版：RENEW NOW + X days remaining；点击弹出分享 */}
+        <Pressable
+          style={styles.premiumBtn}
+          onPress={() => openShareModal({ title: 'ImageAI', message: 'Turn your pets into superstar!' })}
+        >
           <Image source={vipIcon} style={styles.premiumIconImage} resizeMode="contain" />
           <View style={styles.premiumTextWrap}>
             <Text style={styles.premiumText} numberOfLines={1}>

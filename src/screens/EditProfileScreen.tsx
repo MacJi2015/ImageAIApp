@@ -9,8 +9,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import CloseIcon from '../assets/details/close-icon.svg';
+import CameraIcon from '../assets/details/camera.svg';
+import PhotoIcon from '../assets/details/photo.svg';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +31,12 @@ const SAVE_BG = '#22c4c4';
 const ACCENT_CYAN = '#00d4ff';
 const MODAL_BG = '#0f1419';
 const CARD_BG = 'rgba(26, 35, 50, 0.95)';
+
+const AVATAR_MODAL_COLORS = {
+  card: '#09111f',
+  accent: '#00ffff',
+  muted: '#3a4a65',
+};
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
@@ -92,36 +102,59 @@ export function EditProfileScreen() {
       <Modal
         visible={showAvatarModal}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowAvatarModal(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowAvatarModal(false)}
-        >
-          <Pressable style={styles.modalDialog} onPress={e => e.stopPropagation()}>
-            <Pressable
-              style={styles.modalCloseBtn}
-              onPress={() => setShowAvatarModal(false)}
+        <View style={styles.avatarModalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowAvatarModal(false)}
+          />
+          <View
+            style={[styles.avatarModalPanel, { paddingBottom: insets.bottom + 24 }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.avatarModalHeader}>
+              <TouchableOpacity
+                style={styles.avatarModalCloseBtn}
+                onPress={() => setShowAvatarModal(false)}
+                activeOpacity={0.8}
+              >
+                <CloseIcon width={14} height={14} />
+              </TouchableOpacity>
+              <View style={styles.avatarModalCloseBtn} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.avatarModalOptionRow}
+              activeOpacity={0.8}
+              onPress={openGallery}
             >
-              <Text style={styles.modalCloseText}>✕</Text>
-            </Pressable>
-            <Pressable style={styles.modalOptionCard} onPress={openGallery}>
-              <Text style={styles.modalOptionIcon}>🖼</Text>
-              <View style={styles.modalOptionTextWrap}>
-                <Text style={styles.modalOptionTitle}>Choose from Gallery</Text>
-                <Text style={styles.modalOptionSubtitle}>Browse files</Text>
+              <View style={styles.avatarModalOptionIconWrap}>
+                <PhotoIcon width={24} height={24} />
               </View>
-            </Pressable>
-            <Pressable style={styles.modalOptionCard} onPress={openCamera}>
-              <Text style={styles.modalOptionIcon}>📷</Text>
-              <View style={styles.modalOptionTextWrap}>
-                <Text style={styles.modalOptionTitle}>Take a Photo</Text>
-                <Text style={styles.modalOptionSubtitle}>Use Camera</Text>
+              <View style={styles.avatarModalOptionTextWrap}>
+                <Text style={styles.avatarModalOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.avatarModalOptionSub}>Browse files</Text>
               </View>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.avatarModalOptionRow}
+              activeOpacity={0.8}
+              onPress={openCamera}
+            >
+              <View style={styles.avatarModalOptionIconWrap}>
+                <CameraIcon width={24} height={24} />
+              </View>
+              <View style={styles.avatarModalOptionTextWrap}>
+                <Text style={styles.avatarModalOptionTitle}>Take a Photo</Text>
+                <Text style={styles.avatarModalOptionSub}>Use Camera</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       <KeyboardAvoidingView
@@ -235,68 +268,68 @@ const styles = StyleSheet.create({
     color: TEXT_MAIN,
     letterSpacing: 0.5,
   },
-  modalOverlay: {
+  avatarModalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
   },
-  modalDialog: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: MODAL_BG,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: ACCENT_CYAN,
-    padding: 20,
-    paddingTop: 44,
+  avatarModalPanel: {
+    backgroundColor: AVATAR_MODAL_COLORS.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,255,255,0.2)',
+    borderBottomWidth: 0,
   },
-  modalCloseBtn: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(48, 62, 87, 0.6)',
-    borderWidth: 1,
-    borderColor: ACCENT_CYAN,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseText: {
-    color: TEXT_MAIN,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  modalOptionCard: {
+  avatarModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CARD_BG,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: ACCENT_CYAN,
-    padding: 16,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  modalOptionIcon: {
-    fontSize: 28,
-    marginRight: 14,
+  avatarModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalOptionTextWrap: {
-    flex: 1,
+  avatarModalOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 72,
+    backgroundColor: AVATAR_MODAL_COLORS.card,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,255,255,0.2)',
+    paddingLeft: 12,
+    marginBottom: 8,
   },
-  modalOptionTitle: {
-    fontFamily: 'Space Grotesk',
+  avatarModalOptionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,255,255,0.05)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,255,255,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarModalOptionTextWrap: {
+    marginLeft: 16,
+  },
+  avatarModalOptionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: TEXT_MAIN,
+    fontWeight: '400',
+    color: '#ffffff',
+    marginBottom: 2,
   },
-  modalOptionSubtitle: {
-    fontFamily: 'Space Grotesk',
-    fontSize: 13,
-    color: TEXT_MUTED,
-    marginTop: 2,
+  avatarModalOptionSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: AVATAR_MODAL_COLORS.muted,
   },
 });

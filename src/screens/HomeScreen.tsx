@@ -4,6 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image, ImageSourcePropType, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../routes/types';
+import { useAppStore, useUserStore } from '../store';
 import image1 from './image.png';
 import image2 from './image-2.png';
 import logoIcon from '../assets/logo-icon.png';
@@ -29,11 +30,22 @@ const EFFECT_VIEW_COUNT = '1.2M';
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const insets = useSafeAreaInsets();
+  const openLoginModal = useAppStore(s => s.openLoginModal);
+  const isLoggedIn = useUserStore(s => s.isLoggedIn);
   const [activeTab, setActiveTab] = React.useState<'effects' | 'feed'>('feed');
   const [liked, setLiked] = React.useState<boolean[]>(Array(6).fill(false));
   /** 吸顶阈值：当滚动超过该高度时显示吸顶栏（Logo + Tab） */
   const [stickyThreshold, setStickyThreshold] = React.useState(0);
   const [showStickyHeader, setShowStickyHeader] = React.useState(false);
+
+  const handleLikePress = (index: number, e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    toggleLike(index);
+  };
 
   const toggleLike = (index: number) => {
     setLiked(prev => {
@@ -121,7 +133,7 @@ export function HomeScreen() {
           <Image source={FEED_CARD_SOURCES[i]} style={styles.cardImage} resizeMode="cover" />
           <TouchableOpacity
             style={[styles.cardLikeBadge, styles.cardLikeBadgeRow]}
-            onPress={e => { e.stopPropagation(); toggleLike(i); }}
+            onPress={e => handleLikePress(i, e)}
             activeOpacity={0.8}
           >
             <Image source={liked[i] ? likeSelectedIcon : likeDefaultIcon} style={styles.cardLikeIconSize} resizeMode="contain" />
@@ -143,7 +155,7 @@ export function HomeScreen() {
           <Image source={FEED_CARD_SOURCES[i]} style={styles.cardImage} resizeMode="cover" />
           <TouchableOpacity
             style={[styles.cardLikeBadgeRight, styles.cardLikeBadgeRow]}
-            onPress={e => { e.stopPropagation(); toggleLike(i); }}
+            onPress={e => handleLikePress(i, e)}
             activeOpacity={0.8}
           >
             <Image source={liked[i] ? likeSelectedIcon : likeDefaultIcon} style={styles.cardLikeIconSize} resizeMode="contain" />
