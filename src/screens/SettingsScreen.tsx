@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '../store';
 import { setAuthToken } from '../api/request';
+import { logoutApi } from '../api/services/user';
 import { clearAuth } from '../services/authStorage';
 
 const BG = '#0f1419';
@@ -123,10 +124,16 @@ export function SettingsScreen() {
   );
 
   const handleLogout = async () => {
-    await clearAuth();
-    setAuthToken(null);
-    logout();
-    navigation.goBack();
+    try {
+      await logoutApi();
+      await clearAuth();
+      setAuthToken(null);
+      logout();
+      navigation.goBack();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '退出失败，请重试';
+      Alert.alert('退出失败', msg, [{ text: '知道了' }]);
+    }
   };
 
   return (

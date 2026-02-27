@@ -5,6 +5,7 @@ import {
   useIAP,
   purchaseUpdatedListener,
   purchaseErrorListener,
+  getReceiptIOS,
 } from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
@@ -28,6 +29,9 @@ import {
   shareToTikTok,
 } from '../services/shareToSocial';
 import { getSubscriptionSku, getIAPErrorMessage, type IAPPlanId } from '../services/iap';
+import { setOn401 } from '../api';
+import { refreshTokenAndApply } from '../api/services/user';
+import { purchaseSubscription } from '../api/services/appleSubscription';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -78,18 +82,45 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const closePremiumModalRef = useRef(closePremiumModal);
   closePremiumModalRef.current = closePremiumModal;
 
+  // token 失效时尝试刷新并重试请求
+  useEffect(() => {
+    setOn401(() => refreshTokenAndApply().then(() => true).catch(() => false));
+    return () => setOn401(null);
+  }, []);
+
   // 拉取订阅商品（仅 iOS 需在 App Store Connect 配置对应产品 ID）
   useEffect(() => {
     if (!connected || Platform.OS !== 'ios') return;
     fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' }).catch(() => {});
   }, [connected, fetchProducts]);
 
-  // 监听购买成功：完成交易、更新会员状态、关闭弹窗
+  // 监听购买成功：完成交易、上报后端购买/续费、更新会员状态、关闭弹窗
   useEffect(() => {
     const subUpdate = purchaseUpdatedListener(async (purchase) => {
       try {
         await finishTransaction({ purchase });
         const currentUser = useUserStore.getState().user;
+        const appleId = currentUser?.id ?? '';
+        if (Platform.OS === 'ios' && appleId) {
+          let receiptData = '';
+          try {
+            receiptData = await getReceiptIOS();
+          } catch {
+            await new Promise<void>(resolve => setTimeout(resolve, 1500));
+            try {
+              receiptData = await getReceiptIOS();
+            } catch (_) {
+              __DEV__ && console.warn('[IAP] getReceiptIOS failed, still updating local state');
+            }
+          }
+          if (receiptData) {
+            try {
+              await purchaseSubscription(appleId, receiptData);
+            } catch (e) {
+              __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
+            }
+          }
+        }
         if (currentUser) {
           const expireAt = new Date();
           expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
@@ -101,7 +132,6 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         }
         closePremiumModalRef.current();
       } catch (e) {
-        // 已完成的交易可能报错，仍关闭弹窗
         closePremiumModalRef.current();
       }
     });

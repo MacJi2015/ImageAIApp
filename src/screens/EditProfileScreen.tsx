@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -19,6 +20,8 @@ import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '../store';
+import { uploadImage } from '../api/services/upload';
+import { updateProfile } from '../api/services/user';
 
 const defaultAvatar = require('../assets/my/topimage.png');
 const imgselectedIcon = require('../assets/my/imgselected.png');
@@ -46,6 +49,8 @@ export function EditProfileScreen() {
 
   const [username, setUsername] = useState(user?.name ?? 'SpacePup');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setUsername(user?.name ?? 'SpacePup');
@@ -53,14 +58,39 @@ export function EditProfileScreen() {
 
   const avatarUri = user?.avatar;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = username.trim() || 'SpacePup';
-    setUser(user ? { ...user, name: trimmed } : { id: '1', name: trimmed });
-    navigation.goBack();
+    setSaving(true);
+    try {
+      await updateProfile({
+        name: trimmed,
+        userAvatar: user?.avatar ?? undefined,
+      });
+      setUser(user ? { ...user, name: trimmed, avatar: user.avatar } : { id: '1', name: trimmed, avatar: user?.avatar });
+      navigation.goBack();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '保存失败，请重试';
+      Alert.alert('保存失败', msg, [{ text: '知道了' }]);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setAvatarUri = (uri: string) => {
     setUser(user ? { ...user, avatar: uri } : { id: '1', name: 'SpacePup', avatar: uri });
+  };
+
+  const uploadAndSetAvatar = async (localUri: string) => {
+    setUploading(true);
+    try {
+      const { url } = await uploadImage(localUri);
+      if (url) setAvatarUri(url);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '上传失败，请重试';
+      Alert.alert('上传失败', msg, [{ text: '知道了' }]);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const openGallery = () => {
@@ -74,7 +104,7 @@ export function EditProfileScreen() {
           return;
         }
         const uri = res.assets?.[0]?.uri;
-        if (uri) setAvatarUri(uri);
+        if (uri) uploadAndSetAvatar(uri);
       }
     );
   };
@@ -90,7 +120,7 @@ export function EditProfileScreen() {
           return;
         }
         const uri = res.assets?.[0]?.uri;
-        if (uri) setAvatarUri(uri);
+        if (uri) uploadAndSetAvatar(uri);
       }
     );
   };
@@ -157,6 +187,13 @@ export function EditProfileScreen() {
         </View>
       </Modal>
 
+      {uploading && (
+        <View style={styles.uploadingOverlay}>
+          <ActivityIndicator size="large" color={SAVE_BG} />
+          <Text style={styles.uploadingText}>上传中...</Text>
+        </View>
+      )}
+
       <KeyboardAvoidingView
         style={[styles.container, { paddingBottom: insets.bottom }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -191,8 +228,13 @@ export function EditProfileScreen() {
       <Pressable
         style={[styles.saveBtn, { marginBottom: insets.bottom + 40 }]}
         onPress={handleSave}
+        disabled={saving}
       >
-        <Text style={styles.saveBtnText}>SAVE</Text>
+        {saving ? (
+          <ActivityIndicator size="small" color={TEXT_MAIN} />
+        ) : (
+          <Text style={styles.saveBtnText}>SAVE</Text>
+        )}
       </Pressable>
     </KeyboardAvoidingView>
     </>
@@ -267,6 +309,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TEXT_MAIN,
     letterSpacing: 0.5,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 10,
+  },
+  uploadingText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 14,
+    color: TEXT_MAIN,
   },
   avatarModalBackdrop: {
     flex: 1,

@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -10,9 +11,11 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore, useAppStore } from '../store';
+import { getMyVideos, type AppVideoTask } from '../api/services/video';
+import { getProfile, profileToUserInfo } from '../api/services/user';
 
 const settingsIcon = require('../assets/my/settings.png');
 const editIcon = require('../assets/my/edit.png');
@@ -27,26 +30,14 @@ const ACCENT = '#58a6ff';
 const PREMIUM_BG = '#e6d5b8';
 const PREMIUM_TEXT = '#2d2318';
 
-const STATS_BASE = [
-  { value: '124', label: 'VIDEOS' },
-  { value: '23', label: 'LIKES' },
-];
-
-// 示例网格数据（可后续接真实数据）
-const GRID_ITEMS = [
-  { id: '1', type: 'image', title: null, date: '2024-05-18' },
-  { id: '2', type: 'image', title: null, date: '2024-05-18' },
-  { id: '3', type: 'image', title: null, date: '2024-05-18' },
-  { id: '4', type: 'image', title: null, date: '2024-05-18' },
-  { id: '5', type: 'placeholder', title: 'PetTales', date: '2024-05-18' },
-  { id: '6', type: 'empty', title: null, date: null },
-];
+const STATS_LIKES = { value: '23', label: 'LIKES' };
 
 export function MyScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const user = useUserStore(state => state.user);
+  const setUser = useUserStore(state => state.setUser);
   const isLoggedIn = useUserStore(state => state.isLoggedIn);
   const openLoginModal = useAppStore(state => state.openLoginModal);
   const openShareModal = useAppStore(state => state.openShareModal);
@@ -68,14 +59,70 @@ export function MyScreen() {
         )
       : 0;
 
+  const [videoList, setVideoList] = useState<AppVideoTask[]>([]);
+  const [videoTotal, setVideoTotal] = useState(0);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [pageNum, setPageNum] = useState(1);
+  const [totalPage, setTotalPage] = useState(0);
+  const PAGE_SIZE = 20;
+
+  const loadMyVideos = useCallback(async (page: number = 1, append = false) => {
+    if (!isLoggedIn) return;
+    setVideoLoading(true);
+    setVideoError(null);
+    try {
+      const res = await getMyVideos({ pageNum: page, pageSize: PAGE_SIZE });
+      setTotalPage(res.totalPage);
+      setVideoTotal(res.totalRecord);
+      setPageNum(page);
+      setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '加载失败，请重试';
+      setVideoError(msg);
+      if (!append) setVideoList([]);
+    } finally {
+      setVideoLoading(false);
+    }
+  }, [isLoggedIn]);
+
+  /** 进入页面时：已登录则拉取用户基本信息并同步到 store，同时拉取视频列表 */
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoggedIn) return;
+      (async () => {
+        try {
+          const profile = await getProfile();
+          const base = profileToUserInfo(profile);
+          const current = useUserStore.getState().user;
+          setUser({
+            ...base,
+            isPremium: current?.isPremium,
+            premiumExpireAt: current?.premiumExpireAt,
+          });
+        } catch (_) {
+          // 静默失败，继续用 store 内已有信息
+        }
+      })();
+      loadMyVideos(1, false);
+    }, [isLoggedIn, loadMyVideos, setUser])
+  );
+
+  const loadMore = useCallback(() => {
+    if (videoLoading || pageNum >= totalPage || !isLoggedIn) return;
+    loadMyVideos(pageNum + 1, true);
+  }, [videoLoading, pageNum, totalPage, isLoggedIn, loadMyVideos]);
+
   const statsItems =
     isPremium
       ? [
-          ...STATS_BASE,
+          { value: String(videoTotal), label: 'VIDEOS' },
+          STATS_LIKES,
           { value: `${daysRemaining} Left`, label: 'PRO MEMBER' },
         ]
       : [
-          ...STATS_BASE,
+          { value: String(videoTotal), label: 'VIDEOS' },
+          STATS_LIKES,
           { value: '3 Left', label: 'FREE PLAN' },
         ];
 
@@ -234,32 +281,67 @@ export function MyScreen() {
           </View>
         </Pressable>
 
-        {/* 内容网格 */}
+        {/* 用户创作的视频列表 */}
         <View style={[styles.grid, { marginTop: 24 }]}>
-          {GRID_ITEMS.map((item, index) => (
-            <View
-              key={item.id}
-              style={[
-                styles.gridItem,
-                {
-                  width: cellSize,
-                  height: cellSize,
-                  marginRight: index % colCount === colCount - 1 ? 0 : gap,
-                  marginBottom: gap,
-                },
-              ]}
-            >
-              {item.type === 'empty' ? null : item.type === 'placeholder' ? (
-                <Text style={styles.gridPlaceholderText}>{item.title}</Text>
-              ) : (
-                <View style={styles.gridImagePlaceholder} />
-              )}
-              {item.date ? (
-                <Text style={styles.gridDate}>{item.date}</Text>
-              ) : null}
+          {!isLoggedIn ? null : videoError ? (
+            <Text style={styles.gridEmptyText}>{videoError}</Text>
+          ) : videoLoading && videoList.length === 0 ? (
+            <View style={styles.gridLoadingWrap}>
+              <ActivityIndicator size="large" color={ACCENT} />
+              <Text style={styles.gridEmptyText}>加载中...</Text>
             </View>
-          ))}
+          ) : (
+            <>
+              {videoList.map((item, index) => {
+                const dateStr = item.createdTime
+                  ? new Date(item.createdTime).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                  : '';
+                const statusText = item.status === 'PROCESSING' ? '生成中' : item.status === 'PENDING' ? '待处理' : item.status === 'FAILED' ? '失败' : '';
+                return (
+                  <Pressable
+                    key={item.id ?? item.taskId ?? index}
+                    style={[
+                      styles.gridItem,
+                      {
+                        width: cellSize,
+                        height: cellSize,
+                        marginRight: index % colCount === colCount - 1 ? 0 : gap,
+                        marginBottom: gap,
+                      },
+                    ]}
+                    onPress={() => item.videoUrl && item.status === 'SUCCESS' && navigation.navigate('Detail', { id: String(item.id), title: item.promptText ?? '视频' })}
+                  >
+                    {(item.thumbnailUrl || item.videoUrl) ? (
+                      <Image
+                        source={{ uri: item.thumbnailUrl || item.videoUrl }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.gridImagePlaceholder} />
+                    )}
+                    {statusText ? (
+                      <View style={styles.gridStatusBadge}>
+                        <Text style={styles.gridStatusText}>{statusText}</Text>
+                      </View>
+                    ) : null}
+                    {dateStr ? <Text style={styles.gridDate}>{dateStr}</Text> : null}
+                  </Pressable>
+                );
+              })}
+              {videoLoading && videoList.length > 0 && (
+                <View style={[styles.gridItem, { width: cellSize, height: cellSize, justifyContent: 'center', alignItems: 'center' }]}>
+                  <ActivityIndicator size="small" color={ACCENT} />
+                </View>
+              )}
+            </>
+          )}
         </View>
+        {isLoggedIn && videoList.length > 0 && pageNum < totalPage && !videoLoading && (
+          <Pressable style={styles.loadMoreBtn} onPress={loadMore}>
+            <Text style={styles.gridLoadMoreText}>加载更多</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -509,5 +591,45 @@ const styles = StyleSheet.create({
     fontFamily: 'Space Grotesk',
     fontSize: 11,
     color: 'rgba(255,255,255,0.8)',
+  },
+  gridEmptyText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 14,
+    color: TEXT_MUTED,
+    alignSelf: 'center',
+    marginTop: 24,
+  },
+  gridLoadingWrap: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  gridStatusBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  gridStatusText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 10,
+    color: '#fff',
+  },
+  loadMoreBtn: {
+    alignSelf: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  gridLoadMoreText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 12,
+    color: TEXT_MUTED,
   },
 });

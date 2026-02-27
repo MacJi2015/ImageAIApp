@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUserStore } from '../store/useUserStore';
+import { submitFeedback } from '../api/services/feedback';
 
 const BG = '#0f1419';
 const INPUT_BG = '#1a2332';
@@ -21,11 +25,30 @@ const PLACEHOLDER =
 
 export function FeedbackScreen() {
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
+  const user = useUserStore((s) => s.user);
+  const [issue, setIssue] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    // TODO: 调用反馈接口或发邮件
-    setText('');
+  const handleSubmit = async () => {
+    const trimmed = issue.trim();
+    if (!trimmed) {
+      Alert.alert('提示', '请填写问题描述');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitFeedback({
+        issue: trimmed,
+        email: user?.email ?? undefined,
+      });
+      setIssue('');
+      Alert.alert('提交成功', '我们会尽快通过邮件回复您。', [{ text: '知道了' }]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '提交失败，请重试';
+      Alert.alert('提交失败', msg, [{ text: '知道了' }]);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -36,19 +59,25 @@ export function FeedbackScreen() {
     >
       <View style={styles.content}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, styles.inputIssue]}
           placeholder={PLACEHOLDER}
           placeholderTextColor={TEXT_MUTED}
-          value={text}
-          onChangeText={setText}
+          value={issue}
+          onChangeText={setIssue}
           multiline
           textAlignVertical="top"
+          editable={!submitting}
         />
-        <Text style={styles.hint}>
-          We will reply to your email within 1-2 business days.
-        </Text>
-        <Pressable style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitBtnText}>SUBMIT</Text>
+        <Pressable
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color={TEXT_MAIN} />
+          ) : (
+            <Text style={styles.submitBtnText}>SUBMIT</Text>
+          )}
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -69,16 +98,12 @@ const styles = StyleSheet.create({
     backgroundColor: INPUT_BG,
     borderRadius: 12,
     padding: 16,
-    minHeight: 160,
     fontFamily: 'Space Grotesk',
     fontSize: 16,
     color: TEXT_MAIN,
   },
-  hint: {
-    fontFamily: 'Space Grotesk',
-    marginTop: 12,
-    fontSize: 14,
-    color: TEXT_MUTED,
+  inputIssue: {
+    minHeight: 160,
   },
   submitBtn: {
     marginTop: 24,
@@ -93,5 +118,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TEXT_MAIN,
     letterSpacing: 0.5,
+  },
+  submitBtnDisabled: {
+    opacity: 0.7,
   },
 });

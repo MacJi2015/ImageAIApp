@@ -3,9 +3,17 @@ import { ApiError, ApiResponse, RequestConfig } from './types';
 
 let authToken: string | null = null;
 
+/** 401 时尝试刷新 token 的回调，返回 true 表示刷新成功可重试 */
+let on401Callback: (() => Promise<boolean>) | null = null;
+
 /** 设置鉴权 token，请求时会自动带在 Header Authorization 中 */
 export const setAuthToken = (token: string | null) => {
   authToken = token;
+};
+
+/** 设置 401 回调：token 失效时先执行刷新再重试一次请求 */
+export const setOn401 = (cb: (() => Promise<boolean>) | null) => {
+  on401Callback = cb;
 };
 
 /** 获取当前请求使用的 baseURL */
@@ -60,18 +68,37 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
   const fetchPromise = fetch(url, init);
   const racePromise = timeout > 0 ? Promise.race([fetchPromise, timeoutPromise(timeout)]) : fetchPromise;
 
-  const response = (await racePromise) as Response;
-  const contentType = response.headers.get('content-type') || '';
-  const isJson = contentType.includes('application/json');
-  const raw = isJson ? await response.json().catch(() => ({})) : await response.text();
+  let response = (await racePromise) as Response;
+  let contentType = response.headers.get('content-type') || '';
+  let isJson = contentType.includes('application/json');
+  let raw: unknown = isJson ? await response.json().catch(() => ({})) : await response.text();
 
   if (!response.ok) {
-    const message = isJson && typeof raw === 'object' && raw && 'message' in raw
-      ? String((raw as { message?: string }).message)
-      : raw && typeof raw === 'string'
-        ? raw
-        : `请求失败 ${response.status}`;
-    throw new ApiError(message, (raw as ApiResponse)?.code ?? -1, response.status, raw);
+    if (response.status === 401 && on401Callback) {
+      const refreshed = await on401Callback();
+      if (refreshed) {
+        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...headers };
+        if (authToken) retryHeaders.Authorization = `Bearer ${authToken}`;
+        const retryInit: RequestInit = { method, headers: retryHeaders };
+        if (data !== undefined && method !== 'GET') {
+          retryInit.body = typeof data === 'string' ? data : JSON.stringify(data);
+        }
+        const retryPromise = fetch(url, retryInit);
+        const retryRace = timeout > 0 ? Promise.race([retryPromise, timeoutPromise(timeout)]) : retryPromise;
+        response = (await retryRace) as Response;
+        contentType = response.headers.get('content-type') || '';
+        isJson = contentType.includes('application/json');
+        raw = isJson ? await response.json().catch(() => ({})) : await response.text();
+      }
+    }
+    if (!response.ok) {
+      const message = isJson && typeof raw === 'object' && raw && 'message' in raw
+        ? String((raw as { message?: string }).message)
+        : raw && typeof raw === 'string'
+          ? raw
+          : `请求失败 ${response.status}`;
+      throw new ApiError(message, (raw as ApiResponse)?.code ?? -1, response.status, raw);
+    }
   }
 
   if (isJson && raw && typeof raw === 'object' && 'data' in raw) {
