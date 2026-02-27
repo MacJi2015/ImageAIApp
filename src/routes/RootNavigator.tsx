@@ -1,14 +1,19 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Linking, Pressable, Text } from 'react-native';
+import { Alert, Linking, Platform, Pressable, Text } from 'react-native';
+import {
+  useIAP,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+} from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, ShareModal } from '../components';
-import { useAppStore } from '../store';
+import { LoginModal, ShareModal, PremiumModal } from '../components';
+import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
   loginWithGoogle,
@@ -22,6 +27,7 @@ import {
   shareToX,
   shareToTikTok,
 } from '../services/shareToSocial';
+import { getSubscriptionSku, getIAPErrorMessage, type IAPPlanId } from '../services/iap';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -50,12 +56,69 @@ type RootNavigatorProps = {
   } | null>;
 };
 
+const SUBSCRIPTION_SKUS = [getSubscriptionSku('7d'), getSubscriptionSku('30d')];
+
 export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const showLoginModal = useAppStore(s => s.showLoginModal);
   const closeLoginModal = useAppStore(s => s.closeLoginModal);
   const showShareModal = useAppStore(s => s.showShareModal);
   const closeShareModal = useAppStore(s => s.closeShareModal);
   const sharePayload = useAppStore(s => s.sharePayload);
+  const showPremiumModal = useAppStore(s => s.showPremiumModal);
+  const closePremiumModal = useAppStore(s => s.closePremiumModal);
+  const setUser = useUserStore(s => s.setUser);
+
+  const {
+    connected,
+    requestPurchase,
+    finishTransaction,
+    fetchProducts,
+  } = useIAP();
+
+  const closePremiumModalRef = useRef(closePremiumModal);
+  closePremiumModalRef.current = closePremiumModal;
+
+  // 拉取订阅商品（仅 iOS 需在 App Store Connect 配置对应产品 ID）
+  useEffect(() => {
+    if (!connected || Platform.OS !== 'ios') return;
+    fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' }).catch(() => {});
+  }, [connected, fetchProducts]);
+
+  // 监听购买成功：完成交易、更新会员状态、关闭弹窗
+  useEffect(() => {
+    const subUpdate = purchaseUpdatedListener(async (purchase) => {
+      try {
+        await finishTransaction({ purchase });
+        const currentUser = useUserStore.getState().user;
+        if (currentUser) {
+          const expireAt = new Date();
+          expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+          setUser({
+            ...currentUser,
+            isPremium: true,
+            premiumExpireAt: expireAt.toISOString().slice(0, 10),
+          });
+        }
+        closePremiumModalRef.current();
+      } catch (e) {
+        // 已完成的交易可能报错，仍关闭弹窗
+        closePremiumModalRef.current();
+      }
+    });
+    const subError = purchaseErrorListener((error) => {
+      __DEV__ && console.warn('[IAP] purchase error', error?.code, error?.message);
+      const code = (error as { code?: string })?.code ?? '';
+      const msg = getIAPErrorMessage(code, (error as { message?: string })?.message);
+      if (code === 'user-cancelled' || code === 'canceled') {
+        return;
+      }
+      Alert.alert('订阅失败', msg, [{ text: '知道了' }]);
+    });
+    return () => {
+      subUpdate.remove();
+      subError.remove();
+    };
+  }, [finishTransaction, setUser]);
 
   const handleApple = useCallback(async () => {
     const ok = await loginWithApple();
@@ -186,6 +249,29 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       onInstagram={shareToInstagram}
       onX={shareToX}
       onTikTok={shareToTikTok}
+    />
+    <PremiumModal
+      visible={showPremiumModal}
+      onClose={closePremiumModal}
+      onSubscribe={async (planId: IAPPlanId) => {
+        if (Platform.OS !== 'ios') {
+          Alert.alert('提示', '当前仅支持在 iOS 设备上使用苹果支付。', [{ text: '知道了' }]);
+          return;
+        }
+        try {
+          await requestPurchase({
+            type: 'subs',
+            request: { apple: { sku: getSubscriptionSku(planId) } },
+          });
+        } catch (e: unknown) {
+          const err = e as { code?: string; message?: string };
+          Alert.alert(
+            '订阅失败',
+            getIAPErrorMessage(err?.code, err?.message ?? '请求支付时出错，请重试。'),
+            [{ text: '知道了' }]
+          );
+        }
+      }}
     />
     </>
   );

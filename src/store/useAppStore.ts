@@ -15,6 +15,8 @@ export interface AppState {
   /** 全局分享弹窗显隐，任意页面可 openShareModal(payload) */
   showShareModal: boolean;
   sharePayload: SharePayload | null;
+  /** 全局购买会员弹窗显隐，任意页面可 openPremiumModal() */
+  showPremiumModal: boolean;
   setDarkMode: (value: boolean) => void;
   setUserName: (name: string | null) => void;
   toggleTheme: () => void;
@@ -23,6 +25,8 @@ export interface AppState {
   closeLoginModal: () => void;
   openShareModal: (payload?: SharePayload) => void;
   closeShareModal: () => void;
+  openPremiumModal: () => void;
+  closePremiumModal: () => void;
 }
 
 export const useAppStore = create<AppState>(set => ({
@@ -31,6 +35,7 @@ export const useAppStore = create<AppState>(set => ({
   showLoginModal: false,
   showShareModal: false,
   sharePayload: null,
+  showPremiumModal: false,
 
   setDarkMode: value => set({ isDarkMode: value }),
   setUserName: name => set({ userName: name }),
@@ -40,4 +45,6 @@ export const useAppStore = create<AppState>(set => ({
   closeLoginModal: () => set({ showLoginModal: false }),
   openShareModal: payload => set({ showShareModal: true, sharePayload: payload ?? null }),
   closeShareModal: () => set({ showShareModal: false, sharePayload: null }),
+  openPremiumModal: () => set({ showPremiumModal: true }),
+  closePremiumModal: () => set({ showPremiumModal: false }),
 }));

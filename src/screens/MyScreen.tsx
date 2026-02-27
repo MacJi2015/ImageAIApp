@@ -50,6 +50,7 @@ export function MyScreen() {
   const isLoggedIn = useUserStore(state => state.isLoggedIn);
   const openLoginModal = useAppStore(state => state.openLoginModal);
   const openShareModal = useAppStore(state => state.openShareModal);
+  const openPremiumModal = useAppStore(state => state.openPremiumModal);
   const gap = 8;
   const colCount = 3;
   const cellSize = (width - 24 - gap * (colCount - 1)) / colCount;
@@ -172,22 +173,47 @@ export function MyScreen() {
         </View>
         <Text style={styles.userEmail}>{displayEmail}</Text>
 
-        {/* 统计栏：会员版第三项为 PRO MEMBER 且标签白色 */}
+        {/* 统计栏：会员版第三项为 PRO MEMBER；第三项（3 Left / FREE PLAN）点击弹出购买会员弹窗 */}
         <View style={styles.statsBar}>
-          {statsItems.map((item, index) => (
-            <View key={item.label} style={styles.statItem}>
-              {index > 0 && <View style={styles.statDivider} />}
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  isPremium && index === 2 && styles.statLabelMember,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </View>
-          ))}
+          {statsItems.map((item, index) => {
+            const isPlanItem = index === statsItems.length - 1;
+            if (isPlanItem) {
+              return (
+                <Pressable
+                  key={item.label}
+                  style={({ pressed }) => [styles.statItemPressable, pressed && styles.statItemPressed]}
+                  onPress={openPremiumModal}
+                >
+                  <View style={[styles.statItem, styles.statItemPlan]}>
+                    {index > 0 && <View style={[styles.statDivider, styles.statDividerPlan]} />}
+                    <Text style={styles.statValue}>{item.value}</Text>
+                    <Text
+                      style={[
+                        styles.statLabel,
+                        isPremium && styles.statLabelMember,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            }
+            return (
+              <View key={item.label} style={styles.statItem}>
+                {index > 0 && <View style={styles.statDivider} />}
+                <Text style={styles.statValue}>{item.value}</Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    isPremium && index === 2 && styles.statLabelMember,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         {/* 免费版：GET PREMIUM；会员版：RENEW NOW + X days remaining；点击弹出分享 */}
@@ -379,6 +405,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'column',
   },
+  statItemPressable: {
+    flex: 1,
+  },
+  statItemPressed: {
+    opacity: 0.85,
+  },
+  statItemPlan: {
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.35)',
+  },
   statDivider: {
     position: 'absolute',
     left: 0,
@@ -386,6 +422,9 @@ const styles = StyleSheet.create({
     bottom: 8,
     width: 1,
     backgroundColor: 'rgba(139, 148, 158, 0.3)',
+  },
+  statDividerPlan: {
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   statValue: {
     fontFamily: 'Space Grotesk',
@@ -397,7 +436,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: 'Space Grotesk',
     fontSize: 11,
-    color: '#00FFFF',
+    color: '#40D3E5',
     letterSpacing: 0.5,
   },
   statLabelMember: {
