@@ -107,13 +107,17 @@ export function DetailsScreen() {
       <ChooseVideoModal
         visible={chooseVideoVisible}
         onClose={() => setChooseVideoVisible(false)}
-        onChooseGallery={() => {
+        onChooseGallery={(asset) => {
           setChooseVideoVisible(false);
-          // TODO: 打开相册选择
+          if (asset.uri) {
+            (navigation as any).navigate('GenerateVideo', { imageUri: asset.uri, source: 'gallery' });
+          }
         }}
-        onTakePhoto={() => {
+        onTakePhoto={(asset) => {
           setChooseVideoVisible(false);
-          // TODO: 打开相机
+          if (asset.uri) {
+            (navigation as any).navigate('GenerateVideo', { imageUri: asset.uri, source: 'camera' });
+          }
         }}
       />
     </View>

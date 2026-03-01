@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-video/ios/Video/RCTVideoManager.swift b/node_modules/react-native-video/ios/Video/RCTVideoManager.swift
+index b408e96..c458de4 100644
+--- a/node_modules/react-native-video/ios/Video/RCTVideoManager.swift
++++ b/node_modules/react-native-video/ios/Video/RCTVideoManager.swift
+@@ -4,7 +4,7 @@ import React
+ @objc(RCTVideoManager)
+ class RCTVideoManager: RCTViewManager {
+     override func view() -> UIView {
+-        return RCTVideo(eventDispatcher: (RCTBridge.current().eventDispatcher() as! RCTEventDispatcher))
++        return RCTVideo(eventDispatcher: nil)
+     }
+ 
+     func methodQueue() -> DispatchQueue {

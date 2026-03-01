@@ -2,6 +2,7 @@
 // 当前路由已直接从各文件 import，此处仅作汇总，按需保留
 export { HomeScreen } from './HomeScreen';
 export { DetailsScreen } from './Details';
+export { GenerateVideoScreen } from './GenerateVideo';
 export { AddScreen } from './AddScreen';
 export { MyScreen } from './MyScreen';
 export { SettingsScreen } from './SettingsScreen';

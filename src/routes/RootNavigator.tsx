@@ -9,6 +9,7 @@ import {
 } from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
+import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
@@ -205,8 +206,8 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         component={MainTabs}
         options={{ headerShown: false, title: '' }}
       />
-      <Stack.Screen name="Detail" component={DetailsScreen}  options={{ headerShown: false }} />
-    
+      <Stack.Screen name="Detail" component={DetailsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GenerateVideo" component={GenerateVideoScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
