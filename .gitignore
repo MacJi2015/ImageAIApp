@@ -148,3 +148,7 @@ Podfile.lock
 *.bak
 *.tmp
 .cache/
+
+# 本地签名证书（勿提交）
+**/assets/certificate/*.p12
+**/assets/certificate/*.mobileprovision
