@@ -6,6 +6,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  type Asset,
+  launchCamera,
+  launchImageLibrary,
+  type CameraOptions,
+  type ImageLibraryOptions,
+} from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CameraIcon from '../../../assets/details/camera.svg';
 import PhotoIcon from '../../../assets/details/photo.svg';
@@ -16,8 +23,8 @@ const COLORS = { bg: '#050a14', card: '#09111f', accent: '#00ffff', muted: '#3a4
 export type ChooseVideoModalProps = {
   visible: boolean;
   onClose: () => void;
-  onChooseGallery?: () => void;
-  onTakePhoto?: () => void;
+  onChooseGallery?: (asset: Asset) => void;
+  onTakePhoto?: (asset: Asset) => void;
 };
 
 export function ChooseVideoModal({
@@ -27,6 +34,24 @@ export function ChooseVideoModal({
   onTakePhoto,
 }: ChooseVideoModalProps) {
   const insets = useSafeAreaInsets();
+
+  const handleChooseGallery = () => {
+    const options: ImageLibraryOptions = { mediaType: 'photo', selectionLimit: 1 };
+    launchImageLibrary(options, (res) => {
+      if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
+      onChooseGallery?.(res.assets[0]);
+      onClose();
+    });
+  };
+
+  const handleTakePhoto = () => {
+    const options: CameraOptions = { mediaType: 'photo', cameraType: 'back', saveToPhotos: true };
+    launchCamera(options, (res) => {
+      if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
+      onTakePhoto?.(res.assets[0]);
+      onClose();
+    });
+  };
 
   return (
     <Modal
@@ -65,7 +90,7 @@ export function ChooseVideoModal({
           <TouchableOpacity
             style={styles.optionRow}
             activeOpacity={0.8}
-            onPress={onChooseGallery}
+            onPress={handleChooseGallery}
           >
             <View style={styles.optionIconWrap}>
               <PhotoIcon width={24} height={24} />
@@ -79,7 +104,7 @@ export function ChooseVideoModal({
           <TouchableOpacity
             style={styles.optionRow}
             activeOpacity={0.8}
-            onPress={onTakePhoto}
+            onPress={handleTakePhoto}
           >
             <View style={styles.optionIconWrap}>
               <CameraIcon width={24} height={24} />

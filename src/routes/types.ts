@@ -11,6 +11,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Detail: { id: string; title?: string };
+  GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
   Settings: undefined;
   EditProfile: undefined;
   WebView: { url: string; title: string };

@@ -1,5 +1,9 @@
 # 固定 CocoaPods 与 Ruby 依赖，避免系统环境缺 gem
-source 'https://rubygems.org'
+# 国内网络可改用镜像，避免连接 rubygems.org 超时
+source 'https://gems.ruby-china.com/'
+
+# 当前依赖（如 connection_pool）需要 Ruby >= 3.2，请用 rbenv/brew 安装并在此目录使用 3.2+
+ruby '>= 3.2.0'
 
 # Ruby 3.4 将 kconv 移出标准库，kconv 由 nkf gem 提供，CFPropertyList/xcodeproj 依赖
 gem 'nkf'
