@@ -1,9 +1,11 @@
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../screens/HomeScreen';
-import { AddScreen } from '../screens/AddScreen';
 import { MyScreen } from '../screens/MyScreen';
+import { ChooseVideoModal } from '../screens/Details/components/ChooseVideoModal';
 import type { MainTabParamList } from './types';
 
 import homeDefaultIcon from '../assets/home-default-icon.png';
@@ -63,9 +65,23 @@ function renderMyIcon({ focused }: { focused: boolean }) {
 
 export function MainTabs() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const [addModalVisible, setAddModalVisible] = React.useState(false);
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
 
+  const handleAddTabPress = () => {
+    setAddModalVisible(true);
+  };
+
+  const handleImageSelected = (asset: { uri?: string }) => {
+    setAddModalVisible(false);
+    if (asset?.uri) {
+      (navigation as any).navigate('CustomPrompt', { imageUri: asset.uri });
+    }
+  };
+
   return (
+    <>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -99,10 +115,16 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Add"
-        component={AddScreen}
+        component={()=><View/>}
         options={{
           title: 'Add',
           tabBarIcon: renderPublishIcon,
+          tabBarButton: (props) => (
+            <Pressable
+              {...(props as object)}
+              onPress={handleAddTabPress}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -115,6 +137,13 @@ export function MainTabs() {
         }}
       />
     </Tab.Navigator>
+    <ChooseVideoModal
+      visible={addModalVisible}
+      onClose={() => setAddModalVisible(false)}
+      onChooseGallery={handleImageSelected}
+      onTakePhoto={handleImageSelected}
+    />
+  </>
   );
 }
 
