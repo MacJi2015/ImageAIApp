@@ -24,8 +24,7 @@ export function GenerateVideoScreen() {
   const insets = useSafeAreaInsets();
   const { imageUri, videoUri } = route.params;
   const [paused, setPaused] = useState(true);
-  const url = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/55.mp4?x-oss-credential=LTAI5t934Y1iXJWgumoVcBVm%2F20260301%2Fcn-hangzhou%2Foss%2Faliyun_v4_request&x-oss-date=20260301T020733Z&x-oss-expires=32400&x-oss-signature-version=OSS4-HMAC-SHA256&x-oss-signature=75b209dda52f8c2a06fac30bdd262226959337b860cfe56dbefd01eb8224c212'
-  const hasVideo = !!url;
+  const hasVideo = !!videoUri;
 
   const handleShare = () => {
     // TODO: share and get +1 free chance
@@ -52,7 +51,7 @@ export function GenerateVideoScreen() {
         <View style={styles.videoFrame}>
           {hasVideo ? (
             <Video
-              source={{ uri: url }}
+              source={{ uri: videoUri! }}
               style={styles.video}
               resizeMode="cover"
               paused={paused}
@@ -64,13 +63,15 @@ export function GenerateVideoScreen() {
             <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
           )}
         </View>
-        <TouchableOpacity
-          style={styles.playBtnOverlay}
-          onPress={() => setPaused((p) => !p)}
-          activeOpacity={0.9}
-        >
-          <PlayBtnIcon width={60} height={60} />
-        </TouchableOpacity>
+        {hasVideo && (
+          <TouchableOpacity
+            style={styles.playBtnOverlay}
+            onPress={() => setPaused((p) => !p)}
+            activeOpacity={0.9}
+          >
+            <PlayBtnIcon width={60} height={60} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <TouchableOpacity style={styles.primaryBtn} onPress={handleShare} activeOpacity={0.8}>

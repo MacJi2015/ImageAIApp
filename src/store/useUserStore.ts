@@ -35,7 +35,9 @@ const defaultMemberUser: UserInfo = {
 
 export const useUserStore = create<UserState>(set => ({
   isLoggedIn: DEMO_MEMBER,
-  token: DEMO_MEMBER ? 'demo' : null,
+  token: DEMO_MEMBER
+    ? 'demo'
+    : 'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK',
   user: DEMO_MEMBER ? defaultMemberUser : null,
 
   setToken: token => set({ token, isLoggedIn: !!token }),

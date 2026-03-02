@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   StyleSheet,
   Text,
@@ -11,6 +13,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
+import { generateVideo, getVideoTaskStatus } from '../../api/services/video';
+import { uploadImage } from '../../api/services/upload';
+import { useAppStore, useUserStore } from '../../store';
 import arrowLeft from '../../assets/details/arrow-left.png';
 import yuanBg from '../../assets/details/yuan-bg.png';
 import GenIcon from '../../assets/details/gen-icon.svg';
@@ -25,16 +30,21 @@ const COLORS = {
   muted: '#3a4a65',
 };
 
+const POLL_INTERVAL = 3000;
+
 export function CustomPromptScreen() {
   const navigation = useNavigation();
   const route = useRoute<CustomPromptRoute>();
   const insets = useSafeAreaInsets();
-  const { imageUri } = route.params;
+  const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const { imageUri, petImageUrl: initialPetImageUrl, templateId } = route.params;
   const [prompt, setPrompt] = useState(
     'Cinematic space explorer cat, high-fidelity astronaut suit, glowing nebula background, 8k resolution, photorealistic.Cinematic.'
   );
   const [removeWatermark, setRemoveWatermark] = useState(false);
   const [isPortrait, setIsPortrait] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     Image.getSize(
@@ -48,9 +58,86 @@ export function CustomPromptScreen() {
     navigation.goBack();
   };
 
-  const handleGenerate = () => {
-    // TODO: call API to generate video
-  };
+  const pollTaskStatus = useCallback(
+    async (taskId: string): Promise<string | null> => {
+      const task = await getVideoTaskStatus(taskId);
+      if (task.status === 'SUCCESS' && task.videoUrl) {
+        return task.videoUrl;
+      }
+      if (task.status === 'FAILED') {
+        throw new Error(task.errorMessage ?? '生成失败');
+      }
+      return null;
+    },
+    []
+  );
+
+  const handleGenerate = useCallback(async () => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    if (!prompt.trim()) {
+      Alert.alert('提示', '请输入 Additional Prompts');
+      return;
+    }
+
+    let petImageUrl = initialPetImageUrl;
+    if (!petImageUrl) {
+      try {
+        const result = await uploadImage(imageUri, 'pet');
+        petImageUrl = result.url;
+      } catch {
+        Alert.alert('提示', '图片上传失败，请重试');
+        return;
+      }
+    }
+
+    setGenerating(true);
+    try {
+      const res = await generateVideo({
+        actionType: templateId ? templateId : 'default',
+        duration: 5,
+        petImageUrl,
+        promptText: prompt.trim(),
+        removeWatermark,
+        shareToCommunity: false,
+        templateId,
+      });
+
+      let videoUrl: string | null = null;
+      const maxAttempts = 60;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise<void>((resolve) => setTimeout(() => resolve(), POLL_INTERVAL));
+        videoUrl = await pollTaskStatus(res.taskId);
+        if (videoUrl) break;
+      }
+
+      if (videoUrl) {
+        (navigation as any).navigate('GenerateVideo', {
+          imageUri,
+          videoUri: videoUrl,
+        });
+      } else {
+        Alert.alert('提示', '生成超时，请稍后在「My」中查看');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '生成失败，请重试';
+      Alert.alert('提示', msg);
+    } finally {
+      setGenerating(false);
+    }
+  }, [
+    isLoggedIn,
+    openLoginModal,
+    prompt,
+    initialPetImageUrl,
+    imageUri,
+    removeWatermark,
+    templateId,
+    navigation,
+    pollTaskStatus,
+  ]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -134,9 +221,23 @@ export function CustomPromptScreen() {
         <Text style={styles.watermarkText}>Remove Watermark</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} activeOpacity={0.8}>
-        <GenIcon width={24} height={24} />
-        <Text style={styles.generateBtnText}>GENERATE</Text>
+      <TouchableOpacity
+        style={[styles.generateBtn, generating && styles.generateBtnDisabled]}
+        onPress={handleGenerate}
+        activeOpacity={0.8}
+        disabled={generating}
+      >
+        {generating ? (
+          <>
+            <ActivityIndicator size="small" color="#020410" />
+            <Text style={styles.generateBtnText}>生成中...</Text>
+          </>
+        ) : (
+          <>
+            <GenIcon width={24} height={24} />
+            <Text style={styles.generateBtnText}>GENERATE</Text>
+          </>
+        )}
       </TouchableOpacity>
       <View style={styles.chancesRow}>
         <View style={styles.chanceDot} />
@@ -307,6 +408,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#020410',
+  },
+  generateBtnDisabled: {
+    opacity: 0.7,
   },
   chancesRow: {
     flexDirection: 'row',

@@ -107,16 +107,24 @@ export function DetailsScreen() {
       <ChooseVideoModal
         visible={chooseVideoVisible}
         onClose={() => setChooseVideoVisible(false)}
-        onChooseGallery={(asset) => {
+        onChooseGallery={(asset, uploadedUrl) => {
           setChooseVideoVisible(false);
           if (asset.uri) {
-            (navigation as any).navigate('GenerateVideo', { imageUri: asset.uri, source: 'gallery' });
+            (navigation as any).navigate('CustomPrompt', {
+              imageUri: asset.uri,
+              petImageUrl: uploadedUrl,
+              templateId: route.params.id,
+            });
           }
         }}
-        onTakePhoto={(asset) => {
+        onTakePhoto={(asset, uploadedUrl) => {
           setChooseVideoVisible(false);
           if (asset.uri) {
-            (navigation as any).navigate('GenerateVideo', { imageUri: asset.uri, source: 'camera' });
+            (navigation as any).navigate('CustomPrompt', {
+              imageUri: asset.uri,
+              petImageUrl: uploadedUrl,
+              templateId: route.params.id,
+            });
           }
         }}
       />

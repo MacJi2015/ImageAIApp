@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Modal,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import {
   type ImageLibraryOptions,
 } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { uploadImage } from '../../../api/services/upload';
 import CameraIcon from '../../../assets/details/camera.svg';
 import PhotoIcon from '../../../assets/details/photo.svg';
 import CloseIcon from '../../../assets/details/close-icon.svg';
@@ -23,8 +26,9 @@ const COLORS = { bg: '#050a14', card: '#09111f', accent: '#00ffff', muted: '#3a4
 export type ChooseVideoModalProps = {
   visible: boolean;
   onClose: () => void;
-  onChooseGallery?: (asset: Asset) => void;
-  onTakePhoto?: (asset: Asset) => void;
+  /** asset: 选中的图片；uploadedUrl: 上传后的图片 URL，用于图生视频接口 */
+  onChooseGallery?: (asset: Asset, uploadedUrl?: string) => void;
+  onTakePhoto?: (asset: Asset, uploadedUrl?: string) => void;
 };
 
 export function ChooseVideoModal({
@@ -34,13 +38,28 @@ export function ChooseVideoModal({
   onTakePhoto,
 }: ChooseVideoModalProps) {
   const insets = useSafeAreaInsets();
+  const [uploading, setUploading] = useState(false);
+
+  const handleUploadAndCallback = async (asset: Asset, callback?: (a: Asset, url?: string) => void) => {
+    if (!asset.uri || !callback) return;
+    setUploading(true);
+    try {
+      const result = await uploadImage(asset.uri, 'pet');
+      callback(asset, result.url);
+      onClose();
+    } catch (e) {
+      __DEV__ && console.warn('[ChooseVideoModal] upload failed', e);
+      Alert.alert('上传失败', '请确认已登录后重试');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleChooseGallery = () => {
     const options: ImageLibraryOptions = { mediaType: 'photo', selectionLimit: 1 };
     launchImageLibrary(options, (res) => {
       if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
-      onChooseGallery?.(res.assets[0]);
-      onClose();
+      handleUploadAndCallback(res.assets[0], onChooseGallery);
     });
   };
 
@@ -48,8 +67,7 @@ export function ChooseVideoModal({
     const options: CameraOptions = { mediaType: 'photo', cameraType: 'back', saveToPhotos: true };
     launchCamera(options, (res) => {
       if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
-      onTakePhoto?.(res.assets[0]);
-      onClose();
+      handleUploadAndCallback(res.assets[0], onTakePhoto);
     });
   };
 
@@ -60,6 +78,12 @@ export function ChooseVideoModal({
       animationType="slide"
       onRequestClose={onClose}
     >
+      {uploading && (
+        <View style={styles.uploadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.uploadingText}>Uploading...</Text>
+        </View>
+      )}
       <View style={styles.backdrop}>
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
@@ -121,6 +145,18 @@ export function ChooseVideoModal({
 }
 
 const styles = StyleSheet.create({
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  uploadingText: {
+    color: COLORS.accent,
+    fontSize: 14,
+    marginTop: 12,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
