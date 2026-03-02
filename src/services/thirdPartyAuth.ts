@@ -12,7 +12,7 @@ import {
 import { setAuthToken } from '../api/request';
 import { authConfig } from '../api/config';
 import { snsThreePartyLogin, LoginFrom, getOAuthAuthorizeUrl } from '../api/services/auth';
-import { useUserStore } from '../store';
+import { useUserStore, type UserInfo } from '../store';
 import { saveAuth } from './authStorage';
 
 /** 从当前已登录的 Firebase 用户获取 idToken，兼容模拟器下 user 方法未绑定的情况 */
@@ -66,51 +66,119 @@ export function isAppleSignInSupported(): boolean {
   return Platform.OS === 'ios';
 }
 
+const LOG_TAG = '[AppleLogin]';
+
 /** Apple 登录：Apple Sign In → Firebase credential → Firebase idToken → 后端 snsThreePartyLogin */
 export async function loginWithApple(): Promise<boolean> {
   if (Platform.OS !== 'ios') {
+    if (__DEV__) console.warn(LOG_TAG, '非 iOS 平台');
     Alert.alert('提示', '当前平台暂不支持 Apple 登录');
     return false;
   }
   try {
+    if (__DEV__) console.warn(LOG_TAG, '1. 检查设备是否支持 Apple 登录');
     const supported = appleAuth.isSupported;
     const isSupported = typeof supported === 'function' ? await supported() : supported;
     if (!isSupported) {
+      if (__DEV__) console.warn(LOG_TAG, '1. 设备不支持');
       Alert.alert('提示', '当前设备不支持 Apple 登录');
       return false;
     }
+    if (__DEV__) console.warn(LOG_TAG, '2. 调起 Apple 授权...');
     const { identityToken, nonce, fullName } = await appleAuth.performRequest({
       requestedOperation: appleAuth.Operation.LOGIN,
       requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
       nonceEnabled: true,
     });
     if (!identityToken || !nonce) {
+      if (__DEV__) console.warn(LOG_TAG, '2. 未拿到 identityToken 或 nonce');
       Alert.alert('登录失败', '未获取到 Apple 凭证');
       return false;
     }
+    if (__DEV__) console.warn(LOG_TAG, '2. Apple 授权成功，identityToken 长度:', identityToken?.length ?? 0);
+
+    if (__DEV__) console.warn(LOG_TAG, '3. 用 Apple 凭证登录 Firebase...');
     const auth = getAuth();
     const appleCredential = AppleAuthProvider.credential(identityToken, nonce);
     const userCredential = await signInWithCredential(auth, appleCredential);
+    if (__DEV__) console.warn(LOG_TAG, '3. Firebase signInWithCredential 成功');
+
+    if (__DEV__) console.warn(LOG_TAG, '4. 获取 Firebase idToken...');
     const firebaseIdToken = await getFirebaseIdToken(auth, userCredential.user);
+    if (__DEV__) console.warn(LOG_TAG, '4. Firebase idToken 长度:', firebaseIdToken?.length ?? 0);
+
+    if (__DEV__) console.warn(LOG_TAG, '5. 调用后端 snsThreePartyLogin...');
     const result = await snsThreePartyLogin({ idToken: firebaseIdToken, loginFrom: LoginFrom.Apple });
-    const name = fullName?.givenName && fullName?.familyName
-      ? `${fullName.givenName} ${fullName.familyName}`.trim()
-      : result.user?.name ?? 'User';
-    const user = { ...result.user, name: result.user.name || name };
-    setAuthToken(result.token);
-    useUserStore.getState().login(result.token, user);
-    await saveAuth(result.token, user);
+    if (__DEV__) console.warn(LOG_TAG, '5. 后端登录成功');
+
+    if (result.token == null || result.token === '') {
+      if (__DEV__) console.warn(LOG_TAG, '[监控] 后端未返回 token，无法完成登录');
+      Alert.alert('登录失败', '后端未返回登录凭证，请稍后重试或联系客服');
+      return false;
+    }
+
+    if (__DEV__) {
+      console.warn(LOG_TAG, '[监控] result.token 类型:', typeof result?.token, 'result.user 类型:', typeof result?.user);
+      console.warn(LOG_TAG, '[监控] setAuthToken 类型:', typeof setAuthToken);
+      console.warn(LOG_TAG, '[监控] useUserStore.getState 类型:', typeof useUserStore.getState);
+      console.warn(LOG_TAG, '[监控] saveAuth 类型:', typeof saveAuth);
+    }
+
+    const stepTry = async (stepName: string, fn: () => void | Promise<void>) => {
+      try {
+        await fn();
+      } catch (stepErr) {
+        if (__DEV__) console.warn(LOG_TAG, '[监控] 步骤抛出:', stepName, stepErr);
+        throw stepErr;
+      }
+    };
+
+    let user: UserInfo;
+    await stepTry('0 构建 user', () => {
+      const name = fullName?.givenName && fullName?.familyName
+        ? `${fullName.givenName} ${fullName.familyName}`.trim()
+        : result.user?.name ?? 'User';
+      user = { ...(result.user ?? {}), name: (result.user?.name || name) || 'User' } as UserInfo;
+    });
+
+    await stepTry('A setAuthToken', () => { setAuthToken(result.token); });
+    const state = useUserStore.getState();
+    if (__DEV__) console.warn(LOG_TAG, '[监控] state 类型:', typeof state, 'state.login 类型:', typeof state?.login, 'state.setToken 类型:', typeof state?.setToken);
+    await stepTry('B state.login/setToken', () => {
+      if (typeof state?.login === 'function') {
+        state.login(result.token, user);
+      } else {
+        state.setToken?.(result.token);
+        state.setUser?.(user);
+      }
+    });
+    await stepTry('C saveAuth', () => saveAuth(result.token, user));
+    if (__DEV__) console.warn(LOG_TAG, '6. 登录完成');
     return true;
   } catch (e: unknown) {
-    const err = e as { code?: string; message?: string };
+    const err = e as { code?: string; message?: string; response?: { data?: unknown }; cause?: unknown; statusCode?: number; data?: unknown };
+    if (__DEV__) {
+      console.warn(LOG_TAG, '失败:', {
+        code: err.code,
+        message: err.message,
+        statusCode: err.statusCode,
+        responseData: err.response?.data ?? err.data,
+        cause: err.cause,
+        full: String(e),
+      });
+    }
     if (err.code === appleAuth.Error.CANCELED) return false;
-    // 错误 1000：多为配置或模拟器问题，给出可操作提示
-    const isError1000 =
-      err.code === appleAuth.Error.UNKNOWN ||
-      (typeof err?.message === 'string' && err.message.includes('1000'));
-    const message = isError1000
-      ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
-      : (err?.message ?? String(e));
+    const errMsg = typeof err?.message === 'string' ? err.message : String(e);
+    const isFirebaseAudience =
+      err.code === 1170010001 ||
+      String(err?.code) === '1170010001' ||
+      errMsg.includes('Firebase') ||
+      (errMsg.includes('aud') && errMsg.includes('Expected'));
+    const message = isFirebaseAudience
+      ? 'App 与后端使用的 Firebase 项目不一致。\n\n请二选一：\n1) 后端改用与 App 相同的 Firebase 项目（imageapp-1553c）校验 token；\n2) 或将 App 的 Firebase 配置改为后端使用的项目（facial-magic）。'
+      : (err.code === appleAuth.Error.UNKNOWN || errMsg.includes('1000'))
+        ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
+        : errMsg;
     Alert.alert('Apple 登录失败', message);
     return false;
   }

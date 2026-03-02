@@ -5,8 +5,13 @@ const KEY_TOKEN = '@auth/token';
 const KEY_USER = '@auth/user';
 
 export async function saveAuth(token: string, user: UserInfo): Promise<void> {
+  const tokenStr = token != null && typeof token === 'string' ? token : '';
+  if (typeof AsyncStorage?.multiSet !== 'function') {
+    if (__DEV__) console.warn('[saveAuth] AsyncStorage.multiSet 不可用');
+    return;
+  }
   await AsyncStorage.multiSet([
-    [KEY_TOKEN, token],
+    [KEY_TOKEN, tokenStr],
     [KEY_USER, JSON.stringify(user)],
   ]);
 }
