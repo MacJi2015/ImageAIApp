@@ -3,7 +3,7 @@
 export { HomeScreen } from './HomeScreen';
 export { DetailsScreen } from './Details';
 export { GenerateVideoScreen } from './GenerateVideo';
-export { AddScreen } from './AddScreen';
+export { CustomPromptScreen } from './CustomPrompt';
 export { MyScreen } from './MyScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { WebViewScreen } from './WebViewScreen';
