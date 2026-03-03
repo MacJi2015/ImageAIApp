@@ -1,12 +1,8 @@
-import { apiConfig } from './config';
+import { apiConfig, DEFAULT_TOKEN } from './config';
 import { ApiError, ApiResponse, RequestConfig } from './types';
 import { useAppStore } from '../store/useAppStore';
 
 let authToken: string | null = null;
-
-/** 写死的默认 token，无 token 时使用；有正式 token 后会被 setAuthToken 覆盖 */
-const DEFAULT_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK';
 
 /** 401 时尝试刷新 token 的回调，返回 true 表示刷新成功可重试 */
 let on401Callback: (() => Promise<boolean>) | null = null;
@@ -55,6 +51,33 @@ function openLoginModalIfNeeded(raw: unknown): void {
   }
 }
 
+/** 开发环境统一打印接口请求/响应（含完整 URL、参数，不打印敏感 token） */
+function logRequest(method: string, path: string, url: string, config: RequestConfig): void {
+  if (!__DEV__) return;
+  const { params, data, headers = {} } = config;
+  const safeHeaders: Record<string, string> = {};
+  Object.entries(headers).forEach(([k, v]) => {
+    const lower = k.toLowerCase();
+    if (lower === 'token' || lower === 'authorization') safeHeaders[k] = v ? '[已带]' : '';
+    else safeHeaders[k] = String(v);
+  });
+  const logPayload: Record<string, unknown> = {
+    method,
+    path,
+    url,
+    ...(params && Object.keys(params).length > 0 ? { params } : {}),
+    ...(data !== undefined ? { body: data } : {}),
+    ...(Object.keys(safeHeaders).length > 0 ? { headers: safeHeaders } : {}),
+  };
+  console.log('[API] 请求', logPayload);
+}
+
+/** 开发环境统一打印接口响应 */
+function logResponse(path: string, status: number, result: unknown): void {
+  if (!__DEV__) return;
+  console.log('[API] 响应', { path, status, result });
+}
+
 /**
  * 统一请求方法，供外部或封装后的 get/post 等调用
  * @param path 路径或完整 URL
@@ -71,6 +94,7 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
   } = config;
 
   const url = buildURL(path, params);
+  logRequest(method, path, url, { params, data, headers });
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
@@ -121,13 +145,14 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
     }
     if (!response.ok) {
       openLoginModalIfNeeded(raw);
+      logResponse(path, response.status, raw);
       const message = isJson && typeof raw === 'object' && raw && 'message' in raw
         ? String((raw as { message?: string }).message)
         : raw && typeof raw === 'string'
           ? raw
           : `请求失败 ${response.status}`;
       if (__DEV__) {
-        console.warn('[API] 请求失败', { url, status: response.status, message, raw });
+        console.warn('[API] 请求失败', { path, status: response.status, message });
       }
       throw new ApiError(message, (raw as ApiResponse)?.code ?? -1, response.status, raw);
     }
@@ -144,10 +169,14 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
     const full = raw as Record<string, unknown>;
     // 后端可能把 token 放在响应顶层而非 data 内，合并到返回值以免丢失
     if (full.token !== undefined && (data as Record<string, unknown>)?.token === undefined) {
-      return { ...(data as object), token: full.token } as T;
+      const result = { ...(data as object), token: full.token } as T;
+      logResponse(path, response.status, { ...(result as object), token: '[已省略]' });
+      return result;
     }
+    logResponse(path, response.status, data);
     return data;
   }
+  logResponse(path, response.status, raw);
   return raw as T;
 }
 

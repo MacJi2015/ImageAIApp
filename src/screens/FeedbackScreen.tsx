@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '../store/useUserStore';
 import { submitFeedback } from '../api/services/feedback';
@@ -25,6 +26,7 @@ const PLACEHOLDER =
 
 export function FeedbackScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const user = useUserStore((s) => s.user);
   const [issue, setIssue] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +44,9 @@ export function FeedbackScreen() {
         email: user?.email ?? undefined,
       });
       setIssue('');
-      Alert.alert('提交成功', '我们会尽快通过邮件回复您。', [{ text: '知道了' }]);
+      Alert.alert('提交成功', '我们会尽快通过邮件回复您。', [
+        { text: '知道了', onPress: () => navigation.goBack() },
+      ]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '提交失败，请重试';
       Alert.alert('提交失败', msg, [{ text: '知道了' }]);

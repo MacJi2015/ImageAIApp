@@ -31,7 +31,8 @@ export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const insets = useSafeAreaInsets();
   const openLoginModal = useAppStore(s => s.openLoginModal);
-  const isLoggedIn = useUserStore(s => s.isLoggedIn);
+  /** 通过是否有 token 判断是否登录 */
+  const isLoggedIn = useUserStore(s => !!s.token);
   const [activeTab, setActiveTab] = React.useState<'effects' | 'feed'>('feed');
   const [liked, setLiked] = React.useState<boolean[]>(Array(6).fill(false));
   /** 吸顶阈值：当滚动超过该高度时显示吸顶栏（Logo + Tab） */
