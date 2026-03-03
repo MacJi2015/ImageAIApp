@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HomeScreen } from '../screens/HomeScreen';
+import { HomeScreen } from '../screens/Home';
 import { MyScreen } from '../screens/MyScreen';
 import { ChooseVideoModal } from '../screens/Details/components/ChooseVideoModal';
 import type { MainTabParamList } from './types';
@@ -73,10 +73,13 @@ export function MainTabs() {
     setAddModalVisible(true);
   };
 
-  const handleImageSelected = (asset: { uri?: string }) => {
+  const handleImageSelected = (asset: { uri?: string }, uploadedUrl?: string) => {
     setAddModalVisible(false);
     if (asset?.uri) {
-      (navigation as any).navigate('CustomPrompt', { imageUri: asset.uri });
+      (navigation as any).navigate('CustomPrompt', {
+        imageUri: asset.uri,
+        petImageUrl: uploadedUrl,
+      });
     }
   };
 
