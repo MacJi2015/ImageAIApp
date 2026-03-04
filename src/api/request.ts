@@ -1,7 +1,8 @@
 import { apiConfig } from './config';
 import { ApiError, ApiResponse, RequestConfig } from './types';
 
-let authToken: string | null = null;
+let authToken: string | null =
+  'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK';
 
 /** 401 时尝试刷新 token 的回调，返回 true 表示刷新成功可重试 */
 let on401Callback: (() => Promise<boolean>) | null = null;
@@ -20,7 +21,9 @@ export const setOn401 = (cb: (() => Promise<boolean>) | null) => {
 export const getBaseURL = () => apiConfig.baseURL;
 
 const buildURL = (path: string, params?: RequestConfig['params']): string => {
-  const base = path.startsWith('http') ? path : `${apiConfig.baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+  const base = path.startsWith('http')
+    ? path
+    : `${apiConfig.baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
   if (!params || Object.keys(params).length === 0) return base;
   const search = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -31,7 +34,9 @@ const buildURL = (path: string, params?: RequestConfig['params']): string => {
 };
 
 const timeoutPromise = (ms: number): Promise<never> =>
-  new Promise((_, reject) => setTimeout(() => reject(new ApiError('请求超时', -1, undefined)), ms));
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new ApiError('请求超时', -1, undefined)), ms),
+  );
 
 /**
  * 统一请求方法，供外部或封装后的 get/post 等调用
@@ -39,7 +44,10 @@ const timeoutPromise = (ms: number): Promise<never> =>
  * @param config 请求配置
  * @returns 解析后的 data（若后端是 { code, data, message } 会取 data；否则返回整份 body）
  */
-export async function request<T = unknown>(path: string, config: RequestConfig = {}): Promise<T> {
+export async function request<T = unknown>(
+  path: string,
+  config: RequestConfig = {},
+): Promise<T> {
   const {
     method = 'GET',
     data,
@@ -54,7 +62,7 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
     ...headers,
   };
   if (authToken) {
-    requestHeaders.Authorization = `Bearer ${authToken}`;
+    requestHeaders.token = authToken;
   }
 
   const init: RequestInit = {
@@ -66,38 +74,58 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
   }
 
   const fetchPromise = fetch(url, init);
-  const racePromise = timeout > 0 ? Promise.race([fetchPromise, timeoutPromise(timeout)]) : fetchPromise;
+  const racePromise =
+    timeout > 0
+      ? Promise.race([fetchPromise, timeoutPromise(timeout)])
+      : fetchPromise;
 
   let response = (await racePromise) as Response;
   let contentType = response.headers.get('content-type') || '';
   let isJson = contentType.includes('application/json');
-  let raw: unknown = isJson ? await response.json().catch(() => ({})) : await response.text();
+  let raw: unknown = isJson
+    ? await response.json().catch(() => ({}))
+    : await response.text();
 
   if (!response.ok) {
     if (response.status === 401 && on401Callback) {
       const refreshed = await on401Callback();
       if (refreshed) {
-        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...headers };
-        if (authToken) retryHeaders.Authorization = `Bearer ${authToken}`;
+        const retryHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...headers,
+        };
+        if (authToken) retryHeaders.token = authToken;
         const retryInit: RequestInit = { method, headers: retryHeaders };
         if (data !== undefined && method !== 'GET') {
-          retryInit.body = typeof data === 'string' ? data : JSON.stringify(data);
+          retryInit.body =
+            typeof data === 'string' ? data : JSON.stringify(data);
         }
         const retryPromise = fetch(url, retryInit);
-        const retryRace = timeout > 0 ? Promise.race([retryPromise, timeoutPromise(timeout)]) : retryPromise;
+        const retryRace =
+          timeout > 0
+            ? Promise.race([retryPromise, timeoutPromise(timeout)])
+            : retryPromise;
         response = (await retryRace) as Response;
         contentType = response.headers.get('content-type') || '';
         isJson = contentType.includes('application/json');
-        raw = isJson ? await response.json().catch(() => ({})) : await response.text();
+        raw = isJson
+          ? await response.json().catch(() => ({}))
+          : await response.text();
       }
     }
     if (!response.ok) {
-      const message = isJson && typeof raw === 'object' && raw && 'message' in raw
-        ? String((raw as { message?: string }).message)
-        : raw && typeof raw === 'string'
+      const message =
+        isJson && typeof raw === 'object' && raw && 'message' in raw
+          ? String((raw as { message?: string }).message)
+          : raw && typeof raw === 'string'
           ? raw
           : `请求失败 ${response.status}`;
-      throw new ApiError(message, (raw as ApiResponse)?.code ?? -1, response.status, raw);
+      throw new ApiError(
+        message,
+        (raw as ApiResponse)?.code ?? -1,
+        response.status,
+        raw,
+      );
     }
   }
 
@@ -107,17 +135,30 @@ export async function request<T = unknown>(path: string, config: RequestConfig =
   return raw as T;
 }
 
-export const get = <T = unknown>(path: string, config?: Omit<RequestConfig, 'method' | 'data'>) =>
-  request<T>(path, { ...config, method: 'GET' });
+export const get = <T = unknown>(
+  path: string,
+  config?: Omit<RequestConfig, 'method' | 'data'>,
+) => request<T>(path, { ...config, method: 'GET' });
 
-export const post = <T = unknown>(path: string, data?: unknown, config?: Omit<RequestConfig, 'method' | 'data'>) =>
-  request<T>(path, { ...config, method: 'POST', data });
+export const post = <T = unknown>(
+  path: string,
+  data?: unknown,
+  config?: Omit<RequestConfig, 'method' | 'data'>,
+) => request<T>(path, { ...config, method: 'POST', data });
 
-export const put = <T = unknown>(path: string, data?: unknown, config?: Omit<RequestConfig, 'method' | 'data'>) =>
-  request<T>(path, { ...config, method: 'PUT', data });
+export const put = <T = unknown>(
+  path: string,
+  data?: unknown,
+  config?: Omit<RequestConfig, 'method' | 'data'>,
+) => request<T>(path, { ...config, method: 'PUT', data });
 
-export const patch = <T = unknown>(path: string, data?: unknown, config?: Omit<RequestConfig, 'method' | 'data'>) =>
-  request<T>(path, { ...config, method: 'PATCH', data });
+export const patch = <T = unknown>(
+  path: string,
+  data?: unknown,
+  config?: Omit<RequestConfig, 'method' | 'data'>,
+) => request<T>(path, { ...config, method: 'PATCH', data });
 
-export const del = <T = unknown>(path: string, config?: Omit<RequestConfig, 'method' | 'data'>) =>
-  request<T>(path, { ...config, method: 'DELETE' });
+export const del = <T = unknown>(
+  path: string,
+  config?: Omit<RequestConfig, 'method' | 'data'>,
+) => request<T>(path, { ...config, method: 'DELETE' });

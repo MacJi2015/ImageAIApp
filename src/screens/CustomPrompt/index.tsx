@@ -13,7 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
-import { generateVideo, getVideoTaskStatus } from '../../api/services/video';
+import { generateVideo } from '../../api/services/video';
 import { uploadImage } from '../../api/services/upload';
 import { useAppStore, useUserStore } from '../../store';
 import arrowLeft from '../../assets/details/arrow-left.png';
@@ -29,8 +29,6 @@ const COLORS = {
   inputBg: '#0a101f',
   muted: '#3a4a65',
 };
-
-const POLL_INTERVAL = 3000;
 
 export function CustomPromptScreen() {
   const navigation = useNavigation();
@@ -58,25 +56,11 @@ export function CustomPromptScreen() {
     navigation.goBack();
   };
 
-  const pollTaskStatus = useCallback(
-    async (taskId: string): Promise<string | null> => {
-      const task = await getVideoTaskStatus(taskId);
-      if (task.status === 'SUCCESS' && task.videoUrl) {
-        return task.videoUrl;
-      }
-      if (task.status === 'FAILED') {
-        throw new Error(task.errorMessage ?? '生成失败');
-      }
-      return null;
-    },
-    []
-  );
-
   const handleGenerate = useCallback(async () => {
-    if (!isLoggedIn) {
-      openLoginModal();
-      return;
-    }
+    // if (!isLoggedIn) {
+    //   openLoginModal();
+    //   return;
+    // }
     if (!prompt.trim()) {
       Alert.alert('提示', '请输入 Additional Prompts');
       return;
@@ -105,39 +89,17 @@ export function CustomPromptScreen() {
         templateId,
       });
 
-      let videoUrl: string | null = null;
-      const maxAttempts = 60;
-      for (let i = 0; i < maxAttempts; i++) {
-        await new Promise<void>((resolve) => setTimeout(() => resolve(), POLL_INTERVAL));
-        videoUrl = await pollTaskStatus(res.taskId);
-        if (videoUrl) break;
-      }
-
-      if (videoUrl) {
-        (navigation as any).navigate('GenerateVideo', {
-          imageUri,
-          videoUri: videoUrl,
-        });
-      } else {
-        Alert.alert('提示', '生成超时，请稍后在「My」中查看');
-      }
+      (navigation as any).navigate('GenerationInProgress', {
+        taskId: res.taskId,
+        imageUri,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : '生成失败，请重试';
       Alert.alert('提示', msg);
     } finally {
       setGenerating(false);
     }
-  }, [
-    isLoggedIn,
-    openLoginModal,
-    prompt,
-    initialPetImageUrl,
-    imageUri,
-    removeWatermark,
-    templateId,
-    navigation,
-    pollTaskStatus,
-  ]);
+  }, [prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

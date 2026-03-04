@@ -14,6 +14,7 @@ import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/servic
 import ascIcon from '../../../assets/asc-icon.png';
 import dogIcon from '../../../assets/dog-icon.png';
 import cartIcon from '../../../assets/cart-icon.png';
+import placeholderImage from '../../image-2.png';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -50,11 +51,12 @@ function EffectCard({
         })
       }
     >
-      <Image
+      {/* <Image
         source={{ uri: template.coverImageUrl }}
         style={styles.effectCardImage}
         resizeMode="cover"
-      />
+      /> */}
+      <Image source={placeholderImage} style={styles.effectCardImage} resizeMode="cover" />
       <View style={styles.effectCardGradient} />
       <View style={styles.effectCardCornerIconWrap}>
         <Image source={cornerIcon} style={styles.effectCardCornerIcon} resizeMode="contain" />
@@ -94,9 +96,9 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
   const loadData = useCallback(async () => {
     setStatus(LOADING);
     try {
-      const data = await getOfficialTemplates();
-      setList(data ?? []);
-      setStatus(!data?.length ? EMPTY : 'idle');
+      const entry = await getOfficialTemplates();
+      setList(entry ?? []);
+      setStatus(!entry?.length ? EMPTY : 'idle');
     } catch {
       setList([]);
       setStatus(EMPTY);

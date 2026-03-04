@@ -11,6 +11,7 @@ import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
 import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { CustomPromptScreen } from '../screens/CustomPrompt';
+import { GenerationInProgressScreen } from '../screens/GenerationInProgress';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
@@ -210,6 +211,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       <Stack.Screen name="Detail" component={DetailsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="GenerateVideo" component={GenerateVideoScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CustomPrompt" component={CustomPromptScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GenerationInProgress" component={GenerationInProgressScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}

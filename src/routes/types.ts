@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Detail: { id: string; title?: string };
   GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
   CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string };
+  GenerationInProgress: { taskId: string; imageUri: string; estimatedTime?: number };
   Settings: undefined;
   EditProfile: undefined;
   WebView: { url: string; title: string };

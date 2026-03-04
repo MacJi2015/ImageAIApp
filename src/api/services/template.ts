@@ -22,8 +22,9 @@ export interface AppVideoTemplate {
  */
 export async function getOfficialTemplates(): Promise<AppVideoTemplate[]> {
   const res = await get<AppVideoTemplate[] | { list: AppVideoTemplate[] }>(
-    'app/template/official'
+    'app/template/official',
   );
+  console.log('getOfficialTemplatesres', res);
   if (Array.isArray(res)) return res;
-  return (res as { list: AppVideoTemplate[] }).list ?? [];
+  return (res as unknown as { entry: AppVideoTemplate[] }).entry ?? [];
 }

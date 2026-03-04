@@ -4,6 +4,7 @@ export { HomeScreen } from './Home';
 export { DetailsScreen } from './Details';
 export { GenerateVideoScreen } from './GenerateVideo';
 export { CustomPromptScreen } from './CustomPrompt';
+export { GenerationInProgressScreen } from './GenerationInProgress';
 export { MyScreen } from './MyScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { WebViewScreen } from './WebViewScreen';

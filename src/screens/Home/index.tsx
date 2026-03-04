@@ -58,7 +58,7 @@ export function HomeScreen() {
 
   const renderHeroBlock = () => (
     <View style={styles.heroBlock} onLayout={onHeroLayout}>
-      <View style={styles.heroGradient} />
+      {/* <View style={styles.heroGradient} /> */}
       <View style={styles.heroLogoRow}>
         <Image source={logoIcon} style={styles.heroLogo} resizeMode="contain" />
         <View style={styles.proBadge}>
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#051E28',
+    backgroundColor: COLORS.bg,
     zIndex: 10,
   },
   container: {
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
   },
   stickyHeader: {
-    backgroundColor: '#051E28',
+    backgroundColor: COLORS.bg,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
