@@ -35,6 +35,18 @@ export interface UserProfile {
   tid?: number;
   /** 用户头像地址 */
   userAvatar?: string;
+  /** 是否会员（若后端 profile 返回则用于同步页面） */
+  isPremium?: boolean;
+  /** 会员到期日，如 "2025-03-24" */
+  premiumExpireAt?: string;
+  /** 会员类型枚举：Free | Pro（动态字段，文档可能未体现） */
+  userType?: 'Free' | 'Pro';
+  /** 获赞个数（动态字段） */
+  likesAmount?: number;
+  /** 视频数量（动态字段） */
+  videosAmount?: number;
+  /** 剩余可用次数（动态字段） */
+  remainingQuota?: number;
 }
 
 /** 登录 */
@@ -81,13 +93,20 @@ export async function updateProfile(params: UpdateUserProfileParam): Promise<boo
   return res as boolean;
 }
 
-/** 将接口 UserProfile 转为应用内 UserInfo，便于写入 store */
+/** 将接口 UserProfile 转为应用内 UserInfo，便于写入 store；isPremium 优先用接口字段，否则由 userType === 'Pro' 推导 */
 export function profileToUserInfo(p: UserProfile): UserInfo {
+  const isPremium = p.isPremium ?? p.userType === 'Pro';
   return {
     id: p.id != null ? String(p.id) : '',
     name: p.name ?? p.nickname ?? '',
     avatar: p.userAvatar,
     email: p.email,
+    isPremium,
+    premiumExpireAt: p.premiumExpireAt,
+    userType: p.userType,
+    likesAmount: p.likesAmount,
+    videosAmount: p.videosAmount,
+    remainingQuota: p.remainingQuota,
   };
 }
 
@@ -139,7 +158,7 @@ export async function refreshTokenAndApply(): Promise<void> {
   const current = useUserStore.getState().user;
   setUser({
     ...base,
-    isPremium: current?.isPremium,
-    premiumExpireAt: current?.premiumExpireAt,
+    isPremium: base.isPremium ?? false,
+    premiumExpireAt: base.premiumExpireAt ?? current?.premiumExpireAt,
   });
 }

@@ -9,6 +9,7 @@ import {
 } from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { CustomPromptScreen } from '../screens/CustomPrompt';
 import { GenerationInProgressScreen } from '../screens/GenerationInProgress';
@@ -16,7 +17,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, ShareModal, PremiumModal } from '../components';
+import { LoginModal, ShareModal, PremiumModal, ExceptionScreen } from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -33,11 +34,25 @@ import {
 } from '../services/shareToSocial';
 import { getSubscriptionSku, getIAPErrorMessage, type IAPPlanId } from '../services/iap';
 import { setOn401 } from '../api';
-import { refreshTokenAndApply } from '../api/services/user';
+import { refreshTokenAndApply, getProfile, profileToUserInfo } from '../api/services/user';
 import { purchaseSubscription } from '../api/services/appleSubscription';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/** 通用异常页：中间图见 src/assets/unusualimage.png，可通过路由传 message / buttonText */
+function ExceptionRouteScreen() {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'Exception'>>();
+  const params = route.params ?? {};
+  return (
+    <ExceptionScreen
+      message={params.message}
+      buttonText={params.buttonText ?? '返回'}
+      onPress={() => navigation.goBack()}
+    />
+  );
+}
 
 /** OAuth 回调：imageai://auth/instagram?token=xxx 或 imageai://auth/x?token=xxx（Firebase idToken） */
 const AUTH_DEEP_LINK_PREFIX = 'imageai://auth/';
@@ -119,12 +134,53 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           if (receiptData) {
             try {
               await purchaseSubscription(appleId, receiptData);
+              try {
+                const profile = await getProfile();
+                const base = profileToUserInfo(profile);
+                const fallbackExpire = new Date();
+                fallbackExpire.setDate(fallbackExpire.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                const expireStr = fallbackExpire.toISOString().slice(0, 10);
+                setUser({
+                  ...currentUser,
+                  ...base,
+                  id: (base.id || currentUser?.id) ?? '',
+                  name: (base.name || currentUser?.name) ?? 'User',
+                  isPremium: base.isPremium ?? true,
+                  premiumExpireAt: base.premiumExpireAt ?? expireStr,
+                });
+              } catch (_) {
+                if (currentUser) {
+                  const expireAt = new Date();
+                  expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                  setUser({
+                    ...currentUser,
+                    isPremium: true,
+                    premiumExpireAt: expireAt.toISOString().slice(0, 10),
+                  });
+                }
+              }
             } catch (e) {
               __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
+              if (currentUser) {
+                const expireAt = new Date();
+                expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                setUser({
+                  ...currentUser,
+                  isPremium: true,
+                  premiumExpireAt: expireAt.toISOString().slice(0, 10),
+                });
+              }
             }
+          } else if (currentUser) {
+            const expireAt = new Date();
+            expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+            setUser({
+              ...currentUser,
+              isPremium: true,
+              premiumExpireAt: expireAt.toISOString().slice(0, 10),
+            });
           }
-        }
-        if (currentUser) {
+        } else if (currentUser) {
           const expireAt = new Date();
           expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
           setUser({
@@ -266,6 +322,11 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '600' },
         })}
+      />
+      <Stack.Screen
+        name="Exception"
+        component={ExceptionRouteScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
     <LoginModal

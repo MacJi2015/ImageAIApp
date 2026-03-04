@@ -18,6 +18,8 @@ export type RootStackParamList = {
   EditProfile: undefined;
   WebView: { url: string; title: string };
   Feedback: undefined;
+  /** 通用异常页，可选 message / buttonText，用于展示异常态（中间图见 assets/unusualimage.png） */
+  Exception: { message?: string; buttonText?: string } | undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =

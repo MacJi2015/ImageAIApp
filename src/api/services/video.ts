@@ -1,3 +1,4 @@
+
 import { get, post } from '../request';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -46,17 +47,15 @@ export interface GetMyVideosParams {
 
 /**
  * 获取用户创作的视频列表
- * GET /api/app/user/myVideos，token 放在 header
+ * GET /facial/app/user/myVideos，token 放在 header
  */
 export async function getMyVideos(params?: GetMyVideosParams): Promise<MyVideosResponse> {
-  const token = useUserStore.getState().token;
-  const res = await get<MyVideosResponse>('api/app/user/myVideos', {
+  const res = await get<MyVideosResponse>('app/user/myVideos', {
     params: {
       pageNum: params?.pageNum ?? 1,
       pageSize: params?.pageSize ?? 20,
       ...(params?.status ? { status: params.status } : {}),
     },
-    headers: token ? { token } : {},
   });
   return res as MyVideosResponse;
 }

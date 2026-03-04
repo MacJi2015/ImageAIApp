@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_TOKEN } from '../api/config';
 
 export interface UserInfo {
   id: string;
@@ -9,6 +10,14 @@ export interface UserInfo {
   isPremium?: boolean;
   /** 会员到期日 ISO 字符串，如 "2025-03-24"，用于展示 "X days remaining" */
   premiumExpireAt?: string;
+  /** 会员类型：Free | Pro（后端动态字段） */
+  userType?: 'Free' | 'Pro';
+  /** 获赞个数（后端动态字段） */
+  likesAmount?: number;
+  /** 视频数量（后端动态字段） */
+  videosAmount?: number;
+  /** 剩余可用次数（后端动态字段） */
+  remainingQuota?: number;
 }
 
 export interface UserState {
@@ -33,11 +42,10 @@ const defaultMemberUser: UserInfo = {
   premiumExpireAt: '2026-04-24',
 };
 
+/** 初始使用写死的默认 token，有 token 即视为已登录；正式登录后会被替换 */
 export const useUserStore = create<UserState>(set => ({
-  isLoggedIn: DEMO_MEMBER,
-  token: DEMO_MEMBER
-    ? 'demo'
-    : 'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK',
+  isLoggedIn: !!DEFAULT_TOKEN,
+  token: DEFAULT_TOKEN,
   user: DEMO_MEMBER ? defaultMemberUser : null,
 
   setToken: token => set({ token, isLoggedIn: !!token }),

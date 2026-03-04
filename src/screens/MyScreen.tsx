@@ -30,17 +30,15 @@ const ACCENT = '#58a6ff';
 const PREMIUM_BG = '#e6d5b8';
 const PREMIUM_TEXT = '#2d2318';
 
-const STATS_LIKES = { value: '23', label: 'LIKES' };
-
 export function MyScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const user = useUserStore(state => state.user);
   const setUser = useUserStore(state => state.setUser);
-  const isLoggedIn = useUserStore(state => state.isLoggedIn);
+  /** 通过是否有 token 判断是否登录 */
+  const isLoggedIn = useUserStore(state => !!state.token);
   const openLoginModal = useAppStore(state => state.openLoginModal);
-  const openShareModal = useAppStore(state => state.openShareModal);
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
   const gap = 8;
   const colCount = 3;
@@ -68,7 +66,7 @@ export function MyScreen() {
   const PAGE_SIZE = 20;
 
   const loadMyVideos = useCallback(async (page: number = 1, append = false) => {
-    if (!isLoggedIn) return;
+    if (!useUserStore.getState().token) return;
     setVideoLoading(true);
     setVideoError(null);
     try {
@@ -84,12 +82,17 @@ export function MyScreen() {
     } finally {
       setVideoLoading(false);
     }
-  }, [isLoggedIn]);
+  }, []);
 
-  /** 进入页面时：已登录则拉取用户基本信息并同步到 store，同时拉取视频列表 */
+  /** 进入页面时：已登录则拉取用户基本信息并同步到 store，同时拉取视频列表（focus 时从 store 取最新登录态，避免 tab 预挂载导致闭包陈旧） */
   useFocusEffect(
     useCallback(() => {
-      if (!isLoggedIn) return;
+      const hasToken = !!useUserStore.getState().token;
+      if (!hasToken) {
+        __DEV__ && console.log('[MyScreen] useFocusEffect: 无 token，跳过 getProfile');
+        return;
+      }
+      __DEV__ && console.log('[MyScreen] useFocusEffect: 有 token，拉取 getProfile');
       (async () => {
         try {
           const profile = await getProfile();
@@ -97,15 +100,15 @@ export function MyScreen() {
           const current = useUserStore.getState().user;
           setUser({
             ...base,
-            isPremium: current?.isPremium,
-            premiumExpireAt: current?.premiumExpireAt,
+            isPremium: base.isPremium ?? false,
+            premiumExpireAt: base.premiumExpireAt ?? current?.premiumExpireAt,
           });
         } catch (_) {
           // 静默失败，继续用 store 内已有信息
         }
       })();
       loadMyVideos(1, false);
-    }, [isLoggedIn, loadMyVideos, setUser])
+    }, [loadMyVideos, setUser])
   );
 
   const loadMore = useCallback(() => {
@@ -113,17 +116,20 @@ export function MyScreen() {
     loadMyVideos(pageNum + 1, true);
   }, [videoLoading, pageNum, totalPage, isLoggedIn, loadMyVideos]);
 
+  const likesCount = user?.likesAmount ?? 0;
+  const videosCount = user?.videosAmount ?? videoTotal;
+  const freeQuotaLeft = user?.remainingQuota ?? 3;
   const statsItems =
     isPremium
       ? [
-          { value: String(videoTotal), label: 'VIDEOS' },
-          STATS_LIKES,
+          { value: String(videosCount), label: 'VIDEOS' },
+          { value: String(likesCount), label: 'LIKES' },
           { value: `${daysRemaining} Left`, label: 'PRO MEMBER' },
         ]
       : [
-          { value: String(videoTotal), label: 'VIDEOS' },
-          STATS_LIKES,
-          { value: '3 Left', label: 'FREE PLAN' },
+          { value: String(videosCount), label: 'VIDEOS' },
+          { value: String(likesCount), label: 'LIKES' },
+          { value: `${freeQuotaLeft} Left`, label: 'FREE PLAN' },
         ];
 
   const [showCompactHeader, setShowCompactHeader] = useState(false);
@@ -263,10 +269,10 @@ export function MyScreen() {
           })}
         </View>
 
-        {/* 免费版：GET PREMIUM；会员版：RENEW NOW + X days remaining；点击弹出分享 */}
+        {/* 免费版：GET PREMIUM；会员版：RENEW NOW + X days remaining；点击弹出购买会员弹窗 */}
         <Pressable
           style={styles.premiumBtn}
-          onPress={() => openShareModal({ title: 'ImageAI', message: 'Turn your pets into superstar!' })}
+          onPress={openPremiumModal}
         >
           <Image source={vipIcon} style={styles.premiumIconImage} resizeMode="contain" />
           <View style={styles.premiumTextWrap}>
