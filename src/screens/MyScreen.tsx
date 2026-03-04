@@ -315,7 +315,7 @@ export function MyScreen() {
                         marginBottom: gap,
                       },
                     ]}
-                    onPress={() => item.videoUrl && item.status === 'SUCCESS' && navigation.navigate('Detail', { id: String(item.id), title: item.promptText ?? '视频' })}
+                    onPress={() => item.videoUrl && item.status === 'SUCCESS' && navigation.navigate('Detail', { id: String(item.id), title: item.promptText ?? '视频', source: 'feed', videoUrl: item.videoUrl, thumbnailUrl: item.thumbnailUrl })}
                   >
                     {(item.thumbnailUrl || item.videoUrl) ? (
                       <Image

@@ -20,31 +20,80 @@ export interface FeedItem {
 }
 
 /** Feed 列表响应（支持分页或直接数组） */
-export type FeedListResponse = FeedItem[] | { list: FeedItem[]; pageNum?: number; pageSize?: number; total?: number };
+export type FeedListResponse =
+  | FeedItem[]
+  | { list: FeedItem[]; pageNum?: number; pageSize?: number; total?: number };
+
+/** 接口无数据时使用的 20 条造数 */
+function createMockFeedList(): FeedItem[] {
+  return Array.from({ length: 20 }, (_, i) => ({
+    id: i + 1,
+    feedId: `mock-feed-${i + 1}`,
+    thumbnailUrl: `https://picsum.photos/seed/feed${i + 1}/172/224`,
+    likeCount: Math.floor(Math.random() * 500) + 10,
+    shareCount: Math.floor(Math.random() * 50),
+    viewCount: Math.floor(Math.random() * 2000) + 100,
+    userId: (i % 5) + 10001,
+    status: 'ACTIVE',
+    hasWatermark: i % 3 === 0,
+    promptText: `Pet video #${i + 1}`,
+    createdTime: new Date(Date.now() - i * 3600000).toISOString(),
+    modifiedTime: new Date(Date.now() - i * 1800000).toISOString(),
+  }));
+}
+
+const MOCK_FEED_LIST = createMockFeedList();
 
 /**
  * 查询 Feed 流列表
  * GET /facial/app/feed/list
+ * 接口返回为空时使用 20 条造数
  */
 export async function getFeedList(params?: {
   pageNum?: number;
   pageSize?: number;
-}): Promise<{ list: FeedItem[]; pageNum: number; pageSize: number; total?: number }> {
-  const res = await get<FeedListResponse>('app/feed/list', {
-    params: {
-      pageNum: params?.pageNum ?? 1,
-      pageSize: params?.pageSize ?? 10,
-    },
-  });
-  if (Array.isArray(res)) {
-    return { list: res, pageNum: 1, pageSize: res.length };
+}): Promise<{
+  list: FeedItem[];
+  pageNum: number;
+  pageSize: number;
+  total?: number;
+}> {
+  const pageNum = params?.pageNum ?? 1;
+  const pageSize = params?.pageSize ?? 10;
+  let list: FeedItem[] = [];
+  let total: number | undefined;
+
+  try {
+    const res = await get<FeedListResponse>('app/feed/list', {
+      params: { pageNum, pageSize },
+    });
+    if (Array.isArray(res)) {
+      list = res;
+    } else {
+      const r = res as unknown as {
+        entry: FeedItem[];
+        pageNum?: number;
+        pageSize?: number;
+        total?: number;
+      };
+      list = r.entry ?? [];
+      total = r.total;
+    }
+  } catch {
+    list = [];
   }
-  const r = res as { list: FeedItem[]; pageNum?: number; pageSize?: number; total?: number };
+
+  if (list.length === 0) {
+    const start = (pageNum - 1) * pageSize;
+    list = MOCK_FEED_LIST.slice(start, start + pageSize);
+    total = MOCK_FEED_LIST.length;
+  }
+
   return {
-    list: r.list ?? [],
-    pageNum: r.pageNum ?? 1,
-    pageSize: r.pageSize ?? 10,
-    total: r.total,
+    list,
+    pageNum,
+    pageSize,
+    total,
   };
 }
 

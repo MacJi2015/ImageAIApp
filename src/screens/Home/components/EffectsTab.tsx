@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -6,7 +6,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
@@ -14,13 +17,17 @@ import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/servic
 import ascIcon from '../../../assets/asc-icon.png';
 import dogIcon from '../../../assets/dog-icon.png';
 import cartIcon from '../../../assets/cart-icon.png';
-import placeholderImage from '../../image-2.png';
+import preGoodsImg from '../../../assets/details/pre-goods-img.png';
+import emptyImg from '../../../assets/details/empty.png';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 const LOADING = 'loading';
 const EMPTY = 'empty';
+const CONTAINER_PADDING_H = 16;
+const CARD_GAP = 7;
+const CARD_MAX_WIDTH = 200;
 
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -30,35 +37,53 @@ function formatCount(n: number): string {
 
 function EffectCard({
   template,
-  isLeft,
   cornerIcon,
+  cardWidth,
 }: {
   template: AppVideoTemplate;
   index: number;
-  isLeft: boolean;
   cornerIcon: ImageSourcePropType;
+  cardWidth: number;
 }) {
   const navigation = useNavigation<Nav>();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  // template.coverImageUrl || 
+  const imageUri = 'https://picsum.photos/seed/feed3/172/224';
 
   return (
     <TouchableOpacity
-      style={[styles.effectCard, isLeft ? styles.effectCardLeft : styles.effectCardRight]}
+      style={[styles.effectCard, { width: cardWidth }]}
       activeOpacity={0.9}
       onPress={() =>
         navigation.navigate('Detail', {
           id: template.templateId,
           title: template.templateName,
+          source: 'effect',
+          videoUrl: template.previewVideoUrl || undefined,
+          thumbnailUrl: template.coverImageUrl || undefined,
         })
       }
     >
-      {/* <Image
-        source={{ uri: template.coverImageUrl }}
-        style={styles.effectCardImage}
-        resizeMode="cover"
-      /> */}
-      <Image source={placeholderImage} style={styles.effectCardImage} resizeMode="cover" />
-      <View style={styles.effectCardGradient} />
+      <View style={styles.effectCardImageWrap}>
+        <Image source={preGoodsImg} style={styles.effectCardImagePreloadPlaceholder} resizeMode="contain" />
+        <Image
+          source={{ uri: imageUri }}
+          style={[styles.effectCardImage, imageLoaded ? styles.effectCardImageLoaded : styles.effectCardImagePreload]}
+          resizeMode="cover"
+          onLoadEnd={() => setImageLoaded(true)}
+        />
+      </View>
+      <LinearGradient
+        colors={['rgba(5, 10, 20, 0)', 'rgba(5, 10, 20, 0.80)']}
+        style={styles.effectCardGradient}
+        pointerEvents="none"
+      />
       <View style={styles.effectCardCornerIconWrap}>
+        <BlurView
+          style={StyleSheet.absoluteFill}
+          blurType="dark"
+          blurAmount={8}
+        />
         <Image source={cornerIcon} style={styles.effectCardCornerIcon} resizeMode="contain" />
       </View>
       <View style={styles.effectCardBottom}>
@@ -90,8 +115,15 @@ interface EffectsTabProps {
 }
 
 export function EffectsTab({ refreshKey }: EffectsTabProps) {
+  const { width: screenWidth } = useWindowDimensions();
   const [list, setList] = useState<AppVideoTemplate[]>([]);
   const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>('idle');
+
+  const cardWidth = useMemo(() => {
+    const contentWidth = screenWidth - CONTAINER_PADDING_H * 2;
+    const w = (contentWidth - CARD_GAP) / 2;
+    return Math.min(Math.floor(w), CARD_MAX_WIDTH);
+  }, [screenWidth]);
 
   const loadData = useCallback(async () => {
     setStatus(LOADING);
@@ -119,28 +151,28 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
 
   if (status === EMPTY) {
     return (
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>No effects yet</Text>
+      <View style={styles.emptyState}>
+        <Image source={emptyImg} style={styles.emptyStateIcon} resizeMode="contain" />
+        <Text style={styles.emptyStateText}>Hmm, something's off.</Text>
+        <TouchableOpacity style={styles.emptyStateRefreshBtn} activeOpacity={0.8} onPress={loadData}>
+          <Text style={styles.emptyStateRefreshText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const leftItems = list.filter((_, i) => i % 2 === 0);
-  const rightItems = list.filter((_, i) => i % 2 === 1);
-
   return (
     <View style={styles.effectsContainer}>
       <View style={styles.effectsGrid}>
-        <View style={styles.effectsColumn}>
-          {leftItems.map((t, i) => (
-            <EffectCard key={t.templateId} template={t} index={i * 2} isLeft cornerIcon={dogIcon} />
-          ))}
-        </View>
-        <View style={styles.effectsColumn}>
-          {rightItems.map((t, i) => (
-            <EffectCard key={t.templateId} template={t} index={i * 2 + 1} isLeft={false} cornerIcon={cartIcon} />
-          ))}
-        </View>
+        {list.map((t, i) => (
+          <EffectCard
+            key={t.templateId}
+            template={t}
+            index={i}
+            cornerIcon={i % 2 === 0 ? dogIcon : cartIcon}
+            cardWidth={cardWidth}
+          />
+        ))}
       </View>
     </View>
   );
@@ -154,34 +186,41 @@ const styles = StyleSheet.create({
   },
   effectsGrid: {
     flexDirection: 'row',
-    gap: 7,
-  },
-  effectsColumn: {
-    flex: 1,
-    maxWidth: 168,
-    gap: 8,
+    flexWrap: 'wrap',
+    columnGap: 7,
+    rowGap: 8,
   },
   effectCard: {
-    width: '100%',
-    height: 268,
-    borderRadius: 12,
+    height: 226,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
   },
-  effectCardLeft: { marginRight: 0 },
-  effectCardRight: { marginLeft: 0 },
+  effectCardImageWrap: {
+    ...StyleSheet.absoluteFillObject,
+  },
   effectCardImage: {
     ...StyleSheet.absoluteFillObject,
     width: undefined,
     height: undefined,
+  },
+  effectCardImagePreloadPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
+  },
+  effectCardImagePreload: {
+    opacity: 0,
+  },
+  effectCardImageLoaded: {
+    opacity: 1,
   },
   effectCardGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 56,
-    backgroundColor: 'rgba(5,10,20,0.8)',
+    height: 40,
   },
   effectCardCornerIconWrap: {
     position: 'absolute',
@@ -190,7 +229,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#48312E',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -255,5 +294,36 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#3a4a65',
     fontSize: 14,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyStateIcon: {
+    width: 85,
+    height: 85,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    color: '#3a4a65',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  emptyStateRefreshBtn: {
+    backgroundColor: '#09111f',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateRefreshText: {
+    color: '#ffffff',
+    fontSize: 12,
   },
 });

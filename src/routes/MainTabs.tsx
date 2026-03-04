@@ -16,8 +16,19 @@ import publishIcon from '../assets/publish-icon.png';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TAB_BAR_BG = 'rgba(5, 10, 20, 0.92)';
+/** 导航栏与安全区统一使用纯色，避免底部颜色不一致 */
+const TAB_BAR_BG = '#050a14';
 const ACCENT = '#00ffff';
+
+function TabBarBackground() {
+  return <View style={tabBarBackgroundStyles.bg} />;
+}
+const tabBarBackgroundStyles = StyleSheet.create({
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: TAB_BAR_BG,
+  },
+});
 
 function HomeTabIcon({ focused }: { focused: boolean }) {
   return (
@@ -96,11 +107,12 @@ export function MainTabs() {
           height: tabBarHeight,
           paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 8),
-          backgroundColor: TAB_BAR_BG,
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
         },
+        tabBarBackground: TabBarBackground,
         tabBarItemStyle: {
           paddingVertical: 8,
           alignItems: 'center',

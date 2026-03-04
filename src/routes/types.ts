@@ -10,7 +10,16 @@ export type MainTabParamList = {
 /** 根 Stack 的页面名与参数（Tab 容器 + 可 push 的详情等） */
 export type RootStackParamList = {
   MainTabs: undefined;
-  Detail: { id: string; title?: string };
+  /** source: effect = 点击播放，feed = 自动播放；缺省为 effect */
+  Detail: {
+    id: string;
+    title?: string;
+    source?: 'effect' | 'feed';
+    videoUrl?: string;
+    thumbnailUrl?: string;
+    userName?: string;
+    likeCount?: number;
+  };
   GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
   CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string };
   GenerationInProgress: { taskId: string; imageUri: string; estimatedTime?: number };
