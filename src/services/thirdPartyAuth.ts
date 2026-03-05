@@ -1,17 +1,28 @@
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, Linking } from 'react-native';
+import CryptoJS from 'crypto-js';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import firebaseAuth from '@react-native-firebase/auth';
+import { authorize as tikTokAuthorize, Scopes as TikTokScopes } from 'react-native-tiktok';
 import {
   getAuth,
   signInWithCredential,
   getIdToken,
   AppleAuthProvider,
   GoogleAuthProvider,
+  FacebookAuthProvider,
 } from '@react-native-firebase/auth';
+import { AccessToken, LoginManager, Settings } from 'react-native-fbsdk-next';
 import { setAuthToken } from '../api/request';
-import { authConfig } from '../api/config';
-import { snsThreePartyLogin, LoginFrom, getOAuthAuthorizeUrl } from '../api/services/auth';
+import { apiConfig, authConfig } from '../api/config';
+import {
+  snsThreePartyLogin,
+  LoginFrom,
+  getOAuthAuthorizeUrl,
+  getXAuthorizeUrlPKCE,
+  exchangeXCode,
+  exchangeTikTokSdkCode,
+} from '../api/services/auth';
 import { useUserStore, type UserInfo } from '../store';
 import { saveAuth } from './authStorage';
 
@@ -61,12 +72,29 @@ export function initGoogleSignIn() {
   }
 }
 
+/** 初始化 Facebook SDK（建议在 App 启动时调用一次） */
+export function initFacebookSdk() {
+  try {
+    Settings.initializeSDK();
+  } catch {
+    // ignore
+  }
+}
+
 /** 是否支持 Apple 登录（当前仅 iOS 13+） */
 export function isAppleSignInSupported(): boolean {
   return Platform.OS === 'ios';
 }
 
 const LOG_TAG = '[AppleLogin]';
+
+type LoginFromValue = (typeof LoginFrom)[keyof typeof LoginFrom];
+
+/** 统一登录收敛：Firebase idToken -> 后端 snsThreePartyLogin -> 本地写入登录态 */
+async function applyFirebaseIdTokenLogin(idToken: string, loginFrom: LoginFromValue): Promise<void> {
+  const result = await snsThreePartyLogin({ idToken, loginFrom });
+  await applyLoginResult(result.token, result.user);
+}
 
 /** Apple 登录：Apple Sign In → Firebase credential → Firebase idToken → 后端 snsThreePartyLogin */
 export async function loginWithApple(): Promise<boolean> {
@@ -141,18 +169,7 @@ export async function loginWithApple(): Promise<boolean> {
       user = { ...(result.user ?? {}), name: (result.user?.name || name) || 'User' } as UserInfo;
     });
 
-    await stepTry('A setAuthToken', () => { setAuthToken(result.token); });
-    const state = useUserStore.getState();
-    if (__DEV__) console.warn(LOG_TAG, '[监控] state 类型:', typeof state, 'state.login 类型:', typeof state?.login, 'state.setToken 类型:', typeof state?.setToken);
-    await stepTry('B state.login/setToken', () => {
-      if (typeof state?.login === 'function') {
-        state.login(result.token, user);
-      } else {
-        state.setToken?.(result.token);
-        state.setUser?.(user);
-      }
-    });
-    await stepTry('C saveAuth', () => saveAuth(result.token, user));
+    await stepTry('A applyLoginResult', () => applyLoginResult(result.token, user));
     if (__DEV__) console.warn(LOG_TAG, '6. 登录完成');
     return true;
   } catch (e: unknown) {
@@ -231,10 +248,7 @@ export async function loginWithGoogle(): Promise<boolean> {
       return false;
     }
     const firebaseIdToken = await getFirebaseIdToken(auth, firebaseUser);
-    const result = await snsThreePartyLogin({ idToken: firebaseIdToken, loginFrom: LoginFrom.Google });
-    setAuthToken(result.token);
-    useUserStore.getState().login(result.token, result.user);
-    await saveAuth(result.token, result.user);
+    await applyFirebaseIdTokenLogin(firebaseIdToken, LoginFrom.Google);
     return true;
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string };
@@ -245,6 +259,61 @@ export async function loginWithGoogle(): Promise<boolean> {
       ? '原生模块未正确链接或版本不匹配。请执行：cd ios && pod install，然后重新编译运行。'
       : msg;
     Alert.alert('Google 登录失败', displayMessage);
+    return false;
+  }
+}
+
+/** Facebook 登录：Facebook SDK -> Firebase credential -> Firebase idToken -> 后端 snsThreePartyLogin */
+export async function loginWithFacebook(): Promise<boolean> {
+  try {
+    if (
+      typeof LoginManager?.logInWithPermissions !== 'function' ||
+      typeof AccessToken?.getCurrentAccessToken !== 'function'
+    ) {
+      Alert.alert(
+        'Facebook 登录失败',
+        'Facebook 原生模块未正确链接。请执行：cd ios && pod install，然后重新编译运行。',
+      );
+      return false;
+    }
+
+    const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+    if (result.isCancelled) return false;
+
+    const accessTokenData = await AccessToken.getCurrentAccessToken();
+    const accessToken = accessTokenData?.accessToken;
+    if (!accessToken) {
+      Alert.alert('登录失败', '未获取到 Facebook 凭证');
+      return false;
+    }
+
+    const auth = getAuth();
+    if (!auth || typeof auth.signInWithCredential !== 'function') {
+      Alert.alert('Facebook 登录失败', 'Firebase Auth 未正确初始化，请检查 Firebase 配置与原生链接。');
+      return false;
+    }
+
+    const facebookCredential = FacebookAuthProvider.credential(accessToken.toString());
+    const userCredential = await signInWithCredential(auth, facebookCredential);
+    const firebaseUser = userCredential?.user;
+    if (!firebaseUser) {
+      Alert.alert('Facebook 登录失败', '无法获取 Firebase 用户凭证，请重试或检查 Firebase Auth 配置。');
+      return false;
+    }
+
+    const firebaseIdToken = await getFirebaseIdToken(auth, firebaseUser);
+    await applyFirebaseIdTokenLogin(firebaseIdToken, LoginFrom.Meta);
+    return true;
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    const msg = err?.message ?? String(e);
+    const cancelled =
+      err?.code === 'CANCELLED' ||
+      err?.code === 'E_CANCELLED' ||
+      /cancel/i.test(msg) ||
+      /user cancelled/i.test(msg);
+    if (cancelled) return false;
+    Alert.alert('Facebook 登录失败', msg);
     return false;
   }
 }
@@ -260,24 +329,201 @@ export async function getInstagramAuthUrl(): Promise<string | null> {
   }
 }
 
-/** 获取 X (Twitter) OAuth 授权页 URL */
+const PKCE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+
+/** 生成 OAuth 2.0 PKCE 的 code_verifier、code_challenge 和 state */
+function generatePKCE(): { code_verifier: string; code_challenge: string; state: string } {
+  const randomStr = (len: number) =>
+    Array.from({ length: len }, () => PKCE_CHARS[Math.floor(Math.random() * PKCE_CHARS.length)]).join('');
+  const code_verifier = randomStr(43);
+  const hash = CryptoJS.SHA256(code_verifier).toString(CryptoJS.enc.Base64);
+  const code_challenge = hash.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const state = randomStr(16);
+  return { code_verifier, code_challenge, state };
+}
+
+/** X PKCE 流程中按 state 暂存 code_verifier，供深链回调时兑换 */
+const xPkceStateStore = new Map<string, { code_verifier: string }>();
+
+export type XSdkLoginResult = 'pending' | 'fallback';
+
+/** X 登录：优先走 OAuth 2.0 PKCE（系统浏览器），失败或后端未支持时回退 WebView OAuth */
+export async function loginWithXPreferPKCE(): Promise<XSdkLoginResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'fallback';
+  const redirectUri = authConfig.xRedirectUri;
+  if (!redirectUri) return 'fallback';
+  try {
+    const { code_verifier, code_challenge, state } = generatePKCE();
+    const { url } = await getXAuthorizeUrlPKCE({
+      code_challenge,
+      state,
+      redirect_uri: redirectUri,
+    });
+    if (!url) return 'fallback';
+    xPkceStateStore.set(state, { code_verifier });
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      xPkceStateStore.delete(state);
+      return 'fallback';
+    }
+    await Linking.openURL(url);
+    return 'pending';
+  } catch (e) {
+    if (__DEV__) console.warn('[XLogin] PKCE 失败，回退 WebView:', e);
+    return 'fallback';
+  }
+}
+
+/** 深链 imageai://auth/x?code=xxx&state=xxx 回调时，用暂存的 code_verifier 兑换并登录；返回是否成功 */
+export async function exchangeXCodeFromDeepLink(code: string, state: string): Promise<boolean> {
+  const stored = xPkceStateStore.get(state);
+  xPkceStateStore.delete(state);
+  if (!stored) {
+    if (__DEV__) console.warn('[XLogin] 未找到 state 对应的 code_verifier，可能已过期或未走 PKCE');
+    return false;
+  }
+  try {
+    const resp = await exchangeXCode({
+      code,
+      code_verifier: stored.code_verifier,
+      state,
+      redirect_uri: authConfig.xRedirectUri,
+    });
+    if (resp?.idToken) {
+      await applyFirebaseIdTokenLogin(resp.idToken, LoginFrom.Twitter);
+      return true;
+    }
+    if (__DEV__) console.warn('[XLogin] code 兑换结果缺少 idToken（仅允许统一流程）');
+    return false;
+  } catch (e) {
+    if (__DEV__) console.warn('[XLogin] code 兑换失败:', e);
+    return false;
+  }
+}
+
+/** 获取 X (Twitter) OAuth 授权页 URL（WebView 回退用）；后端用 Firebase 做 Twitter 登录时可配置 authConfig.xAuthorizeUrl 兜底 */
 export async function getXAuthUrl(): Promise<string | null> {
+  const normalizeUrl = (raw: string): string | null => {
+    const value = raw.trim();
+    if (!value) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    const base = apiConfig.baseURL?.trim();
+    if (!base) return null;
+    return `${base.replace(/\/$/, '')}/${value.replace(/^\//, '')}`;
+  };
+
   try {
     const { url } = await getOAuthAuthorizeUrl('x');
+    const normalized = typeof url === 'string' ? normalizeUrl(url) : null;
+    if (normalized) return normalized;
+  } catch (e) {
+    if (__DEV__) console.warn('[XLogin] 获取授权 URL 接口失败，尝试使用配置的 xAuthorizeUrl', e);
+  }
+  const fallback = normalizeUrl(authConfig.xAuthorizeUrl ?? '');
+  if (fallback) return fallback;
+  Alert.alert(
+    '提示',
+    'X 登录授权地址无效或未配置。\n\n请检查后端 GET /auth/social/authorize-url?provider=x 返回完整可访问 URL；或在 .env 配置 X_AUTHORIZE_URL（完整 http/https 地址）。',
+  );
+  return null;
+}
+
+/** 获取 TikTok OAuth 授权页 URL */
+export async function getTikTokAuthUrl(): Promise<string | null> {
+  try {
+    const { url } = await getOAuthAuthorizeUrl('tiktok');
     return url || null;
   } catch {
-    Alert.alert('提示', 'X 登录暂未开放，请使用 Apple 或 Google 登录');
+    Alert.alert('提示', 'TikTok 登录暂未开放，请使用 Apple 或 Google 登录');
     return null;
   }
 }
 
-/** 使用 OAuth 回调中的 idToken 调用三方登录（Meta/Instagram=7, X(Twitter)=8）；深链格式 imageai://auth/instagram?token=xxx */
-export async function exchangeWithIdToken(loginFrom: 7 | 8, idToken: string): Promise<boolean> {
+type TikTokSdkLoginResult = 'success' | 'fallback' | 'cancelled';
+
+function applyLoginResult(token: string, user: UserInfo): Promise<void> {
+  setAuthToken(token);
+  useUserStore.getState().login(token, user);
+  return saveAuth(token, user);
+}
+
+function isUserCancelledError(e: unknown): boolean {
+  const err = e as { code?: string; message?: string };
+  const msg = (err?.message ?? String(e)).toLowerCase();
+  return (
+    err?.code === 'CANCELLED' ||
+    err?.code === 'E_CANCELLED' ||
+    msg.includes('cancel') ||
+    msg.includes('user cancelled')
+  );
+}
+
+function requestTikTokOpenSdkAuthCode(): Promise<{ authCode: string; codeVerifier?: string }> {
+  const redirectURI = authConfig.tiktokOpenSdkRedirectUri;
+  if (!redirectURI) {
+    return Promise.reject(
+      new Error('缺少 TikTok OpenSDK redirectURI，请配置 TIKTOK_OPENSDK_REDIRECT_URI'),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('TikTok OpenSDK 授权超时'));
+    }, 15000);
+    try {
+      tikTokAuthorize({
+        redirectURI,
+        scopes: [TikTokScopes.user.info.basic],
+        callback: (authCode: string, codeVerifier?: string) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (!authCode) {
+            reject(new Error('TikTok OpenSDK 未返回 authCode'));
+            return;
+          }
+          resolve({ authCode, codeVerifier });
+        },
+      });
+    } catch (e) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(e as Error);
+    }
+  });
+}
+
+/** TikTok 登录：优先走 OpenSDK（原生），失败自动回退 OAuth；用户主动取消则不回退 */
+export async function loginWithTikTokPreferSdk(): Promise<TikTokSdkLoginResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'fallback';
   try {
-    const result = await snsThreePartyLogin({ idToken, loginFrom });
-    setAuthToken(result.token);
-    useUserStore.getState().login(result.token, result.user);
-    await saveAuth(result.token, result.user);
+    const { authCode, codeVerifier } = await requestTikTokOpenSdkAuthCode();
+    const sdkResp = await exchangeTikTokSdkCode({
+      authCode,
+      codeVerifier,
+      redirectUri: authConfig.tiktokOpenSdkRedirectUri,
+    });
+
+    if (sdkResp?.idToken) {
+      await applyFirebaseIdTokenLogin(sdkResp.idToken, LoginFrom.TikTok);
+      return 'success';
+    }
+    if (__DEV__) console.warn('[TikTokLogin] OpenSDK 兑换结果缺少 idToken（仅允许统一流程），回退 OAuth');
+    return 'fallback';
+  } catch (e) {
+    if (isUserCancelledError(e)) return 'cancelled';
+    if (__DEV__) console.warn('[TikTokLogin] OpenSDK 失败，回退 OAuth:', e);
+    return 'fallback';
+  }
+}
+
+/** 使用 OAuth 回调中的 idToken 调用三方登录（Meta/Instagram=7, X(Twitter)=8, TikTok=9）；深链格式 imageai://auth/instagram?token=xxx */
+export async function exchangeWithIdToken(loginFrom: 7 | 8 | 9, idToken: string): Promise<boolean> {
+  try {
+    await applyFirebaseIdTokenLogin(idToken, loginFrom);
     return true;
   } catch (e) {
     Alert.alert('登录失败', (e as Error)?.message ?? '兑换凭证失败');

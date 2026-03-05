@@ -24,6 +24,9 @@ use_frameworks! :linkage => linkage.to_sym
 target 'ImageAIApp' do
   config = use_native_modules!
 
+  # 国内网络：用 GitHub 镜像拉取 Facebook SDK，避免直接从 GitHub 下载时 Connection reset by peer
+  pod 'FBAEMKit', :podspec => File.join(__dir__, 'OverridePods', 'FBAEMKit.podspec')
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

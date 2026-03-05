@@ -26,12 +26,24 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>FacebookAppID</key>
+	<string>YOUR_FACEBOOK_APP_ID</string>
+	<key>FacebookClientToken</key>
+	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
+	<key>FacebookDisplayName</key>
+	<string>ImageAIApp</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fb</string>
 		<string>instagram</string>
 		<string>twitter</string>
+		<string>tiktokopensdk</string>
+		<string>tiktoksharesdk</string>
+		<string>snssdk1180</string>
+		<string>snssdk1233</string>
 	</array>
+	<key>TikTokClientKey</key>
+	<string>YOUR_TIKTOK_CLIENT_KEY</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -40,6 +52,32 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.823712304553-e6eo11focs3ogbaot1o5gheeoh4mc5tk</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fbYOUR_FACEBOOK_APP_ID</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>YOUR_TIKTOK_CLIENT_KEY</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>OAuth callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>imageai</string>
 			</array>
 		</dict>
 	</array>

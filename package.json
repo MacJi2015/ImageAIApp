@@ -25,6 +25,7 @@
     "crypto-js": "^4.2.0",
     "react": "19.2.3",
     "react-native": "0.84.0",
+    "react-native-fbsdk-next": "^13.4.3",
     "react-native-gesture-handler": "^2.30.0",
     "react-native-iap": "^14.7.12",
     "react-native-image-picker": "^8.2.1",
@@ -35,6 +36,7 @@
     "react-native-share": "^12.2.5",
     "react-native-svg": "^15.15.3",
     "react-native-svg-transformer": "^1.5.3",
+    "react-native-tiktok": "^2.1.17",
     "react-native-video": "^6.19.0",
     "react-native-webview": "^13.16.0",
     "zustand": "^5.0.11"

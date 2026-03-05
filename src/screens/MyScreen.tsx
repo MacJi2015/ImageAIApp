@@ -39,6 +39,7 @@ export function MyScreen() {
   /** 通过是否有 token 判断是否登录 */
   const isLoggedIn = useUserStore(state => !!state.token);
   const openLoginModal = useAppStore(state => state.openLoginModal);
+  const openShareModal = useAppStore(state => state.openShareModal);
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
   const gap = 8;
   const colCount = 3;
@@ -226,16 +227,19 @@ export function MyScreen() {
         </View>
         <Text style={styles.userEmail}>{displayEmail}</Text>
 
-        {/* 统计栏：会员版第三项为 PRO MEMBER；第三项（3 Left / FREE PLAN）点击弹出购买会员弹窗 */}
+        {/* 统计栏：会员版第三项 PRO MEMBER 点击弹出购买/续费弹窗；免费版第三项 FREE PLAN 点击弹出分享弹窗 */}
         <View style={styles.statsBar}>
           {statsItems.map((item, index) => {
             const isPlanItem = index === statsItems.length - 1;
             if (isPlanItem) {
+              const onPlanPress = isPremium
+                ? openPremiumModal
+                : () => openShareModal({ title: 'ImageAI', message: 'Turn your pets into superstar!' });
               return (
                 <Pressable
                   key={item.label}
                   style={({ pressed }) => [styles.statItemPressable, pressed && styles.statItemPressed]}
-                  onPress={openPremiumModal}
+                  onPress={onPlanPress}
                 >
                   <View style={[styles.statItem, styles.statItemPlan]}>
                     {index > 0 && <View style={[styles.statDivider, styles.statDividerPlan]} />}

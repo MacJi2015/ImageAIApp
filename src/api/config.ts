@@ -14,6 +14,17 @@ export const authConfig = {
   googleWebClientId:
     process.env.GOOGLE_WEB_CLIENT_ID ||
     '823712304553-3613sgsqo0ipecmfub5nhvulcvc3v3p3.apps.googleusercontent.com',
+  /** TikTok OpenSDK 回调地址（建议配置为 Universal Link / App Link） */
+  tiktokOpenSdkRedirectUri: 'https://example.com/auth/tiktok/callback',
+  /** X (Twitter) OAuth 2.0 PKCE 回调地址，需与 X 开发者平台及后端配置一致 */
+  xRedirectUri: process.env.X_REDIRECT_URI || 'imageai://auth/x',
+  /**
+   * X（Twitter）Firebase 登录页 URL（可选）。
+   * 若后端用 Firebase 做 Twitter 登录且未提供 GET /auth/social/authorize-url?provider=x，
+   * 可在此或环境变量 X_AUTHORIZE_URL 中配置后端提供的登录页地址，授权完成后需重定向到 imageai://auth/x?token=Firebase_idToken。
+   * 未配置时不做默认回退，避免跳转到不存在页面导致 404。
+   */
+  xAuthorizeUrl: process.env.X_AUTHORIZE_URL || '',
 };
 
 export const setBaseURL = (url: string) => {

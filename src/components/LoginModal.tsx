@@ -30,8 +30,10 @@ export type LoginModalProps = {
   onClose: () => void;
   onApple?: () => void;
   onGoogle?: () => void;
+  onFacebook?: () => void;
   onInstagram?: () => void;
   onX?: () => void;
+  onTikTok?: () => void;
   privacyUrl?: string;
   termsUrl?: string;
 };
@@ -82,6 +84,18 @@ function GoogleIcon() {
   );
 }
 
+function FacebookIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M22 12a10 10 0 1 0-11.56 9.88V14.9H7.9V12h2.54V9.79c0-2.5 1.49-3.88 3.77-3.88 1.09 0 2.24.19 2.24.19v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.9h-2.34v6.98A10 10 0 0 0 22 12z"
+        fill="#1877F2"
+      />
+      <Path d="M15.9 14.9l.44-2.9h-2.78v-1.88c0-.79.39-1.56 1.63-1.56h1.26V6.1s-1.15-.19-2.24-.19c-2.28 0-3.77 1.38-3.77 3.88V12H7.9v2.9h2.54v6.98a10.07 10.07 0 0 0 3.12 0V14.9h2.34z" fill="#fff" />
+    </Svg>
+  );
+}
+
 function InstagramIcon() {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={1.8}>
@@ -100,13 +114,26 @@ function XIcon() {
   );
 }
 
+function TikTokIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M14.5 4.2c.36 1.03 1.05 1.89 1.96 2.45.87.54 1.88.8 2.9.76v2.8c-1.28.04-2.54-.25-3.67-.85-.43-.23-.84-.5-1.2-.81v5.45c0 3.08-2.5 5.58-5.58 5.58a5.58 5.58 0 0 1-5.58-5.58 5.58 5.58 0 0 1 5.58-5.58c.3 0 .6.03.89.08v2.93a2.74 2.74 0 0 0-.89-.15 2.72 2.72 0 0 0-2.72 2.72 2.72 2.72 0 0 0 2.72 2.72 2.72 2.72 0 0 0 2.72-2.72V4.2h2.87z"
+        fill="#ffffff"
+      />
+    </Svg>
+  );
+}
+
 export function LoginModal({
   visible,
   onClose,
   onApple,
   onGoogle,
+  onFacebook,
   onInstagram,
   onX,
+  onTikTok,
   privacyUrl = 'https://example.com/privacy',
   termsUrl = 'https://example.com/terms',
 }: LoginModalProps) {
@@ -118,8 +145,10 @@ export function LoginModal({
   const buttons = [
     { key: 'apple', label: 'Apple', Icon: AppleIcon, onPress: onApple },
     { key: 'google', label: 'Google', Icon: GoogleIcon, onPress: onGoogle },
+    { key: 'facebook', label: 'Facebook', Icon: FacebookIcon, onPress: onFacebook },
     { key: 'instagram', label: 'Instagram', Icon: InstagramIcon, onPress: onInstagram },
     { key: 'x', label: 'X', Icon: XIcon, onPress: onX },
+    { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
   ];
 
   return (

@@ -21,10 +21,15 @@ import { LoginModal, ShareModal, PremiumModal, ExceptionScreen } from '../compon
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
+  loginWithFacebook,
   loginWithGoogle,
   getInstagramAuthUrl,
   getXAuthUrl,
+  getTikTokAuthUrl,
+  loginWithXPreferPKCE,
+  loginWithTikTokPreferSdk,
   exchangeWithIdToken,
+  exchangeXCodeFromDeepLink,
 } from '../services/thirdPartyAuth';
 import {
   shareToFacebook,
@@ -54,19 +59,29 @@ function ExceptionRouteScreen() {
   );
 }
 
-/** OAuth 回调：imageai://auth/instagram?token=xxx 或 imageai://auth/x?token=xxx（Firebase idToken） */
+/** OAuth 回调：imageai://auth/instagram?token=xxx / imageai://auth/x?token=xxx 或 ?code=xxx&state=xxx（PKCE）/ imageai://auth/tiktok?token=xxx */
 const AUTH_DEEP_LINK_PREFIX = 'imageai://auth/';
 
-function parseAuthCallbackUrl(url: string): { loginFrom: 7 | 8; idToken: string } | null {
+type AuthCallbackResult =
+  | { type: 'token'; loginFrom: 7 | 8 | 9; idToken: string }
+  | { type: 'x_code'; code: string; state: string };
+
+function parseAuthCallbackUrl(url: string): AuthCallbackResult | null {
   if (!url.startsWith(AUTH_DEEP_LINK_PREFIX)) return null;
   const path = url.slice(AUTH_DEEP_LINK_PREFIX.length);
   const [provider, query] = path.split('?');
   if (!query) return null;
   const params = new URLSearchParams(query);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (provider === 'x' && code && state) {
+    return { type: 'x_code', code, state };
+  }
   const token = params.get('token');
   if (!token) return null;
-  if (provider === 'instagram') return { loginFrom: 7, idToken: token }; // Meta
-  if (provider === 'x') return { loginFrom: 8, idToken: token };           // Twitter(X)
+  if (provider === 'instagram') return { type: 'token', loginFrom: 7, idToken: token };
+  if (provider === 'x') return { type: 'token', loginFrom: 8, idToken: token };
+  if (provider === 'tiktok') return { type: 'token', loginFrom: 9, idToken: token };
   return null;
 }
 
@@ -219,6 +234,11 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     if (ok) closeLoginModal();
   }, [closeLoginModal]);
 
+  const handleFacebook = useCallback(async () => {
+    const ok = await loginWithFacebook();
+    if (ok) closeLoginModal();
+  }, [closeLoginModal]);
+
   const handleInstagram = useCallback(async () => {
     const url = await getInstagramAuthUrl();
     if (url) {
@@ -228,6 +248,11 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   }, [closeLoginModal, navigationRef]);
 
   const handleX = useCallback(async () => {
+    const sdkResult = await loginWithXPreferPKCE();
+    if (sdkResult === 'pending') {
+      closeLoginModal();
+      return;
+    }
     const url = await getXAuthUrl();
     if (url) {
       closeLoginModal();
@@ -235,11 +260,32 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     }
   }, [closeLoginModal, navigationRef]);
 
+  const handleTikTok = useCallback(async () => {
+    const sdkResult = await loginWithTikTokPreferSdk();
+    if (sdkResult === 'success') {
+      closeLoginModal();
+      return;
+    }
+    if (sdkResult === 'cancelled') {
+      return;
+    }
+    const url = await getTikTokAuthUrl();
+    if (url) {
+      closeLoginModal();
+      navigationRef.current?.navigate('WebView', { url, title: 'TikTok' });
+    }
+  }, [closeLoginModal, navigationRef]);
+
   useEffect(() => {
     const onUrl = async (event: { url: string }) => {
       const parsed = parseAuthCallbackUrl(event.url);
       if (!parsed) return;
-      const ok = await exchangeWithIdToken(parsed.loginFrom, parsed.idToken);
+      let ok = false;
+      if (parsed.type === 'x_code') {
+        ok = await exchangeXCodeFromDeepLink(parsed.code, parsed.state);
+      } else {
+        ok = await exchangeWithIdToken(parsed.loginFrom, parsed.idToken);
+      }
       if (ok && navigationRef.current?.isReady()) navigationRef.current?.goBack();
     };
     const sub = Linking.addEventListener('url', onUrl);
@@ -334,8 +380,10 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       onClose={closeLoginModal}
       onApple={handleApple}
       onGoogle={handleGoogle}
+      onFacebook={handleFacebook}
       onInstagram={handleInstagram}
       onX={handleX}
+      onTikTok={handleTikTok}
     />
     <ShareModal
       visible={showShareModal}

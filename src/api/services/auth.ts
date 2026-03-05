@@ -4,7 +4,7 @@ import type { UserInfo } from '../../store/useUserStore';
 import type { UserProfile } from './user';
 import { profileToUserInfo } from './user';
 
-/** 登录来源：与后端约定 5-Google 6-Apple 7-Meta 8-Twitter(X) 9-TikTok */
+/** 登录来源：与后端约定 5-Google 6-Apple 7-Meta(Facebook/Instagram) 8-Twitter(X) 9-TikTok */
 export const LoginFrom = {
   Google: 5,
   Apple: 6,
@@ -16,6 +16,10 @@ export const LoginFrom = {
 export interface SnsThreePartyLoginResult {
   token: string;
   user: UserInfo;
+}
+
+export interface TikTokSdkExchangeResult {
+  idToken?: string;
 }
 
 /** 后端实际返回：token + userProfile（其中 userProfile.id 为用户账号ID，刷新 token 时 uid 需为其 MD5） */
@@ -53,7 +57,7 @@ function isBackendBizError(raw: unknown): raw is { status: false; code?: string;
   );
 }
 
-/** Firebase 三方登录：POST idToken + loginFrom，返回 app token 与用户信息；将 userProfile 转为 user 并保证 id 来自 userProfile.id */
+/** Firebase 三方登录：统一接口 POST /facial/app/user/snsThreePartyLogin，传 idToken + loginFrom（5 Google / 6 Apple / 7 Meta / 8 X(Twitter) / 9 TikTok），返回 app token 与用户信息 */
 export async function snsThreePartyLogin(params: { idToken: string; loginFrom: number }): Promise<SnsThreePartyLoginResult> {
   if (__DEV__) {
     console.warn('[snsThreePartyLogin] 请求参数:', {
@@ -89,6 +93,43 @@ export async function snsThreePartyLogin(params: { idToken: string; loginFrom: n
   };
 }
 
-/** 获取 OAuth 授权页 URL（Meta/Instagram、X 等），用于 WebView 打开后拿 idToken */
-export const getOAuthAuthorizeUrl = (provider: 'instagram' | 'x') =>
+/** 获取 OAuth 授权页 URL（Meta/Instagram、X、TikTok），用于 WebView 打开后拿 idToken */
+export const getOAuthAuthorizeUrl = (provider: 'instagram' | 'x' | 'tiktok') =>
   get<{ url: string }>('/auth/social/authorize-url', { params: { provider } });
+
+/** X OAuth 2.0 PKCE：获取授权页 URL（后端需支持 code_challenge/state/redirect_uri） */
+export const getXAuthorizeUrlPKCE = (params: {
+  code_challenge: string;
+  state: string;
+  redirect_uri: string;
+}) =>
+  get<{ url: string }>('/auth/social/authorize-url', {
+    params: { provider: 'x', ...params },
+  });
+
+/** X OAuth 2.0 PKCE：用授权码向后端兑换 Firebase idToken（仅允许统一登录流程） */
+export interface XCodeExchangeResult {
+  idToken?: string;
+}
+
+export const exchangeXCode = (params: {
+  code: string;
+  code_verifier: string;
+  state: string;
+  redirect_uri?: string;
+}) =>
+  post<XCodeExchangeResult & Record<string, unknown>>(
+    '/auth/social/x/code-exchange',
+    params,
+  );
+
+/** TikTok OpenSDK 授权成功后，用 authCode（及 Android codeVerifier）向后端换取 Firebase idToken（仅允许统一登录流程） */
+export const exchangeTikTokSdkCode = (params: {
+  authCode: string;
+  codeVerifier?: string;
+  redirectUri: string;
+}) =>
+  post<TikTokSdkExchangeResult & Record<string, unknown>>(
+    '/auth/social/tiktok/sdk-exchange',
+    params,
+  );

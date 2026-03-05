@@ -12,7 +12,7 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { useAppStore, useUserStore } from './src/store';
 import { setAuthToken } from './src/api/request';
 import { RootNavigator } from './src/routes';
-import { initGoogleSignIn } from './src/services/thirdPartyAuth';
+import { initGoogleSignIn, initFacebookSdk } from './src/services/thirdPartyAuth';
 import { loadAuth } from './src/services/authStorage';
 
 /** 无本地 token 时使用的写死 token，登录成功后会替换为后端返回的 token */
@@ -30,6 +30,7 @@ function App() {
 
   useEffect(() => {
     initGoogleSignIn();
+    initFacebookSdk();
   }, []);
 
   useEffect(() => {
