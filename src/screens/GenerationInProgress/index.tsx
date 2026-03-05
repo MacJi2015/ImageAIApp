@@ -37,7 +37,7 @@ export function GenerationInProgressScreen() {
   const oneMinuteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const navigateToMy = useCallback(() => {
-    (navigation as any).navigate('MainTabs', { screen: 'My' });
+    (navigation as any).navigate('GenerateVideo', { videoUri: 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/55.mp4' });
   }, [navigation]);
 
   // 60s 倒计时显示
@@ -87,7 +87,7 @@ export function GenerationInProgressScreen() {
           onPress={handleBack}
           activeOpacity={0.8}
         >
-          <Image source={yuanBg} style={styles.backBtnBg} resizeMode="cover" />
+          {/* <Image source={yuanBg} style={styles.backBtnBg} resizeMode="cover" /> */}
           <Image source={arrowLeft} style={styles.backBtnIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>

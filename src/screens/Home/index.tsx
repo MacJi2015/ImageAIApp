@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 20,
     position: 'relative',
   },
   heroGradient: {
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   heroLogo: {
     width: 100,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     height: 72,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   heroSubtitle: {
     color: '#3a4a65',

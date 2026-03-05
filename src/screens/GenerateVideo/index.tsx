@@ -42,7 +42,7 @@ export function GenerateVideoScreen() {
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
-          <Image source={yuanBg} style={styles.backBtnBg} resizeMode="cover" />
+          {/* <Image source={yuanBg} style={styles.backBtnBg} resizeMode="cover" /> */}
           <Image source={arrowLeft} style={styles.backBtnIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>

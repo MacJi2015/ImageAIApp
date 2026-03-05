@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Image,
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,29 +10,51 @@ import resolutionIcon from '../../assets/details/resolution-icon.png';
 import seeIcon from '../../assets/details/see-icon.png';
 import shareIcon from '../../assets/details/share-icon.png';
 import timeIcon from '../../assets/details/time-icon.png';
+import BackBg from '../../assets/details/back-bg.svg';
 import yuanBg from '../../assets/details/yuan-bg.png';
-import goodsImage from '../../assets/goods.png';
+import headNan from '../../assets/head-nan.png';
+import { useAppStore } from '../../store';
 import { ChooseVideoModal } from './components/ChooseVideoModal';
+import { DetailVideoPlayer } from './components/DetailVideoPlayer';
 
 type DetailRoute = RouteProp<RootStackParamList, 'Detail'>;
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 export function DetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute<DetailRoute>();
   const insets = useSafeAreaInsets();
-  const { title } = route.params;
+  const openShareModal = useAppStore(s => s.openShareModal);
+  const {
+    title,
+    source = 'effect',
+    videoUrl,
+    thumbnailUrl,
+    userName,
+    likeCount = 0,
+  } = route.params;
   const displayTitle = (title ?? 'Rock Star').toUpperCase();
   const [chooseVideoVisible, setChooseVideoVisible] = React.useState(false);
+  const isEffect = source === 'effect';
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={goodsImage}
-        style={[styles.backgroundImage, { paddingTop: insets.top }]}
-        resizeMode="cover"
-      >
+      <View style={[styles.backgroundWrap, { paddingTop: insets.top }]}>
+        <DetailVideoPlayer
+          videoUri={'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/55.mp4'}
+          posterUri={thumbnailUrl}
+          autoPlay={!isEffect}
+          showPlayOverlay={isEffect}
+          style={StyleSheet.absoluteFillObject}
+        />
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -47,24 +62,26 @@ export function DetailsScreen() {
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
-            <Image source={yuanBg} style={styles.headerBtnBg} resizeMode="cover" />
+            <BackBg width={38} height={38} style={styles.headerBtnBg} />
             <Image source={arrowLeft} style={styles.headerBtnIcon} resizeMode="contain" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            activeOpacity={0.8}
+            onPress={() =>
+              openShareModal({
+                url: videoUrl,
+                title,
+                message: title,
+              })
+            }
+          >
             <Image source={yuanBg} style={styles.headerBtnBg} resizeMode="cover" />
             <Image source={shareIcon} style={styles.headerBtnIcon} resizeMode="contain" />
           </TouchableOpacity>
         </View>
 
-        {/* Center play area */}
-        <View style={styles.playArea}>
-          <TouchableOpacity style={styles.playButton} activeOpacity={0.9}>
-            <Image source={yuanBg} style={styles.playButtonBg} resizeMode="cover" />
-            <View style={styles.playTriangle} />
-          </TouchableOpacity>
-        </View>
-
-        {/* 底部：100px 渐变虚化 + 深色内容区；渐变在图片上，下方安全区单独填色 */}
+        {/* 底部：100px 渐变 + 深色内容区 */}
         <View style={[styles.bottomOverlayWrap, { paddingBottom: insets.bottom }]}>
           <LinearGradient
             colors={['rgba(5, 10, 20, 0)', COLORS.bg]}
@@ -72,38 +89,74 @@ export function DetailsScreen() {
             pointerEvents="none"
           />
           <View style={styles.bottomOverlay}>
-            <Text style={styles.effectTitle}>{displayTitle}</Text>
-            <View style={styles.pillsRow}>
-              <View style={styles.pill}>
-                <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
-                <Text style={styles.pillText}>5s</Text>
-              </View>
-              <View style={styles.pill}>
-                <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
-                <Text style={styles.pillText}>720p</Text>
-              </View>
-              <View style={styles.pill}>
-                <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
-                <Text style={styles.pillText}>2.4K</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.tryButton}
-              activeOpacity={0.8}
-              onPress={() => setChooseVideoVisible(true)}
-            >
-              <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
-              <Text style={styles.tryButtonText}>TRY IT</Text>
-            </TouchableOpacity>
+            {isEffect ? (
+              <>
+                <Text style={styles.effectTitle}>{displayTitle}</Text>
+                <View style={[styles.pillsRow, styles.pillsRowCenter]}>
+                  <View style={styles.pill}>
+                    <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>5s</Text>
+                  </View>
+                  <View style={styles.pill}>
+                    <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>720p</Text>
+                  </View>
+                  <View style={styles.pill}>
+                    <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.tryButton}
+                  activeOpacity={0.8}
+                  onPress={() => setChooseVideoVisible(true)}
+                >
+                  <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
+                  <Text style={styles.tryButtonText}>TRY IT</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.feedUserRow}>
+                  <Image source={headNan as ImageSourcePropType} style={styles.feedAvatar} resizeMode="cover" />
+                  <Text style={styles.feedUsername}>{userName ?? '@User'}</Text>
+                  <View style={styles.feedLikeBadge}>
+                    <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.feedLikeCount}>{formatCount(likeCount) || '2.4K'}</Text>
+                  </View>
+                </View>
+                <View style={[styles.pillsRow, styles.pillsRowStart]}>
+                  <View style={styles.pill}>
+                    <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>5s</Text>
+                  </View>
+                  <View style={styles.pill}>
+                    <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>720p</Text>
+                  </View>
+                  <View style={styles.pill}>
+                    <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.tryButton}
+                  activeOpacity={0.8}
+                  onPress={() => setChooseVideoVisible(true)}
+                >
+                  <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
+                  <Text style={styles.tryButtonText}>CREATE NOW</Text>
+                </TouchableOpacity>
+              </>
+            )}
             <View style={styles.footerRow}>
               <View style={styles.footerDot} />
               <Text style={styles.footerText}>3 Free Chances Remaining</Text>
             </View>
           </View>
         </View>
-        {/* 仅填充底部安全区深色，不盖住渐变，避免下面多出一块 */}
         <View style={[styles.safeAreaFill, { height: insets.bottom }]} pointerEvents="none" />
-      </ImageBackground>
+      </View>
       <ChooseVideoModal
         visible={chooseVideoVisible}
         onClose={() => setChooseVideoVisible(false)}
@@ -137,7 +190,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  backgroundImage: {
+  backgroundWrap: {
     flex: 1,
     width: '100%',
     justifyContent: 'space-between',
@@ -181,39 +234,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
   },
-  playArea: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    marginTop: -94,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playButtonBg: {
-    ...StyleSheet.absoluteFillObject,
-    width: undefined,
-    height: undefined,
-  },
-  playTriangle: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 14,
-    borderTopWidth: 10,
-    borderBottomWidth: 10,
-    borderLeftColor: 'rgba(255,255,255,0.95)',
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    marginLeft: 4,
-  },
   bottomOverlay: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -227,11 +247,50 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: 1,
   },
+  feedUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  feedAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  feedUsername: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+    flex: 1,
+  },
+  feedLikeBadge: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(5,10,20,0.2)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    width: 60,
+    height: 68,
+    gap: 4,
+  },
+  feedLikeCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
   pillsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 12,
     marginBottom: 20,
+  },
+  pillsRowCenter: {
+    justifyContent: 'center',
+  },
+  pillsRowStart: {
+    justifyContent: 'flex-start',
   },
   pill: {
     flexDirection: 'row',
