@@ -61,6 +61,20 @@ const SHARE_OPTIONS = [
   { key: 'tiktok' as const, source: shareIcons.tiktok },
 ] as const;
 
+/** 无 payload 时随机使用的默认分享文案 */
+const DEFAULT_SHARE_MESSAGES = [
+  'Turn your pets into superstar!',
+  'Check this out!',
+  'Made with ImageAI — try it!',
+  'So much fun with my pet video!',
+  'Love this effect!',
+  'My pet is a star!',
+];
+
+function getRandomDefaultMessage(): string {
+  return DEFAULT_SHARE_MESSAGES[Math.floor(Math.random() * DEFAULT_SHARE_MESSAGES.length)];
+}
+
 function fallbackShare(_payload: SharePayload) {
   Alert.alert('分享未配置', '当前平台分享能力未配置，请联系开发同学。');
 }
@@ -75,7 +89,10 @@ export function ShareModal({
   onTikTok,
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
-  const sharePayload: SharePayload = payload ?? { message: 'Check this out!' };
+  const sharePayload: SharePayload = React.useMemo(
+    () => payload ?? { message: getRandomDefaultMessage() },
+    [payload, visible]
+  );
 
   const handlers = {
     facebook: onFacebook ?? fallbackShare,
@@ -119,14 +136,9 @@ export function ShareModal({
                 style={styles.iconCircle}
                 activeOpacity={0.8}
                 onPress={() => {
-                  // Facebook：先关弹窗，延迟后再调分享，避免 iOS 真机分享面板不出现（用 setTimeout 替代已弃用的 InteractionManager）
-                  if (key === 'facebook') {
-                    onClose();
-                    setTimeout(() => handlers.facebook(sharePayload), 400);
-                  } else {
-                    handlers[key](sharePayload);
-                    onClose();
-                  }
+                  // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
+                  onClose();
+                  setTimeout(() => handlers[key](sharePayload), 650);
                 }}
               >
                 <Image source={source} style={styles.shareIconImage} resizeMode="contain" />

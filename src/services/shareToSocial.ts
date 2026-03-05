@@ -133,7 +133,10 @@ export async function shareToInstagram(payload: SharePayload): Promise<void> {
   }
 }
 
-/** X (Twitter)：定向唤起 X App 分享 */
+/**
+ * X (Twitter)：通过 Web Intent 跳转到 X App 并打开编辑页，预填文案与链接。
+ * 使用 https://twitter.com/intent/tweet 在已安装 X 时会直接唤起 App 的发推编辑页，避免系统分享面板遮挡问题。
+ */
 export async function shareToX(payload: SharePayload): Promise<void> {
   const installed = await isAppInstalled('twitter://', 'com.twitter.android');
   if (!installed) {
@@ -141,21 +144,30 @@ export async function shareToX(payload: SharePayload): Promise<void> {
     return;
   }
 
-  const message = buildMessage(payload);
+  const message = payload.message ?? payload.title ?? 'Share';
+  const url = payload.url ?? '';
+  const fullText = url ? `${message}\n${url}` : message;
+
+  const params = new URLSearchParams();
+  params.set('text', fullText);
+
+  const intentUrl = `https://twitter.com/intent/tweet?${params.toString()}`;
   try {
-    await RNShare.shareSingle({
-      title: payload.title ?? 'Share',
-      message,
-      url: payload.url || undefined,
-      social: RNShare.Social.TWITTER,
-    });
-  } catch (e) {
-    if (isUserCancel(e)) return;
-    if (isSdkNotSupportedError(e)) {
-      showSdkNotSupported('X (Twitter)');
+    const canOpen = await Linking.canOpenURL(intentUrl);
+    if (!canOpen) {
+      showShareFailure('X (Twitter)');
       return;
     }
-    showShareFailure('X (Twitter)', isLoginRequiredError(e) ? 'not_logged_in' : 'not_installed');
+    Alert.alert(
+      '跳转到 X',
+      '即将打开 X 发推，发布完成后请返回本 App。',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '去发推', onPress: () => Linking.openURL(intentUrl) },
+      ]
+    );
+  } catch (e) {
+    showShareFailure('X (Twitter)', 'not_installed');
   }
 }
 
