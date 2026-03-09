@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +14,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSubscriptionList, type AppSubscriptionConfig } from '../api/services/subscription';
 
 const diamondIcon = require('../assets/my/vip.png');
 
@@ -41,7 +44,8 @@ const COLORS = {
 export type PremiumModalProps = {
   visible: boolean;
   onClose: () => void;
-  onSubscribe?: (planId: '7d' | '30d') => void;
+  /** 传入选中的 productId（Apple/Google 产品 ID） */
+  onSubscribe?: (productId: string) => void;
 };
 
 function CloseIcon() {
@@ -56,10 +60,80 @@ function CloseIcon() {
   );
 }
 
-const PLANS = [
-  { id: '30d' as const, price: '$9.90', duration: '30 Days Membership', discount: '20% off' },
-  { id: '7d' as const, price: '$1.90', duration: '7 Days Membership', discount: null },
-] as const;
+const platform: 1 | 2 = Platform.OS === 'ios' ? 1 : 2;
+
+function formatPrice(price: number, currency: string): string {
+  if (currency === 'USD' || currency === 'usd') return `$${price.toFixed(2)}`;
+  if (currency === 'CNY' || currency === 'cny') return `¥${price.toFixed(2)}`;
+  return `${currency} ${price.toFixed(2)}`;
+}
+
+/** 周期时间文案，显示在价格下方 */
+function formatCycleDuration(item: AppSubscriptionConfig): string {
+  if (item.durationMonths >= 12) {
+    const years = item.durationMonths / 12;
+    return years === 1 ? '1年' : `${years}年`;
+  }
+  if (item.durationMonths > 0) {
+    return item.durationMonths === 1 ? '1个月' : `${item.durationMonths}个月`;
+  }
+  return item.durationDays === 1 ? '1天' : `${item.durationDays}天`;
+}
+
+const FALLBACK_PLANS: AppSubscriptionConfig[] = [
+  {
+    id: 0,
+    name: '30 Days',
+    price: 9.9,
+    currency: 'USD',
+    productId: 'com.imageaiapp.premium.30d',
+    durationDays: 30,
+    durationMonths: 1,
+    subscriptionType: 1,
+    platform: 1,
+    priority: 10,
+    status: 'ACTIVE',
+  },
+  {
+    id: 1,
+    name: '7 Days',
+    price: 1.9,
+    currency: 'USD',
+    productId: 'com.imageaiapp.premium.7d',
+    durationDays: 7,
+    durationMonths: 0,
+    subscriptionType: 1,
+    platform: 1,
+    priority: 5,
+    status: 'ACTIVE',
+  },
+  {
+    id: 2,
+    name: '30 Days',
+    price: 9.9,
+    currency: 'USD',
+    productId: 'com.imageaiapp.premium.30d',
+    durationDays: 30,
+    durationMonths: 1,
+    subscriptionType: 1,
+    platform: 2,
+    priority: 10,
+    status: 'ACTIVE',
+  },
+  {
+    id: 3,
+    name: '7 Days',
+    price: 1.9,
+    currency: 'USD',
+    productId: 'com.imageaiapp.premium.7d',
+    durationDays: 7,
+    durationMonths: 0,
+    subscriptionType: 1,
+    platform: 2,
+    priority: 5,
+    status: 'ACTIVE',
+  },
+];
 
 export function PremiumModal({
   visible,
@@ -68,11 +142,38 @@ export function PremiumModal({
 }: PremiumModalProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
-  const [selectedPlan, setSelectedPlan] = useState<'7d' | '30d'>('30d');
+  const [plans, setPlans] = useState<AppSubscriptionConfig[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    setError(null);
+    setLoading(true);
+    getSubscriptionList(platform)
+      .then((list) => {
+        if (list.length > 0) {
+          setPlans(list);
+          setSelectedProductId(list[0].productId);
+        } else {
+          setPlans(FALLBACK_PLANS.filter((p) => p.platform === platform));
+          setSelectedProductId(FALLBACK_PLANS[0]?.productId ?? null);
+        }
+      })
+      .catch((e) => {
+        setPlans(FALLBACK_PLANS.filter((p) => p.platform === platform));
+        setSelectedProductId(FALLBACK_PLANS[0]?.productId ?? null);
+        setError(e?.message ?? '加载套餐失败');
+      })
+      .finally(() => setLoading(false));
+  }, [visible]);
 
   const handleSubscribe = () => {
-    onSubscribe?.(selectedPlan);
-    onClose();
+    if (selectedProductId) {
+      onSubscribe?.(selectedProductId);
+      onClose();
+    }
   };
 
   return (
@@ -128,46 +229,60 @@ export function PremiumModal({
                   </Text>
                 </View>
 
+                {error ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
                 <View style={styles.plans}>
-                {PLANS.map((plan) => {
-                  const isSelected = selectedPlan === plan.id;
-                  return (
-                    <TouchableOpacity
-                      key={plan.id}
-                      style={[
-                        styles.planCard,
-                        isSelected ? styles.planCardSelected : styles.planCardInactive,
-                      ]}
-                      onPress={() => setSelectedPlan(plan.id)}
-                      activeOpacity={0.85}
-                    >
-                      {plan.discount ? (
-                        <View style={styles.discountTag}>
-                          <Text style={styles.discountText}>{plan.discount}</Text>
-                        </View>
-                      ) : null}
-                      <View style={styles.planLeft}>
-                        <Text style={styles.planPrice}>{plan.price}</Text>
-                        <Text style={styles.planDuration}>{plan.duration}</Text>
-                      </View>
-                      <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                        {isSelected ? (
-                          <View style={styles.radioInner} />
+                {loading ? (
+                  <View style={styles.loadingWrap}>
+                    <ActivityIndicator size="large" color={COLORS.accent} />
+                    <Text style={styles.loadingText}>加载套餐中...</Text>
+                  </View>
+                ) : (
+                  plans.map((plan) => {
+                    const isSelected = selectedProductId === plan.productId;
+                    const discount = plan.discount ?? null;
+                    return (
+                      <TouchableOpacity
+                        key={plan.id}
+                        style={[
+                          styles.planCard,
+                          isSelected ? styles.planCardSelected : styles.planCardInactive,
+                        ]}
+                        onPress={() => setSelectedProductId(plan.productId)}
+                        activeOpacity={0.85}
+                      >
+                        {discount ? (
+                          <View style={styles.discountTag}>
+                            <Text style={styles.discountText} numberOfLines={1}>{discount}</Text>
+                          </View>
                         ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <View style={styles.planLeft}>
+                          <Text style={styles.planPrice}>{formatPrice(plan.price, plan.currency)}</Text>
+                          <Text style={styles.planDuration}>{formatCycleDuration(plan)}</Text>
+                        </View>
+                        <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                          {isSelected ? (
+                            <View style={styles.radioInner} />
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
                 </View>
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.subscribeBtn}
+                style={[styles.subscribeBtn, (loading || !selectedProductId) && styles.subscribeBtnDisabled]}
                 onPress={handleSubscribe}
                 activeOpacity={0.9}
+                disabled={loading || !selectedProductId}
               >
                 <Image source={diamondIcon} style={styles.subscribeBtnIcon} resizeMode="contain" />
-                <Text style={styles.subscribeBtnText}>SUBSCRIBE NOW</Text>
+                <Text style={styles.subscribeBtnText}>
+                  {loading ? '加载中...' : 'SUBSCRIBE NOW'}
+                </Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -259,6 +374,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     lineHeight: 22,
     alignSelf: 'stretch',
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.discountBg,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.subtitle,
   },
   plans: {
     gap: 12,
@@ -353,5 +484,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.buttonText,
     letterSpacing: 0.4,
+  },
+  subscribeBtnDisabled: {
+    opacity: 0.6,
   },
 });

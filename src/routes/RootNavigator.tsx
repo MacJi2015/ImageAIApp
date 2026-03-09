@@ -10,6 +10,7 @@ import {
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { CustomPromptScreen } from '../screens/CustomPrompt';
 import { GenerationInProgressScreen } from '../screens/GenerationInProgress';
@@ -17,7 +18,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, ShareModal, PremiumModal, ExceptionScreen } from '../components';
+import { LoginModal, ShareModal, PremiumModal, SplashScreen } from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -37,24 +38,35 @@ import {
   shareToX,
   shareToTikTok,
 } from '../services/shareToSocial';
-import { getSubscriptionSku, getIAPErrorMessage, type IAPPlanId } from '../services/iap';
+import { getIAPErrorMessage } from '../services/iap';
 import { setOn401 } from '../api';
 import { refreshTokenAndApply, getProfile, profileToUserInfo } from '../api/services/user';
 import { purchaseSubscription } from '../api/services/appleSubscription';
+import { getSubscriptionList } from '../api/services/subscription';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/** 通用异常页：中间图见 src/assets/unusualimage.png，可通过路由传 message / buttonText */
-function ExceptionRouteScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<RootStackParamList, 'Exception'>>();
+const SPLASH_AUTO_ENTER_MS = 2500;
+
+/** 启动页：中间图见 src/assets/unusualimage.png。作为首屏时无按钮，几秒后自动 replace 到 MainTabs；带 message/buttonText 时可用于异常态，按钮返回 */
+function SplashRouteScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Splash'>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Splash'>>();
   const params = route.params ?? {};
+  const isLaunchScreen = params === undefined || (Object.keys(params).length === 0);
+
+  useEffect(() => {
+    if (!isLaunchScreen) return;
+    const t = setTimeout(() => navigation.replace('MainTabs'), SPLASH_AUTO_ENTER_MS);
+    return () => clearTimeout(t);
+  }, [isLaunchScreen, navigation]);
+
   return (
-    <ExceptionScreen
-      message={params.message}
-      buttonText={params.buttonText ?? '返回'}
-      onPress={() => navigation.goBack()}
+    <SplashScreen
+      message={params?.message}
+      buttonText={isLaunchScreen ? undefined : (params?.buttonText ?? '返回')}
+      onPress={isLaunchScreen ? undefined : () => navigation.goBack()}
     />
   );
 }
@@ -93,7 +105,7 @@ type RootNavigatorProps = {
   } | null>;
 };
 
-const SUBSCRIPTION_SKUS = [getSubscriptionSku('7d'), getSubscriptionSku('30d')];
+const SUBSCRIPTION_SKUS = ['com.imageaiapp.premium.7d', 'com.imageaiapp.premium.30d'];
 
 export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const showLoginModal = useAppStore(s => s.showLoginModal);
@@ -121,10 +133,20 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     return () => setOn401(null);
   }, []);
 
-  // 拉取订阅商品（仅 iOS 需在 App Store Connect 配置对应产品 ID）
+  // 拉取订阅商品：优先用服务端套餐列表的 productId，失败则用本地 SKU 兜底
   useEffect(() => {
     if (!connected || Platform.OS !== 'ios') return;
-    fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' }).catch(() => {});
+    const platform = Platform.OS === 'ios' ? 1 : 2;
+    getSubscriptionList(platform)
+      .then((list) => {
+        const skus = list.map((i) => i.productId).filter(Boolean);
+        if (skus.length > 0) {
+          return fetchProducts({ skus, type: 'subs' });
+        }
+        return fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' });
+      })
+      .catch(() => fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' }))
+      .catch(() => {});
   }, [connected, fetchProducts]);
 
   // 监听购买成功：完成交易、上报后端购买/续费、更新会员状态、关闭弹窗
@@ -370,8 +392,8 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         })}
       />
       <Stack.Screen
-        name="Exception"
-        component={ExceptionRouteScreen}
+        name="Splash"
+        component={SplashRouteScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
@@ -397,7 +419,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     <PremiumModal
       visible={showPremiumModal}
       onClose={closePremiumModal}
-      onSubscribe={async (planId: IAPPlanId) => {
+      onSubscribe={async (productId: string) => {
         if (Platform.OS !== 'ios') {
           Alert.alert('提示', '当前仅支持在 iOS 设备上使用苹果支付。', [{ text: '知道了' }]);
           return;
@@ -405,7 +427,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         try {
           await requestPurchase({
             type: 'subs',
-            request: { apple: { sku: getSubscriptionSku(planId) } },
+            request: { apple: { sku: productId } },
           });
         } catch (e: unknown) {
           const err = e as { code?: string; message?: string };
