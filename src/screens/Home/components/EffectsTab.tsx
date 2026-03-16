@@ -15,6 +15,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
 import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/services/template';
 import ascIcon from '../../../assets/asc-icon.png';
+
+const OSS_BASE = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/cat/';
+const MOCK_TEMPLATES: AppVideoTemplate[] = [
+  { id: 1, templateId: 'mock-1', templateName: 'Space Explorer', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 1, coverImageUrl: `${OSS_BASE}dog1.jpg`, previewVideoUrl: `${OSS_BASE}dog-video1.mov`, promptText: 'Cinematic space explorer.' },
+  { id: 2, templateId: 'mock-2', templateName: 'Rock Star', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 2, coverImageUrl: `${OSS_BASE}cat2.jpg`, previewVideoUrl: `${OSS_BASE}cat-video2.mov`, promptText: 'Rock star stage performance.' },
+  { id: 3, templateId: 'mock-3', templateName: 'Astronaut', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 3, coverImageUrl: `${OSS_BASE}cat3.jpg`, previewVideoUrl: `${OSS_BASE}cat-video3.mov`, promptText: 'Astronaut in space suit.' },
+  { id: 4, templateId: 'mock-4', templateName: 'Superhero', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 4, coverImageUrl: `${OSS_BASE}cat4.jpg`, previewVideoUrl: `${OSS_BASE}cat-video4.mov`, promptText: 'Superhero cape and mask.' },
+  { id: 5, templateId: 'mock-5', templateName: 'Under the Sea', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 5, coverImageUrl: `${OSS_BASE}cat1.jpg`, previewVideoUrl: `${OSS_BASE}cat-video1.mov`, promptText: 'Under the sea adventure.' },
+];
 import dogIcon from '../../../assets/dog-icon.png';
 import cartIcon from '../../../assets/cart-icon.png';
 import preGoodsImg from '../../../assets/details/pre-goods-img.png';
@@ -47,8 +56,7 @@ function EffectCard({
 }) {
   const navigation = useNavigation<Nav>();
   const [imageLoaded, setImageLoaded] = useState(false);
-  // template.coverImageUrl || 
-  const imageUri = 'https://picsum.photos/seed/feed3/172/224';
+  const imageUri = template.coverImageUrl || 'https://picsum.photos/seed/feed3/172/224';
 
   return (
     <TouchableOpacity
@@ -129,11 +137,16 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
     setStatus(LOADING);
     try {
       const entry = await getOfficialTemplates();
-      setList(entry ?? []);
-      setStatus(!entry?.length ? EMPTY : 'idle');
+      // setList(entry ?? []);
+      // setStatus(!entry?.length ? EMPTY : 'idle');
+      const data = entry?.length ? entry : MOCK_TEMPLATES;
+      setList(data);
+      setStatus('idle');
     } catch {
-      setList([]);
-      setStatus(EMPTY);
+//  setList([]);
+//  setStatus(EMPTY);
+      setList(MOCK_TEMPLATES);
+      setStatus('idle');
     }
   }, []);
 
@@ -198,6 +211,9 @@ const styles = StyleSheet.create({
   },
   effectCardImageWrap: {
     ...StyleSheet.absoluteFillObject,
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'center',
   },
   effectCardImage: {
     ...StyleSheet.absoluteFillObject,
@@ -205,9 +221,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   effectCardImagePreloadPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    width: undefined,
-    height: undefined,
+    width: 69,
+    height: 28,
   },
   effectCardImagePreload: {
     opacity: 0,

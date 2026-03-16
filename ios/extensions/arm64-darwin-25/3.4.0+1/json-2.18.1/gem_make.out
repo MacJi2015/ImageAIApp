@@ -10,16 +10,16 @@ checking for cpuid.h... no
 creating Makefile
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/json-2.18.1/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-46epn9 sitelibdir\=./.gem.20260301-44419-46epn9 clean
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-ewz991 sitelibdir\=./.gem.20260313-39150-ewz991 clean
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/json-2.18.1/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-46epn9 sitelibdir\=./.gem.20260301-44419-46epn9
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-ewz991 sitelibdir\=./.gem.20260313-39150-ewz991
 compiling parser.c
 linking shared-object json/ext/parser.bundle
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/json-2.18.1/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-46epn9 sitelibdir\=./.gem.20260301-44419-46epn9 install
-/usr/bin/install -c -m 0755 parser.bundle ./.gem.20260301-44419-46epn9/json/ext
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-ewz991 sitelibdir\=./.gem.20260313-39150-ewz991 install
+/usr/bin/install -c -m 0755 parser.bundle ./.gem.20260313-39150-ewz991/json/ext
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/json-2.18.1/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-46epn9 sitelibdir\=./.gem.20260301-44419-46epn9 clean
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-ewz991 sitelibdir\=./.gem.20260313-39150-ewz991 clean

@@ -11,6 +11,7 @@ import seeIcon from '../../assets/details/see-icon.png';
 import shareIcon from '../../assets/details/share-icon.png';
 import timeIcon from '../../assets/details/time-icon.png';
 import BackBg from '../../assets/details/back-bg.svg';
+import LikeBigIcon from '../../assets/details/like-big-icon.svg';
 import yuanBg from '../../assets/details/yuan-bg.png';
 import headNan from '../../assets/head-nan.png';
 import { useAppStore } from '../../store';
@@ -48,7 +49,7 @@ export function DetailsScreen() {
     <View style={styles.container}>
       <View style={[styles.backgroundWrap, { paddingTop: insets.top }]}>
         <DetailVideoPlayer
-          videoUri={'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/55.mp4'}
+          videoUri={videoUrl}
           posterUri={thumbnailUrl}
           autoPlay={!isEffect}
           showPlayOverlay={isEffect}
@@ -121,7 +122,7 @@ export function DetailsScreen() {
                   <Image source={headNan as ImageSourcePropType} style={styles.feedAvatar} resizeMode="cover" />
                   <Text style={styles.feedUsername}>{userName ?? '@User'}</Text>
                   <View style={styles.feedLikeBadge}>
-                    <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
+                    <LikeBigIcon width={23} height={22} />
                     <Text style={styles.feedLikeCount}>{formatCount(likeCount) || '2.4K'}</Text>
                   </View>
                 </View>
@@ -167,6 +168,7 @@ export function DetailsScreen() {
               imageUri: asset.uri,
               petImageUrl: uploadedUrl,
               templateId: route.params.id,
+              templateThumbnailUrl: route.params.thumbnailUrl,
             });
           }
         }}
@@ -177,6 +179,7 @@ export function DetailsScreen() {
               imageUri: asset.uri,
               petImageUrl: uploadedUrl,
               templateId: route.params.id,
+              templateThumbnailUrl: route.params.thumbnailUrl,
             });
           }
         }}

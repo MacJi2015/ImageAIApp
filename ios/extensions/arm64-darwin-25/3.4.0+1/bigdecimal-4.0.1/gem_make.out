@@ -20,17 +20,17 @@ checking for RB_WARN_CATEGORY_DEPRECATED in ruby.h... yes
 creating Makefile
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-rrbli8 sitelibdir\=./.gem.20260301-44419-rrbli8 clean
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-u7bbup sitelibdir\=./.gem.20260313-39150-u7bbup clean
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-rrbli8 sitelibdir\=./.gem.20260301-44419-rrbli8
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-u7bbup sitelibdir\=./.gem.20260313-39150-u7bbup
 compiling bigdecimal.c
 compiling missing.c
 linking shared-object bigdecimal.bundle
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-rrbli8 sitelibdir\=./.gem.20260301-44419-rrbli8 install
-/usr/bin/install -c -m 0755 bigdecimal.bundle ./.gem.20260301-44419-rrbli8
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-u7bbup sitelibdir\=./.gem.20260313-39150-u7bbup install
+/usr/bin/install -c -m 0755 bigdecimal.bundle ./.gem.20260313-39150-u7bbup
 
 current directory: /Users/bob/wordSpace/ImageAIApp/ios/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260301-44419-rrbli8 sitelibdir\=./.gem.20260301-44419-rrbli8 clean
+make DESTDIR\= sitearchdir\=./.gem.20260313-39150-u7bbup sitelibdir\=./.gem.20260313-39150-u7bbup clean

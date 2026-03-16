@@ -255,6 +255,9 @@ const styles = StyleSheet.create({
   },
   cardImageWrap: {
     ...StyleSheet.absoluteFillObject,
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'center',
   },
   cardImage: {
     ...StyleSheet.absoluteFillObject,
@@ -262,9 +265,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   cardImagePreloadPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    width: undefined,
-    height: undefined,
+    width: 69,
+    height: 28,
   },
   cardImagePreload: {
     opacity: 0,

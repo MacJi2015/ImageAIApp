@@ -44,8 +44,9 @@ export function ChooseVideoModal({
     if (!asset.uri || !callback) return;
     setUploading(true);
     try {
-      const result = await uploadImage(asset.uri, 'pet');
-      callback(asset, result.url);
+      // const result = await uploadImage(asset.uri, 'pet');
+      // callback(asset, result.url);
+      callback(asset, 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png');
       onClose();
     } catch (e) {
       __DEV__ && console.warn('[ChooseVideoModal] upload failed', e);

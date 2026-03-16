@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>ImageAIApp</string>
+	<string>PetsGO</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,7 +31,7 @@
 	<key>FacebookClientToken</key>
 	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
 	<key>FacebookDisplayName</key>
-	<string>ImageAIApp</string>
+	<string>PetsGO</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fb</string>

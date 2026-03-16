@@ -1,5 +1,5 @@
 GEM
-  remote: https://gems.ruby-china.com/
+  remote: https://rubygems.org/
   specs:
     CFPropertyList (3.0.8)
     activesupport (7.2.3)
@@ -129,6 +129,7 @@ PLATFORMS
 
 DEPENDENCIES
   cocoapods (~> 1.16)
+  ffi
   minitest (>= 5.1)
   nkf
 

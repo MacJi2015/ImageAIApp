@@ -51,9 +51,9 @@ function isLoginRequiredCode(raw: unknown): boolean {
 }
 
 function openLoginModalIfNeeded(raw: unknown): void {
-  if (isLoginRequiredCode(raw)) {
-    useAppStore.getState().openLoginModal();
-  }
+  // if (isLoginRequiredCode(raw)) {
+  //   useAppStore.getState().openLoginModal();
+  // }
 }
 
 /** 开发环境统一打印接口请求/响应（含完整 URL、参数，不打印敏感 token） */

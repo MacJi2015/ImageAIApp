@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EffectsTab } from './components/EffectsTab';
 import { FeedTab, type FeedTabRef } from './components/FeedTab';
-import logoIcon from '../../assets/logo-icon.png';
+import logoIcon from '../../assets/logoIcon.png';
 import homeTips from '../../assets/home-tips.png';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   heroLogo: {
-    width: 100,
-    height: 26,
+    width: 69,
+    height: 28,
   },
   homeTipsImage: {
     width: '100%',

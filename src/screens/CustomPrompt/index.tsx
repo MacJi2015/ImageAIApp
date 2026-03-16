@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,9 +17,13 @@ import type { RootStackParamList } from '../../routes/types';
 import { generateVideo } from '../../api/services/video';
 import { uploadImage } from '../../api/services/upload';
 import { useAppStore, useUserStore } from '../../store';
-import arrowLeft from '../../assets/details/arrow-left.png';
 import yuanBg from '../../assets/details/yuan-bg.png';
+import replaceIcon from '../../assets/details/replace-icon.png';
 import GenIcon from '../../assets/details/gen-icon.svg';
+import CloseIcon from '../../assets/details/close-icon.svg';
+import SelectedIcon from '../../assets/details/selected-icon.svg';
+import LianjieBg from '../../assets/details/lianjie-bg.svg';
+import LianjieIcon from '../../assets/details/lianjie-icon.svg';
 
 type CustomPromptRoute = RouteProp<RootStackParamList, 'CustomPrompt'>;
 
@@ -36,7 +41,8 @@ export function CustomPromptScreen() {
   const insets = useSafeAreaInsets();
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
-  const { imageUri, petImageUrl: initialPetImageUrl, templateId } = route.params;
+  const { imageUri, petImageUrl: initialPetImageUrl, templateId, templateThumbnailUrl } = route.params;
+  const isFromEffect = Boolean(templateId);
   const [prompt, setPrompt] = useState(
     'Cinematic space explorer cat, high-fidelity astronaut suit, glowing nebula background, 8k resolution, photorealistic.Cinematic.'
   );
@@ -61,6 +67,11 @@ export function CustomPromptScreen() {
     //   openLoginModal();
     //   return;
     // }
+    (navigation as any).navigate('GenerationInProgress', {
+      taskId: 1,
+      imageUri: 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png',
+    });
+    return;
     if (!prompt.trim()) {
       Alert.alert('提示', '请输入 Additional Prompts');
       return;
@@ -109,60 +120,134 @@ export function CustomPromptScreen() {
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
-          <Image source={yuanBg} style={styles.backBtnBg} resizeMode="cover" />
-          <Image source={arrowLeft} style={styles.backBtnIcon} resizeMode="contain" />
+          <CloseIcon width={20} height={20} style={styles.backBtnIcon} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.imageWrap}>
-        <View style={styles.imageFrame}>
-          <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
-          {isPortrait ? (
-            <>
-              <LinearGradient
-                colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.blurLeft}
-                pointerEvents="none"
+      <View style={isFromEffect ? styles.imageRow : styles.imageWrap}>
+        {isFromEffect ? (
+          <>
+            <View style={styles.effectsCard}>
+              <Image
+                source={{ uri: templateThumbnailUrl || 'https://picsum.photos/seed/effect/166/295' }}
+                style={styles.previewImage}
+                resizeMode="cover"
               />
-              <LinearGradient
-                colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.blurRight}
-                pointerEvents="none"
-              />
-            </>
-          ) : (
-            <>
-              <LinearGradient
-                colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={styles.blurTop}
-                pointerEvents="none"
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={styles.blurBottom}
-                pointerEvents="none"
-              />
-            </>
-          )}
-          <View style={styles.yourPetTag}>
-            <Text style={styles.yourPetText}>Your Pet</Text>
+              <View style={styles.effectsTag}>
+                <Text style={styles.effectsTagText}>EFFECTS</Text>
+              </View>
+            </View>
+            <View style={styles.petCard}>
+              <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+              {isPortrait ? (
+                <>
+                  <LinearGradient
+                    colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.blurLeft}
+                    pointerEvents="none"
+                  />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.blurRight}
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <>
+                  <LinearGradient
+                    colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={styles.blurTop}
+                    pointerEvents="none"
+                  />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={styles.blurBottom}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.landscapeOverlay} pointerEvents="none" />
+                </>
+              )}
+              <View style={styles.yourPetTag}>
+                <Text style={styles.yourPetText}>YOUR PET</Text>
+              </View>
+              <TouchableOpacity style={styles.replaceRow} onPress={handleReplace} activeOpacity={0.8}>
+                <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                <View style={styles.replaceRowOverlay} />
+                <Image source={replaceIcon} style={styles.replaceIcon} resizeMode="contain" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.linkIconOverlay} pointerEvents="none">
+              <LianjieBg width={40} height={40} />
+              <View style={styles.linkIconInner}>
+                <LianjieIcon width={32} height={32} />
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.imageFrame}>
+            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+            {isPortrait ? (
+              <>
+                <LinearGradient
+                  colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.blurLeft}
+                  pointerEvents="none"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.blurRight}
+                  pointerEvents="none"
+                />
+              </>
+            ) : (
+              <>
+                <LinearGradient
+                  colors={['rgba(5,10,20,0.98)', 'rgba(5,10,20,0.5)', 'transparent']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={styles.blurTop}
+                  pointerEvents="none"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(5,10,20,0.5)', 'rgba(5,10,20,0.98)']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={styles.blurBottom}
+                  pointerEvents="none"
+                />
+                <View style={styles.landscapeOverlay} pointerEvents="none" />
+              </>
+            )}
+            <View style={styles.yourPetTag}>
+              <Text style={styles.yourPetText}>YOUR PET</Text>
+            </View>
+            <TouchableOpacity style={styles.replaceRow} onPress={handleReplace} activeOpacity={0.8}>
+              <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+              <View style={styles.replaceRowOverlay} />
+              <Image source={replaceIcon} style={styles.replaceIcon} resizeMode="contain" />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.replaceRow} onPress={handleReplace} activeOpacity={0.8}>
-            <Text style={styles.replaceText}>Replace</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>*Additional Prompts(Required)</Text>
@@ -179,7 +264,11 @@ export function CustomPromptScreen() {
         onPress={() => setRemoveWatermark((v) => !v)}
         activeOpacity={0.8}
       >
-        <View style={[styles.checkbox, removeWatermark && styles.checkboxChecked]} />
+        {removeWatermark ? (
+          <SelectedIcon width={18} height={18} style={styles.checkboxIcon} />
+        ) : (
+          <View style={styles.checkbox} />
+        )}
         <Text style={styles.watermarkText}>Remove Watermark</Text>
       </TouchableOpacity>
 
@@ -219,7 +308,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 8,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   backBtn: {
     width: 38,
@@ -242,11 +331,71 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 343,
     height: 295,
-    marginBottom: 16,
+    marginBottom: 32,
     borderWidth: 2,
     borderColor: COLORS.accent,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  imageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+    gap: 11,
+    position: 'relative',
+  },
+  effectsCard: {
+    width: 166,
+    height: 295,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.muted,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  effectsTag: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    backgroundColor: COLORS.muted,
+    paddingHorizontal: 5,
+    paddingVertical: 6,
+    borderBottomRightRadius: 12,
+    borderTopLeftRadius: 10,
+  },
+  effectsTagText: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: COLORS.accent,
+  },
+  linkIconOverlay: {
+    position: 'absolute',
+    left: 151.5,
+    top: 127.5,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  linkIconInner: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  petCard: {
+    width: 166,
+    height: 295,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  landscapeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   blurLeft: {
     position: 'absolute',
@@ -302,22 +451,29 @@ const styles = StyleSheet.create({
   },
   replaceRow: {
     position: 'absolute',
-    bottom: 8,
+    bottom: 0,
     left: 0,
     right: 0,
+    height: 30,
+    borderRadius: 0,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  replaceText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.accent,
+  replaceRowOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+  },
+  replaceIcon: {
+    height: 18,
+    width: 72,
   },
   sectionTitle: {
+    fontFamily: 'Space Grotesk',
     fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   promptInput: {
     backgroundColor: COLORS.inputBg,
@@ -335,7 +491,7 @@ const styles = StyleSheet.create({
   watermarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 50,
   },
   checkbox: {
     width: 18,
@@ -345,9 +501,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.muted,
     marginRight: 8,
   },
-  checkboxChecked: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+  checkboxIcon: {
+    marginRight: 8,
   },
   watermarkText: {
     fontSize: 14,

@@ -1,9 +1,19 @@
 {
   "images" : [
     {
-      "filename" : "unusualimage.png",
+      "filename" : "启动页面 (2).png",
       "idiom" : "universal",
       "scale" : "1x"
+    },
+    {
+      "filename" : "启动页面 (3).png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "启动页面 (4).png",
+      "idiom" : "universal",
+      "scale" : "3x"
     }
   ],
   "info" : {

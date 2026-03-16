@@ -21,7 +21,7 @@ export type RootStackParamList = {
     likeCount?: number;
   };
   GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
-  CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string };
+  CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string; templateThumbnailUrl?: string };
   GenerationInProgress: { taskId: string; imageUri: string; estimatedTime?: number };
   Settings: undefined;
   EditProfile: undefined;
