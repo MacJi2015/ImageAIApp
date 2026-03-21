@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+// LinearGradient moved into DetailVideoPlayer
+import { BlurView } from '@react-native-community/blur';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
@@ -10,9 +11,8 @@ import resolutionIcon from '../../assets/details/resolution-icon.png';
 import seeIcon from '../../assets/details/see-icon.png';
 import shareIcon from '../../assets/details/share-icon.png';
 import timeIcon from '../../assets/details/time-icon.png';
-import BackBg from '../../assets/details/back-bg.svg';
 import LikeBigIcon from '../../assets/details/like-big-icon.svg';
-import yuanBg from '../../assets/details/yuan-bg.png';
+import { dp, hp } from '../../utils/scale';
 import headNan from '../../assets/head-nan.png';
 import { useAppStore } from '../../store';
 import { ChooseVideoModal } from './components/ChooseVideoModal';
@@ -53,17 +53,22 @@ export function DetailsScreen() {
           posterUri={thumbnailUrl}
           autoPlay={!isEffect}
           showPlayOverlay={isEffect}
-          style={StyleSheet.absoluteFillObject}
+          bottomGradientHeight={hp(100)}
+          style={{ ...StyleSheet.absoluteFillObject, height: hp(667) }}
         />
-
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header]}>
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
-            <BackBg width={38} height={38} style={styles.headerBtnBg} />
+          <BlurView
+            style={styles.headerBtnBg}
+            blurType="dark"
+            blurAmount={5}
+          />
+          <View style={styles.headerBtnOverlay} />
             <Image source={arrowLeft} style={styles.headerBtnIcon} resizeMode="contain" />
           </TouchableOpacity>
           <TouchableOpacity
@@ -77,18 +82,20 @@ export function DetailsScreen() {
               })
             }
           >
-            <Image source={yuanBg} style={styles.headerBtnBg} resizeMode="cover" />
+              <BlurView
+            style={styles.headerBtnBg}
+            blurType="dark"
+            blurAmount={5}
+          />
+          <View style={styles.headerBtnOverlay} />
             <Image source={shareIcon} style={styles.headerBtnIcon} resizeMode="contain" />
           </TouchableOpacity>
         </View>
+        
 
-        {/* 底部：100px 渐变 + 深色内容区 */}
+        {/* 底部：深色内容区（渐变在 DetailVideoPlayer 内） */}
         <View style={[styles.bottomOverlayWrap, { paddingBottom: insets.bottom }]}>
-          <LinearGradient
-            colors={['rgba(5, 10, 20, 0)', COLORS.bg]}
-            style={styles.bottomGradientWrap}
-            pointerEvents="none"
-          />
+        
           <View style={styles.bottomOverlay}>
             {isEffect ? (
               <>
@@ -118,26 +125,42 @@ export function DetailsScreen() {
               </>
             ) : (
               <>
-                <View style={styles.feedUserRow}>
-                  <Image source={headNan as ImageSourcePropType} style={styles.feedAvatar} resizeMode="cover" />
-                  <Text style={styles.feedUsername}>{userName ?? '@User'}</Text>
+                <View style={styles.feedTopRow}>
+                  <View style={styles.feedLeftCol}>
+                    <View style={styles.feedUserRow}>
+                      <Image source={headNan as ImageSourcePropType} style={styles.feedAvatar} resizeMode="cover" />
+                      <Text style={styles.feedUsername}>{userName ?? '@User'}</Text>
+                    </View>
+                    <View style={[styles.pillsRow, styles.pillsRowStart]}>
+                      <View style={styles.pill}>
+                        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                        <View style={styles.pillOverlay} />
+                        <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
+                        <Text style={styles.pillText}>5s</Text>
+                      </View>
+                      <View style={styles.pill}>
+                        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                        <View style={styles.pillOverlay} />
+                        <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
+                        <Text style={styles.pillText}>720p</Text>
+                      </View>
+                      <View style={styles.pill}>
+                        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                        <View style={styles.pillOverlay} />
+                        <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
+                        <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
+                      </View>
+                    </View>
+                  </View>
                   <View style={styles.feedLikeBadge}>
+                    <BlurView
+                      style={StyleSheet.absoluteFill}
+                      blurType="dark"
+                      blurAmount={5}
+                    />
+                    <View style={styles.feedLikeBadgeOverlay} />
                     <LikeBigIcon width={23} height={22} />
                     <Text style={styles.feedLikeCount}>{formatCount(likeCount) || '2.4K'}</Text>
-                  </View>
-                </View>
-                <View style={[styles.pillsRow, styles.pillsRowStart]}>
-                  <View style={styles.pill}>
-                    <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
-                    <Text style={styles.pillText}>5s</Text>
-                  </View>
-                  <View style={styles.pill}>
-                    <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
-                    <Text style={styles.pillText}>720p</Text>
-                  </View>
-                  <View style={styles.pill}>
-                    <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
-                    <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
@@ -200,66 +223,84 @@ const styles = StyleSheet.create({
   },
   bottomOverlayWrap: {
     width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    // backgroundColor: COLORS.bg,
   },
   safeAreaFill: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.bg,
-  },
-  bottomGradientWrap: {
-    height: 100,
-    width: '100%',
+    // backgroundColor: COLORS.bg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(8),
+    paddingBottom: hp(8),
   },
   headerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: dp(38),
+    height: dp(38),
+    borderRadius: dp(19),
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerBtnBg: {
     ...StyleSheet.absoluteFillObject,
-    width: undefined,
-    height: undefined,
+    borderRadius: dp(19),
+  },
+  headerBtnOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: dp(19),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   headerBtnIcon: {
-    width: 20,
-    height: 20,
+    width: dp(20),
+    height: hp(20),
   },
   bottomOverlay: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    backgroundColor: COLORS.bg,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(24),
+    // backgroundColor: COLORS.bg,
   },
   effectTitle: {
-    fontSize: 24,
+    fontSize: dp(24),
     fontWeight: '700',
     color: COLORS.accent,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: hp(16),
     letterSpacing: 1,
   },
   feedUserRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: hp(8),
+  },
+  feedTopRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    marginBottom: hp(16),
+    gap: dp(12),
+  },
+  feedLeftCol: {
+    flex: 1,
+    minWidth: 0,
   },
   feedAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
+    width: dp(32),
+    height: dp(32),
+    borderRadius: dp(16),
+    marginRight: dp(8),
+    borderWidth: dp(1),
+    borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   feedUsername: {
     fontSize: 16,
@@ -271,23 +312,27 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(5,10,20,0.2)',
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
-    width: 60,
-    height: 68,
-    gap: 4,
+    borderRadius: dp(12),
+    width: dp(60),
+    height: hp(68),
+    overflow: 'hidden',
+    gap: hp(12),
+  },
+  feedLikeBadgeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5,10,20,0.2)',
   },
   feedLikeCount: {
-    fontSize: 12,
+    fontSize: dp(12),
     fontWeight: '700',
     color: '#ffffff',
   },
   pillsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: dp(12),
+    marginBottom: hp(20),
   },
   pillsRowCenter: {
     justifyContent: 'center',
@@ -298,20 +343,25 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 28,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(0,255,255,0.05)',
+    height: hp(28),
+    paddingHorizontal: dp(12),
+    borderRadius: dp(9999),
+    position: 'relative',
+    overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: 'rgba(0,255,255,0.4)',
-    gap: 6,
+    gap: dp(4),
+  },
+  pillOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,255,255,0.05)',
   },
   pillIcon: {
-    width: 12,
-    height: 12,
+    width: dp(12),
+    height: hp(12),
   },
   pillText: {
-    fontSize: 12,
+    fontSize: dp(12),
     fontWeight: '700',
     color: COLORS.accent,
     letterSpacing: 0.5,
@@ -320,18 +370,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
-    borderRadius: 12,
+    height: hp(48),
+    borderRadius: dp(12),
     backgroundColor: COLORS.accent,
-    gap: 4,
-    marginBottom: 12,
+    // gap: 4,
+    marginBottom: hp(12),
   },
   tryButtonIcon: {
-    width: 24,
-    height: 24,
+    width: dp(24),
+    height: hp(24),
   },
   tryButtonText: {
-    fontSize: 16,
+    fontSize: dp(16),
     fontWeight: '700',
     color: '#020410',
     letterSpacing: 0.5,
@@ -340,16 +390,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: dp(4),
   },
   footerDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: dp(4),
+    height: dp(4),
+    borderRadius: dp(2),
     backgroundColor: COLORS.accent,
   },
   footerText: {
-    fontSize: 10,
+    fontSize: dp(10),
     fontWeight: '400',
     color: COLORS.accent,
   },

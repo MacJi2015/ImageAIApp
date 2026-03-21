@@ -11,8 +11,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
 import arrowLeft from '../../assets/details/arrow-left.png';
-import yuanBg from '../../assets/details/yuan-bg.png';
+import { dp,hp } from '../../utils/scale';
 import PlayBtnIcon from '../../assets/details/paly-btn.svg';
+import ShareGenIcon from '../../assets/details/share-gen-icon.svg';
+import DownIcon from '../../assets/details/down-icon.svg';
 
 type GenerateVideoRoute = RouteProp<RootStackParamList, 'GenerateVideo'>;
 
@@ -75,12 +77,20 @@ export function GenerateVideoScreen() {
       </View>
 
       <TouchableOpacity style={styles.primaryBtn} onPress={handleShare} activeOpacity={0.8}>
-        <Text style={styles.primaryBtnText}>SHARE NOW</Text>
-        <Text style={styles.primaryBtnSub}>To Get +1 Free Chance</Text>
+        <View style={styles.primaryBtnInner}>
+          <ShareGenIcon width={dp(24)} height={dp(24)} />
+          <Text style={styles.primaryBtnLine} numberOfLines={2}>
+            <Text style={styles.primaryBtnText}>SHARE NOW </Text>
+            <Text style={styles.primaryBtnSub}>To Get +1 Free Chance</Text>
+          </Text>
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.secondaryBtn} onPress={handleSaveToGallery} activeOpacity={0.8}>
-        <Text style={styles.secondaryBtnText}>SAVE TO GALLERY</Text>
+        <View style={styles.secondaryBtnInner}>
+          <DownIcon width={dp(24)} height={dp(24)} />
+          <Text style={styles.secondaryBtnText}>SAVE TO GALLERY</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -90,7 +100,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    paddingHorizontal: 16,
+    paddingHorizontal: dp(16),
   },
   header: {
     flexDirection: 'row',
@@ -117,9 +127,9 @@ const styles = StyleSheet.create({
   },
   videoWrap: {
     alignSelf: 'center',
-    width: 300,
-    height: 533,
-    marginBottom: 24,
+    width: dp(300),
+    height: hp(533),
+    marginBottom: hp(24),
     position: 'relative',
   },
   videoFrame: {
@@ -152,40 +162,59 @@ const styles = StyleSheet.create({
   primaryBtn: {
     alignSelf: 'center',
     width: '100%',
-    maxWidth: 343,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    maxWidth: dp(343),
+    paddingVertical: hp(12),
+    paddingHorizontal: dp(16),
+    borderRadius: dp(12),
     backgroundColor: COLORS.accent,
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    marginBottom: hp(12),
+  },
+  primaryBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: dp(8),
+    flexWrap: 'wrap',
+  },
+  primaryBtnLine: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   primaryBtnText: {
-    fontSize: 16,
+    fontSize: dp(16),
     fontWeight: '700',
     color: '#020410',
   },
   primaryBtnSub: {
-    fontSize: 10,
+    fontSize: dp(12),
     fontWeight: '400',
-    color: COLORS.bg,
-    marginTop: 2,
+    color: '#020410',
   },
   secondaryBtn: {
     alignSelf: 'center',
     width: '100%',
-    maxWidth: 343,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: COLORS.card,
+    maxWidth: dp(343),
+    paddingVertical: hp(12),
+    paddingHorizontal: dp(16),
+    borderRadius: dp(12),
+    backgroundColor: 'transparent',
     borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.2)',
+    borderColor: 'rgba(0,255,255,0.35)',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: dp(8),
   },
   secondaryBtnText: {
-    fontSize: 16,
+    fontSize: dp(16),
     fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.5,
   },
 });

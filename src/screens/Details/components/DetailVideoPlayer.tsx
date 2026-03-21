@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Video from 'react-native-video';
+import LinearGradient from 'react-native-linear-gradient';
 import PlayBtnIcon from '../../../assets/details/paly-btn.svg';
 import preGoodsImg from '../../../assets/details/pre-goods-img.png';
 
@@ -14,6 +15,8 @@ export type DetailVideoPlayerProps = {
   style?: ViewStyle;
   /** 是否显示圆形播放按钮覆盖层（仅在不自动播放时生效） */
   showPlayOverlay?: boolean;
+  /** 底部渐变高度（默认 100） */
+  bottomGradientHeight?: number;
 };
 
 export function DetailVideoPlayer({
@@ -22,6 +25,7 @@ export function DetailVideoPlayer({
   autoPlay = false,
   style,
   showPlayOverlay = true,
+  bottomGradientHeight = 100,
 }: DetailVideoPlayerProps) {
   const [playing, setPlaying] = useState(autoPlay);
   const hasVideo = !!videoUri;
@@ -56,6 +60,11 @@ export function DetailVideoPlayer({
           resizeMode="cover"
         />
       )}
+      <LinearGradient
+        colors={['rgba(5, 10, 20, 0)', '#050a14']}
+        style={[styles.bottomGradient, { height: bottomGradientHeight }]}
+        pointerEvents="none"
+      />
     </View>
   );
 }
@@ -80,5 +89,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bottomGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });

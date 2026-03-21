@@ -26,24 +26,21 @@ import headNan from '../../../assets/head-nan.png';
 import headNv from '../../../assets/head-nv.png';
 import preGoodsImg from '../../../assets/details/pre-goods-img.png';
 import emptyImg from '../../../assets/details/empty.png';
+import { dp, hp } from '../../../utils/scale';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 const AVATARS: ImageSourcePropType[] = [headNan, headNv, headNan, headNv, headNan, headNv];
-const CONTAINER_PADDING_H = 16;
-const CARD_GAP = 7;
 
 function FeedCard({
   item,
   index,
-  cardWidth,
   liked,
   onLikePress,
   onPress,
 }: {
   item: FeedItem;
   index: number;
-  cardWidth: number;
   liked: boolean;
   onLikePress: (e?: { stopPropagation?: () => void }) => void;
   onPress: () => void;
@@ -53,7 +50,7 @@ function FeedCard({
 
   return (
     <TouchableOpacity
-      style={[styles.cardBase, { width: cardWidth }]}
+      style={[styles.cardBase]}
       activeOpacity={0.9}
       onPress={onPress}
     >
@@ -104,7 +101,6 @@ interface FeedTabProps {
 }
 
 export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ refreshKey }, ref) {
-  const { width: screenWidth } = useWindowDimensions();
   const navigation = useNavigation<Nav>();
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
@@ -114,11 +110,6 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-
-  const cardWidth = useMemo(() => {
-    const contentWidth = screenWidth - CONTAINER_PADDING_H * 2;
-    return Math.floor((contentWidth - CARD_GAP) / 2);
-  }, [screenWidth]);
 
   const loadPage = useCallback(
     async (page: number, append: boolean) => {
@@ -211,7 +202,6 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
             key={item.feedId}
             item={item}
             index={i}
-            cardWidth={cardWidth}
             liked={likedSet.has(item.feedId)}
             onLikePress={(e) => handleLikePress(item, e)}
             onPress={() => handleCardPress(item)}
@@ -239,18 +229,20 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
 const styles = StyleSheet.create({
   cardsContainer: {
     width: '100%',
-    paddingHorizontal: CONTAINER_PADDING_H,
-    paddingBottom: 120,
+    paddingHorizontal: dp(16),
+    paddingBottom: hp(120),
+    paddingTop: hp(7),
   },
   cardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: CARD_GAP,
-    rowGap: CARD_GAP,
+    columnGap: dp(7),
+    rowGap: hp(7),
   },
   cardBase: {
-    height: 226,
-    borderRadius: 12,
+    height: hp(226),
+    borderRadius: dp(12),
+    width: dp(168),
     overflow: 'hidden',
   },
   cardImageWrap: {
@@ -265,8 +257,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   cardImagePreloadPlaceholder: {
-    width: 69,
-    height: 28,
+    width: dp(69),
+    height: hp(28),
   },
   cardImagePreload: {
     opacity: 0,
@@ -279,17 +271,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 40,
+    height: hp(40),
   },
   cardLikeBadge: {
     position: 'absolute',
-    right: 8,
-    top: 8,
+    right: dp(8),
+    top: hp(8),
     backgroundColor: '#00000099',
-    borderRadius: 12,
-    height: 28,
-    minWidth: 44,
-    paddingHorizontal: 8,
+    borderRadius: dp(12),
+    height: hp(20),
+    minWidth: dp(42),
+    paddingHorizontal: dp(6),
   },
   cardLikeBadgeRow: {
     flexDirection: 'row',
@@ -298,8 +290,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardLikeIconSize: {
-    width: 14,
-    height: 14,
+    width: dp(14),
+    height: dp(14),
   },
   cardLikeCountInside: {
     fontFamily: 'Space Grotesk',
@@ -309,23 +301,23 @@ const styles = StyleSheet.create({
   },
   cardAvatar: {
     position: 'absolute',
-    left: 8,
-    bottom: 12,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    left: dp(8),
+    bottom: hp(12),
+    width: dp(20),
+    height: dp(20),
+    borderRadius: dp(10),
     overflow: 'hidden',
   },
   cardUsername: {
     position: 'absolute',
-    left: 32,
-    bottom: 14,
+    left: dp(32),
+    bottom: hp(14),
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
   },
   placeholder: {
-    paddingVertical: 60,
+    paddingVertical: hp(60),
     alignItems: 'center',
   },
   placeholderText: {
@@ -336,26 +328,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: hp(80),
   },
   emptyStateIcon: {
-    width: 85,
-    height: 85,
-    marginBottom: 8,
+    width: dp(85),
+    height: hp(85),
+    marginBottom: hp(8),
   },
   emptyStateText: {
     color: '#3a4a65',
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: hp(16),
   },
   emptyStateRefreshBtn: {
     backgroundColor: '#09111f',
     borderWidth: 0.5,
     borderColor: 'rgba(0, 255, 255, 0.2)',
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    minHeight: 32,
+    paddingVertical: hp(10),
+    paddingHorizontal: dp(28),
+    borderRadius: dp(12),
+    minHeight: hp(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -364,7 +356,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   loadMoreWrap: {
-    paddingVertical: 16,
+    paddingVertical: hp(16),
     alignItems: 'center',
   },
   loadMoreText: {

@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
 import { getVideoTaskStatus } from '../../api/services/video';
 import arrowLeft from '../../assets/details/arrow-left.png';
-import yuanBg from '../../assets/details/yuan-bg.png';
+import { dp,hp } from '../../utils/scale';
 
 const genLoadingGif = require('../../assets/details/gen-loading.gif');
 
@@ -117,18 +117,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    paddingHorizontal: 16,
+    paddingHorizontal: dp(16),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
-    marginBottom: 12,
+    paddingTop: hp(8),
+    marginBottom: hp(12),
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: dp(38),
+    height: dp(38),
+    borderRadius: dp(19),
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -139,51 +139,52 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   backBtnIcon: {
-    width: 20,
-    height: 20,
+    width: dp(20),
+    height: hp(20),
   },
   animationWrap: {
     width: '100%',
-    height: 281,
+    height: hp(260),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginTop: hp(48),
+    marginBottom: hp(16),
   },
   gif: {
-    width: 280,
-    height: 281,
+    width: dp(220),
+    height: dp(220),
   },
   statusText: {
-    fontSize: 16,
+    fontSize: dp(16),
     fontWeight: '400',
     color: COLORS.muted,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: hp(12),
   },
   timeText: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: dp(24),
+    fontWeight: 'bold',
     color: '#ffffff',
     textAlign: 'center',
     letterSpacing: -0.75,
   },
   timeValue: {
-    color: COLORS.accent,
+    color: COLORS.accent,         
   },
   continueBtn: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    height: 44,
+    left: dp(16),
+    right: dp(16),
+    height: hp(48),
     backgroundColor: COLORS.card,
     borderWidth: 0.5,
     borderColor: COLORS.cardBorder,
-    borderRadius: 12,
+    borderRadius: dp(12),
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueBtnTitle: {
-    fontSize: 16,
+    fontSize: dp(16),
     fontWeight: '700',
     color: '#ffffff',
     textTransform: 'uppercase',
@@ -193,6 +194,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '400',
     color: COLORS.muted,
-    marginTop: 2,
+    marginTop: hp(2),
   },
 });

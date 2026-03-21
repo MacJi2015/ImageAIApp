@@ -16,16 +16,19 @@ import { EffectsTab } from './components/EffectsTab';
 import { FeedTab, type FeedTabRef } from './components/FeedTab';
 import logoIcon from '../../assets/logoIcon.png';
 import homeTips from '../../assets/home-tips.png';
+import { dp, hp } from '../../utils/scale';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('feed');
+  const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [stickyThreshold, setStickyThreshold] = useState(0);
-  const [showStickyHeader, setShowStickyHeader] = useState(false);
+  const [logoStickyThreshold, setLogoStickyThreshold] = useState(0);
+  const [tabStickyThreshold, setTabStickyThreshold] = useState(0);
+  const [showStickyLogo, setShowStickyLogo] = useState(false);
+  const [showStickyTabs, setShowStickyTabs] = useState(false);
   const feedTabRef = useRef<FeedTabRef>(null);
 
   const onRefresh = useCallback(() => {
@@ -38,7 +41,10 @@ export function HomeScreen() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       const y = contentOffset.y;
-      setShowStickyHeader(stickyThreshold > 0 && y >= stickyThreshold);
+      const TAB_OFFSET = 20; // 提前少量吸顶，视觉上刚接触就固定
+
+      setShowStickyLogo(logoStickyThreshold > 0 && y >= logoStickyThreshold);
+      setShowStickyTabs(tabStickyThreshold > 0 && y + TAB_OFFSET >= tabStickyThreshold);
 
       if (activeTab === 'feed') {
         const threshold = 150;
@@ -49,20 +55,24 @@ export function HomeScreen() {
         }
       }
     },
-    [activeTab, stickyThreshold]
+    [activeTab, logoStickyThreshold, tabStickyThreshold]
   );
 
   const onHeroLayout = useCallback((e: LayoutChangeEvent) => {
-    setStickyThreshold(e.nativeEvent.layout.height);
+    setTabStickyThreshold(e.nativeEvent.layout.height);
+  }, []);
+
+  const onHeroLogoLayout = useCallback((e: LayoutChangeEvent) => {
+    setLogoStickyThreshold(e.nativeEvent.layout.y);
   }, []);
 
   const renderHeroBlock = () => (
     <View style={styles.heroBlock} onLayout={onHeroLayout}>
       {/* <View style={styles.heroGradient} /> */}
-      <View style={styles.heroLogoRow}>
+      <View style={styles.heroLogoRow} onLayout={onHeroLogoLayout}>
         <Image source={logoIcon} style={styles.heroLogo} resizeMode="contain" />
         <View style={styles.proBadge}>
-          <Text style={styles.proText}>PRO</Text>
+          <Text style={styles.proText}>FREE</Text>
         </View>
       </View>
       <Image source={homeTips} style={styles.homeTipsImage} resizeMode="contain" />
@@ -74,12 +84,12 @@ export function HomeScreen() {
 
   const renderTabBar = () => (
     <View style={styles.tabBarWrap}>
-      <View style={styles.tabContainerSticky}>
+        <View style={styles.tabContainerSticky}>
         <View style={styles.tabBackground} />
         <View
           style={[
             styles.tabActiveBackground,
-            activeTab === 'effects' && styles.tabActiveBackgroundLeft,
+            activeTab === 'feed' ? styles.tabActivePosRight : styles.tabActivePosLeft,
           ]}
         />
         <TouchableOpacity
@@ -109,52 +119,56 @@ export function HomeScreen() {
   );
 
   const renderStickyOverlay = () =>
-    showStickyHeader ? (
+    showStickyLogo || showStickyTabs ? (
       <View
         style={[styles.stickyOverlay, { top: insets.top }]}
         pointerEvents="box-none"
       >
         <View style={styles.stickyHeader}>
-          <View style={styles.stickyHeaderRow}>
-            <Image source={logoIcon} style={styles.stickyLogo} resizeMode="contain" />
-            <View style={styles.proBadge}>
-              <Text style={styles.proText}>PRO</Text>
+          {showStickyLogo && (
+            <View style={styles.stickyHeaderRow}>
+              <Image source={logoIcon} style={styles.stickyLogo} resizeMode="contain" />
+              <View style={styles.proBadge}>
+                <Text style={styles.proText}>FREE</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.tabContainerSticky}>
-            <View style={styles.tabBackground} />
-            <View
-              style={[
-                styles.tabActiveBackground,
-                activeTab === 'effects' && styles.tabActiveBackgroundLeft,
-              ]}
-            />
-            <TouchableOpacity
-              style={styles.tabTouchLeft}
-              onPress={() => setActiveTab('effects')}
-              activeOpacity={0.8}
-            >
-              <Text
+          )}
+          {showStickyTabs && (
+            <View style={styles.tabContainerSticky}>
+              <View style={styles.tabBackground} />
+              <View
                 style={[
-                  styles.tabEffects,
-                  activeTab === 'effects' && styles.tabEffectsActive,
+                  styles.tabActiveBackground,
+                  activeTab === 'feed' ? styles.tabActivePosRight : styles.tabActivePosLeft,
                 ]}
+              />
+              <TouchableOpacity
+                style={styles.tabTouchLeft}
+                onPress={() => setActiveTab('effects')}
+                activeOpacity={0.8}
               >
-                Effects
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.tabTouchRight}
-              onPress={() => setActiveTab('feed')}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[styles.tabFeed, activeTab === 'feed' && styles.tabFeedActive]}
+                <Text
+                  style={[
+                    styles.tabEffects,
+                    activeTab === 'effects' && styles.tabEffectsActive,
+                  ]}
+                >
+                  Effects
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tabTouchRight}
+                onPress={() => setActiveTab('feed')}
+                activeOpacity={0.8}
               >
-                Feed
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <Text
+                  style={[styles.tabFeed, activeTab === 'feed' && styles.tabFeedActive]}
+                >
+                  Feed
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     ) : null;
@@ -200,17 +214,17 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: COLORS.bg,
-    minHeight: 812,
-    minWidth: 375,
+    minHeight: '100%',
+    minWidth: '100%',
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
   },
   heroBlock: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 20,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(8),
+    paddingBottom: hp(20),
     position: 'relative',
   },
   heroGradient: {
@@ -225,17 +239,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: hp(20),
   },
   heroLogo: {
-    width: 69,
-    height: 28,
+    width: dp(69),
+    height: hp(28),
   },
   homeTipsImage: {
-    width: '100%',
-    maxWidth: 340,
-    height: 72,
-    marginBottom: 4,
+    maxWidth: dp(340),
+    height: hp(72),
+    marginBottom: hp(4),
+    marginLeft: -8
   },
   heroSubtitle: {
     color: '#3a4a65',
@@ -244,8 +258,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tabBarWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: dp(16),
+    paddingBottom: hp(7),
   },
   stickyOverlay: {
     position: 'absolute',
@@ -255,19 +269,19 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     backgroundColor: COLORS.bg,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(12),
+    paddingBottom: hp(12),
   },
   stickyHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: hp(12),
   },
   stickyLogo: {
-    width: 100,
-    height: 26,
+    width: dp(69),
+    height: hp(28),
   },
   proBadge: {
     alignItems: 'center',
@@ -276,10 +290,10 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     borderColor: COLORS.accent,
     borderRadius: 9999,
-    height: 24,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    minWidth: 48,
+    height: hp(24),
+    paddingVertical: hp(4),
+    paddingHorizontal: dp(12),
+    minWidth: dp(48),
   },
   proText: {
     color: COLORS.accent,
@@ -289,7 +303,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   tabContainerSticky: {
-    height: 44,
+    height: hp(44),
     position: 'relative',
     backgroundColor: '#09111f',
     borderWidth: 0.5,
@@ -309,15 +323,16 @@ const styles = StyleSheet.create({
   tabActiveBackground: {
     position: 'absolute',
     backgroundColor: COLORS.accent,
-    borderRadius: 22,
-    height: 36,
+    borderRadius: dp(22),
+    height: hp(36),
     width: '48%',
-    right: 4,
-    top: 4,
+    top: hp(4),
   },
-  tabActiveBackgroundLeft: {
-    left: 4,
-    right: undefined,
+  tabActivePosLeft: {
+    left: dp(4),
+  },
+  tabActivePosRight: {
+    right: dp(4),
   },
   tabEffects: {
     color: '#ffffff',
@@ -334,7 +349,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     width: '50%',
-    height: 44,
+    height: hp(44),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -343,7 +358,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     width: '50%',
-    height: 44,
+    height: hp(44),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -357,6 +372,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 0,
   },
 });

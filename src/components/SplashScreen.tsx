@@ -1,5 +1,5 @@
 /**
- * 启动页：深色背景 + 中间展示 unusualimage.png（Pets Tales 品牌图）
+ * 启动页：深色背景 + 中间展示 unusualimage.png（PetsGO 品牌图）
  * 作为 App 首屏展示；带 message/buttonText 时也可用于网络错误、加载失败等异常态
  */
 import React from 'react';
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
   },
   image: {
-    width: 200,
-    height: 120,
+    width: 72,
+    height: 97,
   },
   message: {
     fontFamily: 'Space Grotesk',

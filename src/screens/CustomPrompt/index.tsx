@@ -3,10 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
@@ -17,7 +21,7 @@ import type { RootStackParamList } from '../../routes/types';
 import { generateVideo } from '../../api/services/video';
 import { uploadImage } from '../../api/services/upload';
 import { useAppStore, useUserStore } from '../../store';
-import yuanBg from '../../assets/details/yuan-bg.png';
+import { dp,hp } from '../../utils/scale';
 import replaceIcon from '../../assets/details/replace-icon.png';
 import GenIcon from '../../assets/details/gen-icon.svg';
 import CloseIcon from '../../assets/details/close-icon.svg';
@@ -59,25 +63,21 @@ export function CustomPromptScreen() {
   }, [imageUri]);
 
   const handleReplace = () => {
+    Keyboard.dismiss();
     navigation.goBack();
   };
 
   const handleGenerate = useCallback(async () => {
-    // if (!isLoggedIn) {
-    //   openLoginModal();
-    //   return;
-    // }
-    (navigation as any).navigate('GenerationInProgress', {
-      taskId: 1,
-      imageUri: 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png',
-    });
-    return;
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     if (!prompt.trim()) {
       Alert.alert('提示', '请输入 Additional Prompts');
       return;
     }
 
-    let petImageUrl = initialPetImageUrl;
+    let petImageUrl: string | undefined = initialPetImageUrl;
     if (!petImageUrl) {
       try {
         const result = await uploadImage(imageUri, 'pet');
@@ -87,11 +87,15 @@ export function CustomPromptScreen() {
         return;
       }
     }
+    if (!petImageUrl) {
+      Alert.alert('提示', '图片上传失败，请重试');
+      return;
+    }
 
     setGenerating(true);
     try {
       const res = await generateVideo({
-        actionType: templateId ? templateId : 'default',
+        actionType: templateId ?? 'default',
         duration: 5,
         petImageUrl,
         promptText: prompt.trim(),
@@ -104,27 +108,43 @@ export function CustomPromptScreen() {
         taskId: res.taskId,
         imageUri,
       });
-    } catch (e) {
+    } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '生成失败，请重试';
       Alert.alert('提示', msg);
     } finally {
       setGenerating(false);
     }
-  }, [prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation]);
+  }, [isLoggedIn, openLoginModal, prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            Keyboard.dismiss();
+            navigation.goBack();
+          }}
           activeOpacity={0.8}
         >
           <CloseIcon width={20} height={20} style={styles.backBtnIcon} />
         </TouchableOpacity>
       </View>
 
-      <View style={isFromEffect ? styles.imageRow : styles.imageWrap}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <View style={styles.scroll}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View
+              style={[
+                styles.scrollContent,
+                { paddingBottom: Math.max(insets.bottom, 8) + hp(24) },
+              ]}
+            >
+              <View style={isFromEffect ? styles.imageRow : styles.imageWrap}>
         {isFromEffect ? (
           <>
             <View style={styles.effectsCard}>
@@ -248,52 +268,66 @@ export function CustomPromptScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </View>
+              </View>
 
-      <Text style={styles.sectionTitle}>*Additional Prompts(Required)</Text>
-      <TextInput
-        style={styles.promptInput}
-        value={prompt}
-        onChangeText={setPrompt}
-        placeholderTextColor={COLORS.muted}
-        multiline
-      />
+              <Text style={styles.sectionTitle}>*Additional Prompts(Required)</Text>
+              <TextInput
+                style={styles.promptInput}
+                value={prompt}
+                onChangeText={setPrompt}
+                placeholderTextColor={COLORS.muted}
+                multiline
+                placeholder="Describe your scene..."
+                returnKeyType="done"
+                blurOnSubmit
+                submitBehavior="blurAndSubmit"
+                onSubmitEditing={() => {
+                  Keyboard.dismiss();
+                }}
+              />
 
-      <TouchableOpacity
-        style={styles.watermarkRow}
-        onPress={() => setRemoveWatermark((v) => !v)}
-        activeOpacity={0.8}
-      >
-        {removeWatermark ? (
-          <SelectedIcon width={18} height={18} style={styles.checkboxIcon} />
-        ) : (
-          <View style={styles.checkbox} />
-        )}
-        <Text style={styles.watermarkText}>Remove Watermark</Text>
-      </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.watermarkRow}
+                onPress={() => setRemoveWatermark((v) => !v)}
+                activeOpacity={0.8}
+              >
+                {removeWatermark ? (
+                  <SelectedIcon width={18} height={18} style={styles.checkboxIcon} />
+                ) : (
+                  <View style={styles.checkbox} />
+                )}
+                <Text style={styles.watermarkText}>Remove Watermark</Text>
+              </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.generateBtn, generating && styles.generateBtnDisabled]}
-        onPress={handleGenerate}
-        activeOpacity={0.8}
-        disabled={generating}
-      >
-        {generating ? (
-          <>
-            <ActivityIndicator size="small" color="#020410" />
-            <Text style={styles.generateBtnText}>生成中...</Text>
-          </>
-        ) : (
-          <>
-            <GenIcon width={24} height={24} />
-            <Text style={styles.generateBtnText}>GENERATE</Text>
-          </>
-        )}
-      </TouchableOpacity>
-      <View style={styles.chancesRow}>
-        <View style={styles.chanceDot} />
-        <Text style={styles.chancesText}>3 Free Chances Remaining</Text>
-      </View>
+              <TouchableOpacity
+                style={[styles.generateBtn, generating && styles.generateBtnDisabled]}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  handleGenerate();
+                }}
+                activeOpacity={0.8}
+                disabled={generating}
+              >
+                {generating ? (
+                  <>
+                    <ActivityIndicator size="small" color="#020410" />
+                    <Text style={styles.generateBtnText}>生成中...</Text>
+                  </>
+                ) : (
+                  <>
+                    <GenIcon width={24} height={24} />
+                    <Text style={styles.generateBtnText}>GENERATE</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <View style={styles.chancesRow}>
+                <View style={styles.chanceDot} />
+                <Text style={styles.chancesText}>3 Free Chances Remaining</Text>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -303,6 +337,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
     paddingHorizontal: 16,
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -329,27 +372,26 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     alignSelf: 'center',
-    width: 343,
-    height: 295,
-    marginBottom: 32,
-    borderWidth: 2,
+    width: dp(343),
+    height: hp(295),
+    marginBottom: hp(32),
+    borderWidth: dp(2),
     borderColor: COLORS.accent,
-    borderRadius: 12,
+    borderRadius: dp(12),
     overflow: 'hidden',
   },
   imageRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-    gap: 11,
+    justifyContent: 'space-between',
+    marginBottom: hp(32),
     position: 'relative',
   },
   effectsCard: {
-    width: 166,
-    height: 295,
-    borderRadius: 12,
-    borderWidth: 2,
+    width: dp(166),
+    height: hp(295),
+    borderRadius: dp(12),
+    borderWidth: dp(2),
     borderColor: COLORS.muted,
     overflow: 'hidden',
     position: 'relative',
@@ -359,22 +401,23 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     backgroundColor: COLORS.muted,
-    paddingHorizontal: 5,
-    paddingVertical: 6,
-    borderBottomRightRadius: 12,
-    borderTopLeftRadius: 10,
+    paddingHorizontal: dp(5),
+    paddingVertical: dp(6),
+    borderBottomRightRadius: dp(12),
+    borderTopLeftRadius: dp(10),
   },
   effectsTagText: {
-    fontSize: 10,
+    fontSize: dp(10),
     fontWeight: '400',
     color: COLORS.accent,
   },
   linkIconOverlay: {
     position: 'absolute',
-    left: 151.5,
-    top: 127.5,
-    width: 40,
-    height: 40,
+    left: '50%',
+    top: '50%',
+    width: dp(40),
+    height: dp(40),
+    transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
@@ -385,10 +428,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   petCard: {
-    width: 166,
-    height: 295,
-    borderRadius: 12,
-    borderWidth: 2,
+    width: dp(166),
+    height: hp(295) ,
+    borderRadius: dp(12),
+    borderWidth: dp(2),
     borderColor: COLORS.accent,
     overflow: 'hidden',
     position: 'relative',
@@ -402,28 +445,28 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 110,
+    width: dp(110),
   },
   blurRight: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: 110,
+    width: dp(110),
   },
   blurTop: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: 105,
+    height: hp(105),
   },
   blurBottom: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 105,
+    height: hp(105),
   },
   imageFrame: {
     width: '100%',
@@ -439,13 +482,13 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     backgroundColor: COLORS.accent,
-    paddingHorizontal: 5,
-    paddingVertical: 6,
-    borderBottomRightRadius: 12,
-    borderTopLeftRadius: 10,
+    paddingHorizontal: dp(5),
+    paddingVertical: dp(6),
+    borderBottomRightRadius: dp(12),
+    borderTopLeftRadius: dp(10),
   },
   yourPetText: {
-    fontSize: 10,
+    fontSize: dp(10),
     fontWeight: '400',
     color: COLORS.bg,
   },
@@ -454,7 +497,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 30,
+    height: hp(30),
     borderRadius: 0,
     overflow: 'hidden',
     alignItems: 'center',
@@ -465,47 +508,47 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.40)',
   },
   replaceIcon: {
-    height: 18,
-    width: 72,
+    height: dp(18),
+    width: dp(72),
   },
   sectionTitle: {
     fontFamily: 'Space Grotesk',
-    fontSize: 14,
+    fontSize: dp(14),
     fontWeight: '700',
     color: '#ffffff',
-    marginBottom: 16,
+    marginBottom: hp(16)  ,
   },
   promptInput: {
     backgroundColor: COLORS.inputBg,
-    borderRadius: 12,
+    borderRadius: dp(12),
     borderWidth: 0.5,
     borderColor: 'rgba(58,74,101,0.8)',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 12,
+    paddingHorizontal: dp(14),
+    paddingVertical: dp(12),
+    fontSize: dp(12),
     color: COLORS.muted,
-    minHeight: 180,
+    minHeight: hp(180),
     textAlignVertical: 'top',
-    marginBottom: 8,
+    marginBottom: hp(8),
   },
   watermarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: hp(50),
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
+    width: dp(18),
+    height: dp(18),
+    borderRadius: dp(9),
+    borderWidth: dp(1),
     borderColor: COLORS.muted,
-    marginRight: 8,
+    marginRight: dp(8),
   },
   checkboxIcon: {
-    marginRight: 8,
+    marginRight: dp(8),
   },
   watermarkText: {
-    fontSize: 14,
+    fontSize: dp(14),
     color: '#ffffff',
   },
   generateBtn: {
@@ -514,11 +557,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     width: '100%',
-    maxWidth: 343,
+    maxWidth: dp(343) ,
     backgroundColor: COLORS.accent,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: hp(10),
+    paddingHorizontal: dp(16),
+    borderRadius: dp(12),
     gap: 4,
   },
   generateBtnText: {

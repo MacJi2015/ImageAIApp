@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../screens/Home';
@@ -16,37 +17,48 @@ import publishIcon from '../assets/publish-icon.png';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-/** 导航栏与安全区统一使用纯色，避免底部颜色不一致 */
-const TAB_BAR_BG = '#050a14';
 const ACCENT = '#00ffff';
+const TAB_BAR_BLUR = 10;
+const TAB_BAR_OVERLAY = 'rgba(5, 10, 20, 0.80)';
 
 function TabBarBackground() {
-  return <View style={tabBarBackgroundStyles.bg} />;
+  return (
+    <>
+      <BlurView style={tabBarBackgroundStyles.blur} blurType="dark" blurAmount={TAB_BAR_BLUR} />
+      <View style={tabBarBackgroundStyles.overlay} />
+    </>
+  );
 }
 const tabBarBackgroundStyles = StyleSheet.create({
-  bg: {
+  blur: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: TAB_BAR_BG,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: TAB_BAR_OVERLAY,
   },
 });
 
 function HomeTabIcon({ focused }: { focused: boolean }) {
   return (
     <View style={styles.tabIconWrap}>
+      <View style={styles.tabIconSpacer} />
       <Image
         source={focused ? homeSelectedIcon : homeDefaultIcon}
         style={styles.tabIconImage}
         resizeMode="contain"
       />
-      {focused && <View style={styles.tabIconDot} />}
+      <View style={[styles.tabIconDotPlaceholder, focused && styles.tabIconDot]} />
     </View>
   );
 }
 
 function PublishTabIcon() {
   return (
-    <View style={styles.publishWrap}>
-      <Image source={publishIcon} style={styles.publishIcon} resizeMode="contain" />
+    <View style={styles.publishOuter}>
+      <View style={styles.publishWrap}>
+        <Image source={publishIcon} style={styles.publishIcon} resizeMode="contain" />
+      </View>
     </View>
   );
 }
@@ -54,12 +66,13 @@ function PublishTabIcon() {
 function MyTabIcon({ focused }: { focused: boolean }) {
   return (
     <View style={styles.tabIconWrap}>
-    <Image
-      source={focused ? mySelectedIcon : myDefaultIcon}
-      style={styles.tabIconImage}
-      resizeMode="contain"
-    />
-    {focused && <View style={styles.tabIconDot} />}
+      <View style={styles.tabIconSpacer} />
+      <Image
+        source={focused ? mySelectedIcon : myDefaultIcon}
+        style={styles.tabIconImage}
+        resizeMode="contain"
+      />
+      <View style={[styles.tabIconDotPlaceholder, focused && styles.tabIconDot]} />
     </View>
   );
 }
@@ -116,7 +129,7 @@ export function MainTabs() {
         tabBarItemStyle: {
           paddingVertical: 8,
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
         },
       }}
     >
@@ -164,19 +177,29 @@ export function MainTabs() {
 
 const styles = StyleSheet.create({
   tabIconWrap: {
+    height: 40,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+  },
+  tabIconSpacer: {
+    height: 4,
   },
   tabIconImage: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
   },
-  tabIconDot: {
+  tabIconDotPlaceholder: {
     width: 4,
     height: 4,
     borderRadius: 2,
+  },
+  tabIconDot: {
     backgroundColor: ACCENT,
-    marginTop: 4,
+  },
+  publishOuter: {
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   publishWrap: {
     width: 48,
@@ -184,7 +207,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
   },
   publishIcon: {
     width: 48,

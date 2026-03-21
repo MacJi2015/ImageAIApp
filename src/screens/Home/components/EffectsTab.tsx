@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
 import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/services/template';
+import { dp, hp } from '../../../utils/scale';
 import ascIcon from '../../../assets/asc-icon.png';
 
 const OSS_BASE = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/cat/';
@@ -34,10 +35,6 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 const LOADING = 'loading';
 const EMPTY = 'empty';
-const CONTAINER_PADDING_H = 16;
-const CARD_GAP = 7;
-const CARD_MAX_WIDTH = 200;
-
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -47,12 +44,10 @@ function formatCount(n: number): string {
 function EffectCard({
   template,
   cornerIcon,
-  cardWidth,
 }: {
   template: AppVideoTemplate;
   index: number;
   cornerIcon: ImageSourcePropType;
-  cardWidth: number;
 }) {
   const navigation = useNavigation<Nav>();
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -60,7 +55,7 @@ function EffectCard({
 
   return (
     <TouchableOpacity
-      style={[styles.effectCard, { width: cardWidth }]}
+      style={styles.effectCard}
       activeOpacity={0.9}
       onPress={() =>
         navigation.navigate('Detail', {
@@ -90,8 +85,9 @@ function EffectCard({
         <BlurView
           style={StyleSheet.absoluteFill}
           blurType="dark"
-          blurAmount={8}
+          blurAmount={5}
         />
+        <View style={styles.effectCardCornerOverlay} />
         <Image source={cornerIcon} style={styles.effectCardCornerIcon} resizeMode="contain" />
       </View>
       <View style={styles.effectCardBottom}>
@@ -123,15 +119,9 @@ interface EffectsTabProps {
 }
 
 export function EffectsTab({ refreshKey }: EffectsTabProps) {
-  const { width: screenWidth } = useWindowDimensions();
   const [list, setList] = useState<AppVideoTemplate[]>([]);
   const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>('idle');
 
-  const cardWidth = useMemo(() => {
-    const contentWidth = screenWidth - CONTAINER_PADDING_H * 2;
-    const w = (contentWidth - CARD_GAP) / 2;
-    return Math.min(Math.floor(w), CARD_MAX_WIDTH);
-  }, [screenWidth]);
 
   const loadData = useCallback(async () => {
     setStatus(LOADING);
@@ -183,7 +173,7 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
             template={t}
             index={i}
             cornerIcon={i % 2 === 0 ? dogIcon : cartIcon}
-            cardWidth={cardWidth}
+         
           />
         ))}
       </View>
@@ -193,19 +183,20 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
 
 const styles = StyleSheet.create({
   effectsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 120,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(7),
+    paddingBottom: hp(120),
   },
   effectsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 7,
-    rowGap: 8,
+    columnGap: dp(7),
+    rowGap: hp(7),
   },
   effectCard: {
-    height: 226,
-    borderRadius: 16,
+    height: hp(226),
+    borderRadius:dp(12),
+    width:dp(168),
     overflow: 'hidden',
     position: 'relative',
   },
@@ -221,8 +212,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   effectCardImagePreloadPlaceholder: {
-    width: 69,
-    height: 28,
+    width: dp(69),
+    height: hp(28),
   },
   effectCardImagePreload: {
     opacity: 0,
@@ -235,28 +226,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 40,
+    height: hp(40),
   },
   effectCardCornerIconWrap: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    top: hp(8),
+    right: dp(8),
+    width: dp(28),
+    height: dp(28),
+    borderRadius: dp(14),
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  effectCardCornerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
   effectCardCornerIcon: {
-    width: 16,
-    height: 16,
+    width: dp(16),
+    height: dp(16),
   },
   effectCardBottom: {
     position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 8,
+    left: dp(8),
+    right: dp(8),
+    bottom: hp(8),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -271,15 +266,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
-    marginRight: 6,
+    marginRight: dp(6),
+    marginBottom: hp(4),
   },
   effectCardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   effectCardTrendIcon: {
-    width: 10,
-    height: 10,
+    width: dp(10),
+    height: dp(10),
     marginRight: 4,
   },
   effectCardCount: {
@@ -289,10 +285,10 @@ const styles = StyleSheet.create({
   },
   effectCardTryBtn: {
     backgroundColor: COLORS.accent,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 22,
-    minWidth: 40,
+    paddingVertical: hp(6),
+    paddingHorizontal: dp(12),
+    borderRadius: dp(22),
+    minWidth: dp(40),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -302,7 +298,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   placeholder: {
-    paddingVertical: 60,
+    paddingVertical: hp(60),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -314,26 +310,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: hp(80),
   },
   emptyStateIcon: {
-    width: 85,
-    height: 85,
-    marginBottom: 8,
+    width: dp(85),
+    height: hp(85),
+    marginBottom: hp(8),
   },
   emptyStateText: {
     color: '#3a4a65',
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: hp(16),
   },
   emptyStateRefreshBtn: {
     backgroundColor: '#09111f',
     borderWidth: 0.5,
     borderColor: 'rgba(0, 255, 255, 0.2)',
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    minHeight: 32,
+    paddingVertical: hp(10),
+    paddingHorizontal: dp(28),
+    borderRadius: dp(12),
+    minHeight: hp(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
