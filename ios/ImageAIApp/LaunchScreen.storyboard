@@ -16,17 +16,17 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="launch-logo-img">
-                                <rect key="frame" x="87.5" y="-1520" width="200" height="3707"/>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="launch-logo-img">
+                                <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
                         <color key="backgroundColor" red="0.039215686274509803" green="0.054901960784313725" blue="0.078431372549019607" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="launch-logo-img" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="logo-centerX"/>
-                            <constraint firstItem="launch-logo-img" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="logo-centerY"/>
-                            <constraint firstAttribute="height" secondItem="launch-logo-img" secondAttribute="height" multiplier="72/667" id="logo-height"/>
-                            <constraint firstItem="launch-logo-img" firstAttribute="width" secondItem="Ze5-6b-2t3" secondAttribute="width" multiplier="120/375" id="logo-width"/>
+                            <constraint firstItem="launch-logo-img" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="logo-leading"/>
+                            <constraint firstItem="launch-logo-img" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="logo-trailing"/>
+                            <constraint firstItem="launch-logo-img" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="logo-top"/>
+                            <constraint firstItem="launch-logo-img" firstAttribute="bottom" secondItem="Ze5-6b-2t3" secondAttribute="bottom" id="logo-bottom"/>
                         </constraints>
                     </view>
                 </viewController>

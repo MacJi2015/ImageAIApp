@@ -69,10 +69,13 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
   }
 
   override func bundleURL() -> URL? {
-#if DEBUG
-    RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
-#else
-    Bundle.main.url(forResource: "main", withExtension: "jsbundle")
-#endif
+    // Prefer Metro dev server when available.
+    // This avoids relying on Xcode/Swift "DEBUG" compilation flags being wired correctly.
+    if let metroURL = RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index") {
+      return metroURL
+    }
+
+    // Fallback for Release builds (or when Metro is not reachable).
+    return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
   }
 }

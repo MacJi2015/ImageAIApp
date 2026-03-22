@@ -78,7 +78,25 @@ export function MyScreen() {
       setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '加载失败，请重试';
-      setVideoError(msg);
+      // 登录态失效类错误不在页面上展示，避免影响 UI（可让登录弹窗接管）
+      const normalized = msg.replace(/\s/g, '');
+      const isLoginInvalid =
+        normalized.includes('登录') &&
+        (normalized.includes('失效') ||
+          normalized.includes('未登录') ||
+          normalized.includes('登录态') ||
+          normalized.includes('token') ||
+          normalized.includes('请登录') ||
+          normalized.includes('登录后') ||
+          normalized.includes('登录后重试') ||
+          normalized.includes('登录后再试'));
+
+      if (isLoginInvalid) {
+        setVideoError(null);
+        openLoginModal();
+      } else {
+        setVideoError(msg);
+      }
       if (!append) setVideoList([]);
     } finally {
       setVideoLoading(false);

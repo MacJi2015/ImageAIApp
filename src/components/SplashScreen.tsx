@@ -22,12 +22,31 @@ export interface SplashScreenProps {
 
 export function SplashScreen({ message, buttonText, onPress }: SplashScreenProps) {
   const insets = useSafeAreaInsets();
+  const displayMessage = (() => {
+    if (!message) return undefined;
+    const normalized = message.replace(/\s/g, '');
+
+    const hideForLoginInvalid =
+      normalized.includes('登录') &&
+      (normalized.includes('失效') ||
+        normalized.includes('未登录') ||
+        normalized.includes('登录态') ||
+        normalized.includes('重新登录') ||
+        normalized.includes('请登录') ||
+        normalized.includes('登录后') ||
+        normalized.includes('登录后重试') ||
+        normalized.includes('登录后再试'));
+
+    const hideForTokenInvalid = normalized.includes('token') && normalized.includes('失效');
+
+    return hideForLoginInvalid || hideForTokenInvalid ? undefined : message;
+  })();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.center}>
         <Image source={unusualImage} style={styles.image} resizeMode="contain" />
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+        {displayMessage ? <Text style={styles.message}>{displayMessage}</Text> : null}
         {buttonText && onPress ? (
           <Pressable style={styles.btn} onPress={onPress}>
             <Text style={styles.btnText}>{buttonText}</Text>
