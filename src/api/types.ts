@@ -10,6 +10,8 @@ export interface RequestConfig {
   headers?: Record<string, string>;
   /** 超时时间（毫秒） */
   timeout?: number;
+  /** 为 true 时不自动附带全局 token。登录类路径（如 auth/*、snsThreePartyLogin）已在 request 层自动省略 token */
+  skipAuth?: boolean;
 }
 
 /** 标准 API 响应结构（可按后端实际调整） */

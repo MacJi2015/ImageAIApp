@@ -77,7 +77,7 @@ export async function snsThreePartyLogin(params: { idToken: string; loginFrom: n
     const hint = isFirebaseAudience
       ? '\n\n原因：App 与后端使用的 Firebase 项目不一致（当前 token 的 audience 与后端期望不符）。请让后端使用与 App 相同的 Firebase 项目校验 token，或将 App 的 GoogleService-Info/GoogleService-Info.plist 改为后端使用的项目（如 facial-magic）。'
       : raw.code === '11011' || (typeof msg === 'string' && msg.includes('请登录'))
-        ? '\n\n原因：后端把「三方登录」接口也做了登录校验，需要将 /app/user/snsThreePartyLogin 加入拦截器白名单（未登录可访问）。'
+        ? '\n\n原因：① 请求仍误带了 token（登录类路径应自动不带 token；见 request 层 isPublicLoginPath）；或 ② 后端对三方登录路径做了需登录拦截，应加入白名单。'
         : '';
     throw new ApiError(String(msg) + hint, Number(raw.code) || -1, undefined, raw);
   }

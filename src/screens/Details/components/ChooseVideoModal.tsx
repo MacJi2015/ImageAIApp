@@ -21,7 +21,18 @@ import CameraIcon from '../../../assets/details/camera.svg';
 import PhotoIcon from '../../../assets/details/photo.svg';
 import CloseIcon from '../../../assets/details/close-icon.svg';
 
-const COLORS = { bg: '#050a14', card: '#09111f', accent: '#00ffff', muted: '#3a4a65' };
+const COLORS = {
+  /** 接近纯黑的深底 */
+  panel: '#020308',
+  /** 比面板略亮一档的选项区 */
+  optionCard: '#0b121c',
+  accent: '#00ffff',
+  subtitle: '#4a5d7a',
+  closeBg: 'rgba(255, 255, 255, 0.06)',
+  closeBorder: 'rgba(0, 255, 255, 0.22)',
+  panelTopEdge: 'rgba(0, 255, 255, 0.35)',
+  optionBorder: 'rgba(0, 255, 255, 0.2)',
+};
 
 export type ChooseVideoModalProps = {
   visible: boolean;
@@ -101,15 +112,21 @@ export function ChooseVideoModal({
           onStartShouldSetResponder={() => true}
         >
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.8}
-            >
-              <CloseIcon width={14} height={14} />
-            </TouchableOpacity>
-            <Text style={styles.title}>Create Video</Text>
-            <View style={styles.closeBtn} />
+            <View style={styles.headerLeading}>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <CloseIcon width={11} height={11} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.title} numberOfLines={1}>
+                Create Video
+              </Text>
+            </View>
+            <View style={styles.headerTrailing} />
           </View>
 
           <TouchableOpacity
@@ -157,6 +174,7 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontSize: 14,
     marginTop: 12,
+    fontWeight: '500',
   },
   backdrop: {
     flex: 1,
@@ -164,26 +182,46 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   panel: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.2)',
+    backgroundColor: COLORS.panel,
+    borderTopLeftRadius: 44,
+    borderTopRightRadius: 44,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.panelTopEdge,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
     borderBottomWidth: 0,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 22,
+  },
+  /** 与关闭按钮同宽，保证标题在中间列 flex:1 内真正居中 */
+  headerLeading: {
+    width: 34,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    minWidth: 0,
+  },
+  headerTrailing: {
+    width: 34,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.closeBg,
+    borderWidth: 1,
+    borderColor: COLORS.closeBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -191,40 +229,48 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
+    textAlign: 'center',
+    fontFamily: 'Space Grotesk',
   },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 72,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.2)',
-    paddingLeft: 12,
-    marginBottom: 8,
+    minHeight: 84,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.optionCard,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.optionBorder,
+    marginBottom: 12,
   },
   optionIconWrap: {
     width: 48,
     height: 48,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,255,255,0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.4)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 255, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionTextWrap: {
-    marginLeft: 16,
+    marginLeft: 14,
+    flex: 1,
+    justifyContent: 'center',
   },
   optionTitle: {
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 11,
+    fontFamily: 'Space Grotesk',
   },
   optionSub: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
-    color: COLORS.muted,
+    color: COLORS.subtitle,
+    fontFamily: 'Space Grotesk',
+    lineHeight: 18,
   },
 });

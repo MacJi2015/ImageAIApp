@@ -16,7 +16,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSubscriptionList, type AppSubscriptionConfig } from '../api/services/subscription';
 
-const diamondIcon = require('../assets/my/vip.png');
+const headerDiamondImage = require('../assets/buy/Container.png');
+const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
 
 const MODAL_HEIGHT_RATIO = 0.78;
 
@@ -24,21 +25,21 @@ const COLORS = {
   backdrop: 'rgba(0,0,0,0.72)',
   panelStart: '#061126',
   panelEnd: '#020914',
-  accent: '#00eaff',
+  accent: '#00f0ff',
   titleWhite: '#ffffff',
-  titleAccent: '#00eaff',
-  subtitle: 'rgba(186, 198, 224, 0.55)',
+  titleAccent: '#00f0ff',
+  subtitle: '#3A4A65',
+  loadingMuted: 'rgba(186, 198, 224, 0.62)',
   cardBg: 'rgba(4, 14, 31, 0.88)',
-  cardBorder: '#00eaff',
+  cardBorder: '#00f0ff',
   cardBorderInactive: 'rgba(75, 103, 145, 0.35)',
-  price: '#f1f5f9',
-  duration: 'rgba(176, 192, 216, 0.5)',
+  price: '#ffffff',
   discountBg: '#dc2626',
   discountText: '#ffffff',
-  radioBorder: 'rgba(39, 221, 255, 0.35)',
-  radioFill: '#00eaff',
-  buttonBg: '#ece3cf',
-  buttonText: '#1e1b18',
+  radioBorder: 'rgba(0, 240, 255, 0.45)',
+  radioFill: '#00f0ff',
+  buttonBg: '#efe4d4',
+  buttonText: '#2c241c',
 };
 
 export type PremiumModalProps = {
@@ -50,7 +51,7 @@ export type PremiumModalProps = {
 
 function CloseIcon() {
   return (
-    <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
+    <Svg width={12} height={12} viewBox="0 0 14 14" fill="none">
       <Path
         d="M1.9373 12.7368L0.737305 11.5368L5.5373 6.73682L0.737305 1.93682L1.9373 0.736816L6.7373 5.53682L11.5373 0.736816L12.7373 1.93682L7.9373 6.73682L12.7373 11.5368L11.5373 12.7368L6.7373 7.93682L1.9373 12.7368Z"
         fill="white"
@@ -217,12 +218,14 @@ export function PremiumModal({
                 bounces={false}
               >
                 <View style={styles.titleBlock}>
-                  <View style={[styles.diamondWrap, styles.diamondGlow]}>
-                    <Image source={diamondIcon} style={styles.diamondImage} resizeMode="contain" />
+                  <View style={styles.diamondWrap}>
+                    <View style={styles.diamondGlow}>
+                      <Image source={headerDiamondImage} style={styles.diamondImage} resizeMode="contain" />
+                    </View>
                   </View>
                   <View style={styles.titleRow}>
-                    <Text style={styles.titlePart}>Get </Text>
-                    <Text style={styles.titlePartAccent}>Premium</Text>
+                    <Text style={styles.titlePart}>Get</Text>
+                    <Text style={[styles.titlePartAccent, styles.titlePartAccentTight]}>Premium</Text>
                   </View>
                   <Text style={styles.subtitle} numberOfLines={0}>
                     Join the club for unlimited high-fidelity AI creations.
@@ -259,7 +262,9 @@ export function PremiumModal({
                         ) : null}
                         <View style={styles.planLeft}>
                           <Text style={styles.planPrice}>{formatPrice(plan.price, plan.currency)}</Text>
-                          <Text style={styles.planDuration}>{formatCycleDuration(plan)}</Text>
+                          <Text style={styles.planDuration}>
+                            {plan.name?.trim() ? plan.name : formatCycleDuration(plan)}
+                          </Text>
                         </View>
                         <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
                           {isSelected ? (
@@ -279,7 +284,7 @@ export function PremiumModal({
                 activeOpacity={0.9}
                 disabled={loading || !selectedProductId}
               >
-                <Image source={diamondIcon} style={styles.subscribeBtnIcon} resizeMode="contain" />
+                <Image source={subscribeBtnDiamondIcon} style={styles.subscribeBtnIcon} resizeMode="contain" />
                 <Text style={styles.subscribeBtnText}>
                   {loading ? '加载中...' : 'SUBSCRIBE NOW'}
                 </Text>
@@ -321,58 +326,67 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(9, 19, 38, 0.95)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(9, 19, 38, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(120, 143, 181, 0.2)',
+    borderColor: 'rgba(120, 143, 181, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleBlock: {
     alignItems: 'center',
-    marginBottom: 26,
+    marginBottom: 28,
   },
   diamondWrap: {
-    marginBottom: 14,
+    marginBottom: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  /** 设计稿：大钻石无外圈，仅发光 */
   diamondGlow: {
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOpacity: 0.85,
+    shadowRadius: 22,
+    elevation: 12,
   },
   diamondImage: {
-    width: 56,
-    height: 56,
+    width: 72,
+    height: 72,
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   titlePart: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'Space Grotesk',
+    fontSize: 30,
+    fontWeight: '800',
     color: COLORS.titleWhite,
-    letterSpacing: 0.3,
+    letterSpacing: -0.8,
   },
   titlePartAccent: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'Space Grotesk',
+    fontSize: 30,
+    fontWeight: '800',
     color: COLORS.titleAccent,
-    letterSpacing: 0.3,
+    letterSpacing: -0.5,
+  },
+  titlePartAccentTight: {
+    marginLeft: 3,
   },
   subtitle: {
-    fontSize: 16,
+    fontFamily: 'Space Grotesk',
+    fontSize: 15,
     fontWeight: '400',
     color: COLORS.subtitle,
     textAlign: 'center',
-    paddingHorizontal: 22,
-    lineHeight: 22,
+    paddingHorizontal: 20,
+    lineHeight: 24,
     alignSelf: 'stretch',
   },
   errorText: {
@@ -389,10 +403,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: COLORS.subtitle,
+    color: COLORS.loadingMuted,
   },
   plans: {
-    gap: 12,
+    gap: 18,
     marginBottom: 28,
   },
   planCard: {
@@ -400,23 +414,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.cardBg,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    paddingRight: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    paddingRight: 16,
     position: 'relative',
-    minHeight: 88,
+    minHeight: 96,
   },
   planCardSelected: {
     borderColor: COLORS.cardBorder,
+    borderWidth: 3,
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    elevation: 10,
   },
   planCardInactive: {
     borderColor: COLORS.cardBorderInactive,
+    borderWidth: 2,
   },
   discountTag: {
     position: 'absolute',
@@ -436,20 +453,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   planPrice: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'Space Grotesk',
+    fontSize: 34,
+    fontWeight: '800',
     color: COLORS.price,
-    marginBottom: 4,
+    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   planDuration: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: COLORS.duration,
+    fontFamily: 'Space Grotesk',
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.subtitle,
+    letterSpacing: 0.2,
+    marginTop: 0,
   },
   radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: COLORS.radioBorder,
     alignItems: 'center',
@@ -457,33 +479,37 @@ const styles = StyleSheet.create({
   },
   radioOuterSelected: {
     borderColor: COLORS.radioFill,
+    borderWidth: 2,
   },
   radioInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: COLORS.radioFill,
   },
   subscribeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 58,
+    minHeight: 52,
+    paddingVertical: 15,
+    paddingHorizontal: 28,
     backgroundColor: COLORS.buttonBg,
-    borderRadius: 16,
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 16,
+    borderRadius: 9999,
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
   },
   subscribeBtnIcon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
   },
   subscribeBtnText: {
+    fontFamily: 'Space Grotesk',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.buttonText,
-    letterSpacing: 0.4,
+    letterSpacing: 1.15,
   },
   subscribeBtnDisabled: {
     opacity: 0.6,

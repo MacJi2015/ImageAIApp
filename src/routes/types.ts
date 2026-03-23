@@ -1,3 +1,4 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 /** 底部 Tab 的页面名与参数 */
@@ -9,7 +10,7 @@ export type MainTabParamList = {
 
 /** 根 Stack 的页面名与参数（Tab 容器 + 可 push 的详情等） */
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   /** source: effect = 点击播放，feed = 自动播放；缺省为 effect */
   Detail: {
     id: string;

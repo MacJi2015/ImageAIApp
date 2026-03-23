@@ -20,12 +20,12 @@ const COLORS = {
   closeBtnBg: '#0d1117',
   closeBtnBorder: 'rgba(110, 118, 129, 0.35)',
   title: '#ffffff',
-  // 标题下方副文案/页脚“同意你将…”的灰色要更接近参考图
-  subtitle: '#7f8b97',
+  // 副标题与条款引导文案（与设计稿一致）
+  subtitle: '#3A4A65',
   buttonBg: '#161b22',
   buttonBorder: 'transparent',
   buttonText: '#ffffff',
-  footerMuted: '#7f8b97',
+  footerMuted: '#3A4A65',
   // 底部隐私/条款链接文字：比主按钮蓝色更偏青灰
   link: '#40D3E5',
 };

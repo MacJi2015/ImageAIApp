@@ -19,13 +19,15 @@ const shareIcons = {
   tiktok: require('../assets/share/TikTokicon.png'),
 } as const;
 
-// 强还原：深色底、圆角仅顶部、白字、圆形分享按钮
+// 与 Create Video 底栏一致：深底、大圆角、标题独立一行（分享弹窗无顶边描边，避免色偏）
 const COLORS = {
-  backdrop: 'rgba(0,0,0,0.6)',
-  panel: '#1A202C',
-  closeBtnBg: '#2D3748',
+  backdrop: 'rgba(0,0,0,0.75)',
+  panel: '#020308',
+  closeBtnBg: 'rgba(255, 255, 255, 0.06)',
+  closeBtnBorder: 'rgba(0, 255, 255, 0.22)',
   title: '#FFFFFF',
-  iconCircle: '#252B33',
+  iconCircle: '#0b121c',
+  iconCircleBorder: 'rgba(0, 255, 255, 0.18)',
   icon: '#FFFFFF',
 };
 
@@ -43,11 +45,12 @@ export type ShareModalProps = {
 
 function CloseIcon() {
   return (
-    <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
+    <Svg width={11} height={11} viewBox="0 0 14 14" fill="none">
       <Path
-        d="M2 2l14 14M16 2L2 16"
+        d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5"
         stroke={COLORS.icon}
-        strokeWidth={2}
+        strokeOpacity={0.88}
+        strokeWidth={1.15}
         strokeLinecap="round"
       />
     </Svg>
@@ -118,15 +121,21 @@ export function ShareModal({
           onStartShouldSetResponder={() => true}
         >
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.8}
-            >
-              <CloseIcon />
-            </TouchableOpacity>
-            <Text style={styles.title}>Share to</Text>
-            <View style={styles.closeBtnPlaceholder} />
+            <View style={styles.headerLeading}>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <CloseIcon />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.title} numberOfLines={1}>
+                Share to
+              </Text>
+            </View>
+            <View style={styles.headerTrailing} />
           </View>
 
           <View style={styles.iconsRow}>
@@ -159,47 +168,63 @@ const styles = StyleSheet.create({
   },
   panel: {
     backgroundColor: COLORS.panel,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    borderTopLeftRadius: 44,
+    borderTopRightRadius: 44,
+    paddingHorizontal: 22,
+    paddingTop: 24,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: 40,
+    minHeight: 40,
+  },
+  headerLeading: {
+    width: 34,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    minWidth: 0,
+  },
+  headerTrailing: {
+    width: 34,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.closeBtnBg,
+    borderWidth: 1,
+    borderColor: COLORS.closeBtnBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeBtnPlaceholder: {
-    width: 40,
-    height: 40,
-  },
   title: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '700',
     color: COLORS.title,
     textAlign: 'center',
+    fontFamily: 'Space Grotesk',
   },
   iconsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 8,
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: COLORS.iconCircle,
+    borderWidth: 1,
+    borderColor: COLORS.iconCircleBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },

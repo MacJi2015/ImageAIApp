@@ -1,4 +1,4 @@
-import { apiConfig, DEFAULT_TOKEN } from './config';
+import { apiConfig } from './config';
 import { ApiError, ApiResponse, RequestConfig } from './types';
 import { useAppStore } from '../store/useAppStore';
 
@@ -34,6 +34,48 @@ const buildURL = (path: string, params?: RequestConfig['params']): string => {
   return query ? `${base}?${query}` : base;
 };
 
+/** 登录 / OAuth / 三方登录等公开接口：不自动带全局 token，避免旧 token 先被后端拦截 */
+function isPublicLoginPath(path: string): boolean {
+  let p = path.trim();
+  if (p.startsWith('http://') || p.startsWith('https://')) {
+    try {
+      p = new URL(p).pathname;
+    } catch {
+      return false;
+    }
+  }
+  p = p.replace(/^\//, '').split('?')[0];
+  if (p.startsWith('auth/')) return true;
+  if (p === 'app/user/snsThreePartyLogin' || p.endsWith('/snsThreePartyLogin')) {
+    return true;
+  }
+  return false;
+}
+
+/** 开发环境：三方登录 / OAuth 等公开路径发出前，打印最终 Header（与真实请求一致，含明文 token 便于核对） */
+function logPublicAuthOutgoingHeaders(
+  path: string,
+  requestHeaders: Record<string, string>,
+  meta: {
+    omitToken: boolean;
+    skipAuth: boolean;
+    hasStoredToken: boolean;
+  },
+): void {
+  if (!__DEV__ || !isPublicLoginPath(path)) return;
+  const sentToken = Boolean(
+    requestHeaders.token || requestHeaders.Token || requestHeaders.authorization || requestHeaders.Authorization,
+  );
+  console.log('[API][三方/登录 Header 自检]', {
+    path,
+    实际请求是否含token类头: sentToken,
+    已跳过自动附加全局token: meta.omitToken,
+    skipAuth配置: meta.skipAuth,
+    内存里是否有全局authToken: meta.hasStoredToken,
+    headers: { ...requestHeaders },
+  });
+}
+
 const timeoutPromise = (ms: number): Promise<never> =>
   new Promise((_, reject) =>
     setTimeout(() => reject(new ApiError('请求超时', -1, undefined)), ms),
@@ -56,29 +98,26 @@ function openLoginModalIfNeeded(raw: unknown): void {
   // }
 }
 
-/** 开发环境统一打印接口请求/响应（含完整 URL、参数，不打印敏感 token） */
-function logRequest(
+/**
+ * 开发环境：打印即将发出的请求（headers 为合并后的最终值，含明文 token 便于核对）。
+ * 仅 __DEV__ 输出；Release 不会调用。
+ */
+function logRequestOutgoing(
   method: string,
   path: string,
   url: string,
-  config: RequestConfig,
+  params: RequestConfig['params'] | undefined,
+  data: unknown,
+  requestHeaders: Record<string, string>,
 ): void {
   if (!__DEV__) return;
-  const { params, data, headers = {} } = config;
-  const safeHeaders: Record<string, string> = {};
-  Object.entries(headers).forEach(([k, v]) => {
-    const lower = k.toLowerCase();
-    if (lower === 'token' || lower === 'authorization')
-      safeHeaders[k] = v ? '[已带]' : '';
-    else safeHeaders[k] = String(v);
-  });
   const logPayload: Record<string, unknown> = {
     method,
     path,
     url,
     ...(params && Object.keys(params).length > 0 ? { params } : {}),
     ...(data !== undefined ? { body: data } : {}),
-    ...(Object.keys(safeHeaders).length > 0 ? { headers: safeHeaders } : {}),
+    headers: { ...requestHeaders },
   };
   console.log('[API] 请求', logPayload);
 }
@@ -105,17 +144,24 @@ export async function request<T = unknown>(
     params,
     headers = {},
     timeout = apiConfig.defaultTimeout,
+    skipAuth = false,
   } = config;
 
   const url = buildURL(path, params);
-  logRequest(method, path, url, { params, data, headers });
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
   };
-  if (authToken) {
+  const omitToken = skipAuth || isPublicLoginPath(path);
+  if (authToken && !omitToken) {
     requestHeaders.token = authToken;
   }
+  logRequestOutgoing(method, path, url, params, data, requestHeaders);
+  logPublicAuthOutgoingHeaders(path, requestHeaders, {
+    omitToken,
+    skipAuth,
+    hasStoredToken: Boolean(authToken),
+  });
 
   const init: RequestInit = {
     method,
@@ -146,7 +192,7 @@ export async function request<T = unknown>(
           'Content-Type': 'application/json',
           ...headers,
         };
-        if (authToken) retryHeaders.token = authToken;
+        if (authToken && !omitToken) retryHeaders.token = authToken;
         const retryInit: RequestInit = { method, headers: retryHeaders };
         if (data !== undefined && method !== 'GET') {
           retryInit.body =
@@ -212,7 +258,7 @@ export async function request<T = unknown>(
       const result = { ...(data as object), token: full.token } as T;
       logResponse(path, response.status, {
         ...(result as object),
-        token: '[已省略]',
+        token: full.token,
       });
       return result;
     }
