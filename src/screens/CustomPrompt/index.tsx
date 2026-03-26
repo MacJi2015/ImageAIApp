@@ -47,9 +47,7 @@ export function CustomPromptScreen() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const { imageUri, petImageUrl: initialPetImageUrl, templateId, templateThumbnailUrl } = route.params;
   const isFromEffect = Boolean(templateId);
-  const [prompt, setPrompt] = useState(
-    'Cinematic space explorer cat, high-fidelity astronaut suit, glowing nebula background, 8k resolution, photorealistic.Cinematic.'
-  );
+  const [prompt, setPrompt] = useState('');
   const [removeWatermark, setRemoveWatermark] = useState(false);
   const [isPortrait, setIsPortrait] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -72,7 +70,7 @@ export function CustomPromptScreen() {
       openLoginModal();
       return;
     }
-    if (!prompt.trim()) {
+    if (!isFromEffect && !prompt.trim()) {
       Alert.alert('提示', '请输入 Additional Prompts');
       return;
     }
@@ -98,7 +96,7 @@ export function CustomPromptScreen() {
         actionType: templateId ?? 'default',
         duration: 5,
         petImageUrl,
-        promptText: prompt.trim(),
+        promptText: prompt.trim() || undefined,
         removeWatermark,
         shareToCommunity: false,
         templateId,
@@ -114,7 +112,7 @@ export function CustomPromptScreen() {
     } finally {
       setGenerating(false);
     }
-  }, [isLoggedIn, openLoginModal, prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation]);
+  }, [isLoggedIn, openLoginModal, prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation, isFromEffect]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -270,7 +268,9 @@ export function CustomPromptScreen() {
         )}
               </View>
 
-              <Text style={styles.sectionTitle}>*Additional Prompts(Required)</Text>
+              <Text style={styles.sectionTitle}>
+                {isFromEffect ? 'Additional Prompts(Optional)' : '*Additional Prompts(Required)'}
+              </Text>
               <TextInput
                 style={styles.promptInput}
                 value={prompt}

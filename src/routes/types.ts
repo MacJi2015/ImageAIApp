@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AppVideoTask } from '../api/services/video';
 
 /** 底部 Tab 的页面名与参数 */
 export type MainTabParamList = {
@@ -11,17 +12,10 @@ export type MainTabParamList = {
 /** 根 Stack 的页面名与参数（Tab 容器 + 可 push 的详情等） */
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  /** source: effect = 点击播放，feed = 自动播放；缺省为 effect */
-  Detail: {
-    id: string;
-    title?: string;
-    source?: 'effect' | 'feed';
-    videoUrl?: string;
-    thumbnailUrl?: string;
-    userName?: string;
-    likeCount?: number;
-  };
+  /** 详情仅传 id + source，页面内请求详情接口渲染 */
+  Detail: { id: string; source: 'effect' | 'feed' };
   GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
+  WorkDetail: { item: Partial<AppVideoTask> };
   CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string; templateThumbnailUrl?: string };
   GenerationInProgress: { taskId: string; imageUri: string; estimatedTime?: number };
   Settings: undefined;

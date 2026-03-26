@@ -1,4 +1,3 @@
-
 import { get, post } from '../request';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -49,7 +48,9 @@ export interface GetMyVideosParams {
  * 获取用户创作的视频列表
  * GET /facial/app/user/myVideos，token 放在 header
  */
-export async function getMyVideos(params?: GetMyVideosParams): Promise<MyVideosResponse> {
+export async function getMyVideos(
+  params?: GetMyVideosParams,
+): Promise<MyVideosResponse> {
   const res = await get<MyVideosResponse>('app/user/myVideos', {
     params: {
       pageNum: params?.pageNum ?? 1,
@@ -57,7 +58,7 @@ export async function getMyVideos(params?: GetMyVideosParams): Promise<MyVideosR
       ...(params?.status ? { status: params.status } : {}),
     },
   });
-  return res as MyVideosResponse;
+  return (res as unknown as { entry: MyVideosResponse }).entry;
 }
 
 // --- 图生视频 ---
@@ -105,27 +106,27 @@ export interface VideoTaskResponse {
  * POST /facial/app/video/generate
  */
 export async function generateVideo(
-  request: VideoGenerateRequest
+  request: VideoGenerateRequest,
 ): Promise<VideoGenerateResponse> {
-  const token = useUserStore.getState().token;
-  if (!token) {
-    throw new Error('请先登录');
-  }
+  // const token = useUserStore.getState().token;
+  // if (!token) {
+  //   throw new Error('请先登录');
+  // }
 
-  const res = await post<VideoGenerateResponse>('app/video/generate', request, {
-    headers: { token },
-  });
-  return res as VideoGenerateResponse;
+  const res = await post<VideoGenerateResponse>('app/video/generate', request);
+  return (res as unknown as { entry: VideoGenerateResponse }).entry;
 }
 
 /**
  * 查询视频任务状态
  * GET /facial/app/video/task/{taskId}
  */
-export async function getVideoTaskStatus(taskId: string): Promise<VideoTaskResponse> {
-  const token = useUserStore.getState().token;
-  const res = await get<VideoTaskResponse>(`app/video/task/${taskId}`, {
-    headers: token ? { token } : {},
-  });
-  return res as VideoTaskResponse;
+export async function getVideoTaskStatus(
+  taskId: string,
+): Promise<VideoTaskResponse> {
+  // const token = useUserStore.getState().token;
+  const res = await get<VideoTaskResponse | { entry: VideoTaskResponse }>(
+    `app/video/task/${taskId}`,
+  );
+  return (res as unknown as { entry: VideoTaskResponse }).entry;
 }

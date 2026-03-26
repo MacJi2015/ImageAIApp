@@ -339,18 +339,14 @@ export function MyScreen() {
                     onPress={() =>
                       item.videoUrl &&
                       item.status === 'SUCCESS' &&
-                      navigation.navigate('Detail', {
-                        id: String(item.id),
-                        title: item.promptText ?? '视频',
-                        source: 'feed',
-                        videoUrl: item.videoUrl,
-                        thumbnailUrl: item.thumbnailUrl,
+                      navigation.navigate('WorkDetail', {
+                        item,
                       })
                     }
                   >
-                    {item.thumbnailUrl || item.videoUrl ? (
+                    {item.petImageUrl || item.videoUrl ? (
                       <Image
-                        source={{ uri: item.thumbnailUrl || item.videoUrl }}
+                        source={{ uri: item.petImageUrl ?? item.videoUrl }}
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"
                       />

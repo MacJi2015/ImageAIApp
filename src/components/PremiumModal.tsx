@@ -11,10 +11,12 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from '@react-native-community/blur';
 import { getSubscriptionList, type AppSubscriptionConfig } from '../api/services/subscription';
+import { PromptCloseIcon } from '../utils';
+import { dp, hp } from '../utils/scale';
 
 const headerDiamondImage = require('../assets/buy/Container.png');
 const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
@@ -48,18 +50,6 @@ export type PremiumModalProps = {
   /** 传入选中的 productId（Apple/Google 产品 ID） */
   onSubscribe?: (productId: string) => void;
 };
-
-function CloseIcon() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 14 14" fill="none">
-      <Path
-        d="M1.9373 12.7368L0.737305 11.5368L5.5373 6.73682L0.737305 1.93682L1.9373 0.736816L6.7373 5.53682L11.5373 0.736816L12.7373 1.93682L7.9373 6.73682L12.7373 11.5368L11.5373 12.7368L6.7373 7.93682L1.9373 12.7368Z"
-        fill="white"
-        fillOpacity={0.9}
-      />
-    </Svg>
-  );
-}
 
 const platform: 1 | 2 = Platform.OS === 'ios' ? 1 : 2;
 
@@ -185,6 +175,8 @@ export function PremiumModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
+        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+        <View style={styles.backdropOverlay} />
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View
           style={[
@@ -196,6 +188,7 @@ export function PremiumModal({
           ]}
           onStartShouldSetResponder={() => true}
         >
+          <View pointerEvents="none" style={styles.panelTopRim} />
           <LinearGradient
             colors={[COLORS.panelStart, COLORS.panelEnd]}
             style={StyleSheet.absoluteFill}
@@ -207,7 +200,7 @@ export function PremiumModal({
                 onPress={onClose}
                 activeOpacity={0.8}
               >
-                <CloseIcon />
+                <PromptCloseIcon />
               </TouchableOpacity>
               </View>
 
@@ -300,13 +293,32 @@ export function PremiumModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: COLORS.backdrop,
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
   },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+  },
   panelWrap: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
     overflow: 'hidden',
+  },
+  panelTopRim: {
+    position: 'absolute',
+    left: 0.5,
+    right: 0.5,
+    top: -0.5,
+    height: hp(32),
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(0,255,255,0.1)',
+    borderBottomWidth: 0,
+    zIndex: 2,
   },
   panel: {
     flex: 1,
@@ -326,12 +338,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(9, 19, 38, 0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(120, 143, 181, 0.14)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },

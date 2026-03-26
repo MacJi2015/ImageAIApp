@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from '@react-native-community/blur';
 import type { SharePayload } from '../store/useAppStore';
+import { PromptCloseIcon } from '../utils';
+import { dp, hp } from '../utils/scale';
 
 const shareIcons = {
   facebook: require('../assets/share/facebookIcon.png'),
@@ -23,12 +25,11 @@ const shareIcons = {
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.75)',
   panel: '#020308',
-  closeBtnBg: 'rgba(255, 255, 255, 0.06)',
-  closeBtnBorder: 'rgba(0, 255, 255, 0.22)',
+  closeBtnBg: 'rgba(255,255,255,0.05)',
+  closeBtnBorder: 'rgba(255,255,255,0.1)',
   title: '#FFFFFF',
   iconCircle: '#0b121c',
   iconCircleBorder: 'rgba(0, 255, 255, 0.18)',
-  icon: '#FFFFFF',
 };
 
 export type ShareModalProps = {
@@ -42,20 +43,6 @@ export type ShareModalProps = {
   onX?: (payload: SharePayload) => void;
   onTikTok?: (payload: SharePayload) => void;
 };
-
-function CloseIcon() {
-  return (
-    <Svg width={11} height={11} viewBox="0 0 14 14" fill="none">
-      <Path
-        d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5"
-        stroke={COLORS.icon}
-        strokeOpacity={0.88}
-        strokeWidth={1.15}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
 
 const SHARE_OPTIONS = [
   { key: 'facebook' as const, source: shareIcons.facebook },
@@ -94,7 +81,7 @@ export function ShareModal({
   const insets = useSafeAreaInsets();
   const sharePayload: SharePayload = React.useMemo(
     () => payload ?? { message: getRandomDefaultMessage() },
-    [payload, visible]
+    [payload]
   );
 
   const handlers = {
@@ -112,6 +99,8 @@ export function ShareModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
+        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+        <View style={styles.backdropOverlay} />
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View
           style={[
@@ -120,6 +109,7 @@ export function ShareModal({
           ]}
           onStartShouldSetResponder={() => true}
         >
+          <View pointerEvents="none" style={styles.panelTopRim} />
           <View style={styles.header}>
             <View style={styles.headerLeading}>
               <TouchableOpacity
@@ -127,7 +117,7 @@ export function ShareModal({
                 onPress={onClose}
                 activeOpacity={0.8}
               >
-                <CloseIcon />
+                <PromptCloseIcon />
               </TouchableOpacity>
             </View>
             <View style={styles.headerTitleWrap}>
@@ -163,15 +153,34 @@ export function ShareModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: COLORS.backdrop,
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
   },
   panel: {
     backgroundColor: COLORS.panel,
-    borderTopLeftRadius: 44,
-    borderTopRightRadius: 44,
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
     paddingHorizontal: 22,
     paddingTop: 24,
+    overflow: 'hidden',
+  },
+  panelTopRim: {
+    position: 'absolute',
+    left: 0.5,
+    right: 0.5,
+    top: -0.5,
+    height: hp(32),
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(0,255,255,0.1)',
+    borderBottomWidth: 0,
   },
   header: {
     flexDirection: 'row',
@@ -180,7 +189,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   headerLeading: {
-    width: 34,
+    width: 32,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
@@ -192,14 +201,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerTrailing: {
-    width: 34,
+    width: 32,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.closeBtnBg,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: COLORS.closeBtnBorder,
     alignItems: 'center',
     justifyContent: 'center',

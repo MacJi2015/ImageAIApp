@@ -13,15 +13,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import CloseIcon from '../assets/details/close-icon.svg';
 import CameraIcon from '../assets/details/camera.svg';
 import PhotoIcon from '../assets/details/photo.svg';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from '@react-native-community/blur';
 import { useUserStore } from '../store';
 import { uploadImage } from '../api/services/upload';
 import { updateProfile } from '../api/services/user';
+import { PromptCloseIcon } from '../utils';
+import { dp, hp } from '../utils/scale';
 
 const defaultAvatar = require('../assets/my/topimage.png');
 const imgselectedIcon = require('../assets/my/imgselected.png');
@@ -136,6 +138,8 @@ export function EditProfileScreen() {
         onRequestClose={() => setShowAvatarModal(false)}
       >
         <View style={styles.avatarModalBackdrop}>
+          <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+          <View style={styles.avatarModalOverlay} />
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -145,15 +149,16 @@ export function EditProfileScreen() {
             style={[styles.avatarModalPanel, { paddingBottom: insets.bottom + 24 }]}
             onStartShouldSetResponder={() => true}
           >
+            <View pointerEvents="none" style={styles.avatarModalTopRim} />
             <View style={styles.avatarModalHeader}>
               <TouchableOpacity
                 style={styles.avatarModalCloseBtn}
                 onPress={() => setShowAvatarModal(false)}
                 activeOpacity={0.8}
               >
-                <CloseIcon width={14} height={14} />
+                <PromptCloseIcon />
               </TouchableOpacity>
-              <View style={styles.avatarModalCloseBtn} />
+              <View style={styles.avatarModalClosePlaceholder} />
             </View>
 
             <TouchableOpacity
@@ -325,17 +330,36 @@ const styles = StyleSheet.create({
   },
   avatarModalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
+  },
+  avatarModalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
   },
   avatarModalPanel: {
     backgroundColor: AVATAR_MODAL_COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
     paddingHorizontal: 16,
     paddingTop: 20,
     borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.2)',
+    borderColor: 'transparent',
+    borderBottomWidth: 0,
+    overflow: 'hidden',
+  },
+  avatarModalTopRim: {
+    position: 'absolute',
+    left: 0.5,
+    right: 0.5,
+    top: -0.5,
+    height: hp(32),
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(0,255,255,0.1)',
     borderBottomWidth: 0,
   },
   avatarModalHeader: {
@@ -348,9 +372,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarModalClosePlaceholder: {
+    width: 32,
+    height: 32,
   },
   avatarModalOptionRow: {
     flexDirection: 'row',

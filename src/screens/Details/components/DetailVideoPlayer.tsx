@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,13 +22,19 @@ export type DetailVideoPlayerProps = {
 export function DetailVideoPlayer({
   videoUri,
   posterUri,
-  autoPlay = false,
   style,
-  showPlayOverlay = true,
   bottomGradientHeight = 100,
 }: DetailVideoPlayerProps) {
-  const [playing, setPlaying] = useState(autoPlay);
+  const [playing, setPlaying] = useState(true);
   const hasVideo = !!videoUri;
+
+  useEffect(() => {
+    // 进入页面后默认自动播放；离开页面时强制暂停
+    setPlaying(true);
+    return () => {
+      setPlaying(false);
+    };
+  }, [videoUri]);
 
   return (
     <View style={[styles.wrap, style]}>
@@ -39,19 +45,18 @@ export function DetailVideoPlayer({
             style={styles.video}
             resizeMode="cover"
             paused={!playing}
+            repeat
             onError={(e) => {
               __DEV__ && console.warn('[DetailVideoPlayer] video error', e);
             }}
           />
-          {showPlayOverlay && (
-            <TouchableOpacity
-              style={styles.playOverlay}
-              onPress={() => setPlaying((prev) => !prev)}
-              activeOpacity={0.9}
-            >
-              {!playing && <PlayBtnIcon width={60} height={60} />}
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.playOverlay}
+            onPress={() => setPlaying((prev) => !prev)}
+            activeOpacity={0.9}
+          >
+            {!playing && <PlayBtnIcon width={60} height={60} />}
+          </TouchableOpacity>
         </>
       ) : (
         <Image

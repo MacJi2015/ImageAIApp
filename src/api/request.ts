@@ -3,7 +3,7 @@ import { ApiError, ApiResponse, RequestConfig } from './types';
 import { useAppStore } from '../store/useAppStore';
 
 let authToken: string | null =
-  'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK';
+  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
 
 /** 401 时尝试刷新 token 的回调，返回 true 表示刷新成功可重试 */
 let on401Callback: (() => Promise<boolean>) | null = null;
@@ -46,7 +46,10 @@ function isPublicLoginPath(path: string): boolean {
   }
   p = p.replace(/^\//, '').split('?')[0];
   if (p.startsWith('auth/')) return true;
-  if (p === 'app/user/snsThreePartyLogin' || p.endsWith('/snsThreePartyLogin')) {
+  if (
+    p === 'app/user/snsThreePartyLogin' ||
+    p.endsWith('/snsThreePartyLogin')
+  ) {
     return true;
   }
   return false;
@@ -64,7 +67,10 @@ function logPublicAuthOutgoingHeaders(
 ): void {
   if (!__DEV__ || !isPublicLoginPath(path)) return;
   const sentToken = Boolean(
-    requestHeaders.token || requestHeaders.Token || requestHeaders.authorization || requestHeaders.Authorization,
+    requestHeaders.token ||
+      requestHeaders.Token ||
+      requestHeaders.authorization ||
+      requestHeaders.Authorization,
   );
   console.log('[API][三方/登录 Header 自检]', {
     path,

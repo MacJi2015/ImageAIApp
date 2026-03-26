@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { BlurView } from '@react-native-community/blur';
@@ -14,17 +13,18 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
 import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/services/template';
+import { formatPreviewCount } from '../../../utils';
 import { dp, hp } from '../../../utils/scale';
 import ascIcon from '../../../assets/asc-icon.png';
 
-const OSS_BASE = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/cat/';
-const MOCK_TEMPLATES: AppVideoTemplate[] = [
-  { id: 1, templateId: 'mock-1', templateName: 'Space Explorer', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 1, coverImageUrl: `${OSS_BASE}dog1.jpg`, previewVideoUrl: `${OSS_BASE}dog-video1.mov`, promptText: 'Cinematic space explorer.' },
-  { id: 2, templateId: 'mock-2', templateName: 'Rock Star', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 2, coverImageUrl: `${OSS_BASE}cat2.jpg`, previewVideoUrl: `${OSS_BASE}cat-video2.mov`, promptText: 'Rock star stage performance.' },
-  { id: 3, templateId: 'mock-3', templateName: 'Astronaut', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 3, coverImageUrl: `${OSS_BASE}cat3.jpg`, previewVideoUrl: `${OSS_BASE}cat-video3.mov`, promptText: 'Astronaut in space suit.' },
-  { id: 4, templateId: 'mock-4', templateName: 'Superhero', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 4, coverImageUrl: `${OSS_BASE}cat4.jpg`, previewVideoUrl: `${OSS_BASE}cat-video4.mov`, promptText: 'Superhero cape and mask.' },
-  { id: 5, templateId: 'mock-5', templateName: 'Under the Sea', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 5, coverImageUrl: `${OSS_BASE}cat1.jpg`, previewVideoUrl: `${OSS_BASE}cat-video1.mov`, promptText: 'Under the sea adventure.' },
-];
+// const OSS_BASE = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/cat/';
+// const MOCK_TEMPLATES: AppVideoTemplate[] = [
+//   { id: 1, templateId: 'mock-1', templateName: 'Space Explorer', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 1, coverImageUrl: `${OSS_BASE}dog1.jpg`, previewVideoUrl: `${OSS_BASE}dog-video1.mov`, promptText: 'Cinematic space explorer.', viewCount: 856 },
+//   { id: 2, templateId: 'mock-2', templateName: 'Rock Star', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 2, coverImageUrl: `${OSS_BASE}cat2.jpg`, previewVideoUrl: `${OSS_BASE}cat-video2.mov`, promptText: 'Rock star stage performance.', viewCount: 1500 },
+//   { id: 3, templateId: 'mock-3', templateName: 'Astronaut', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 3, coverImageUrl: `${OSS_BASE}cat3.jpg`, previewVideoUrl: `${OSS_BASE}cat-video3.mov`, promptText: 'Astronaut in space suit.', viewCount: 10000 },
+//   { id: 4, templateId: 'mock-4', templateName: 'Superhero', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 4, coverImageUrl: `${OSS_BASE}cat4.jpg`, previewVideoUrl: `${OSS_BASE}cat-video4.mov`, promptText: 'Superhero cape and mask.', viewCount: 105000 },
+//   { id: 5, templateId: 'mock-5', templateName: 'Under the Sea', templateType: 'effect', status: '1', isOfficial: true, sortOrder: 5, coverImageUrl: `${OSS_BASE}cat1.jpg`, previewVideoUrl: `${OSS_BASE}cat-video1.mov`, promptText: 'Under the sea adventure.', viewCount: 9999 },
+// ];
 import dogIcon from '../../../assets/dog-icon.png';
 import cartIcon from '../../../assets/cart-icon.png';
 import preGoodsImg from '../../../assets/details/pre-goods-img.png';
@@ -35,11 +35,6 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 const LOADING = 'loading';
 const EMPTY = 'empty';
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 function EffectCard({
   template,
@@ -51,7 +46,8 @@ function EffectCard({
 }) {
   const navigation = useNavigation<Nav>();
   const [imageLoaded, setImageLoaded] = useState(false);
-  const imageUri = template.coverImageUrl || 'https://picsum.photos/seed/feed3/172/224';
+  const imageUri =
+    template.coverImageUrl || 'https://picsum.photos/seed/feed3/172/224';
 
   return (
     <TouchableOpacity
@@ -60,10 +56,7 @@ function EffectCard({
       onPress={() =>
         navigation.navigate('Detail', {
           id: template.templateId,
-          title: template.templateName,
           source: 'effect',
-          videoUrl: template.previewVideoUrl || undefined,
-          thumbnailUrl: template.coverImageUrl || undefined,
         })
       }
     >
@@ -97,18 +90,14 @@ function EffectCard({
           </Text>
           <View style={styles.effectCardMeta}>
             <Image source={ascIcon} style={styles.effectCardTrendIcon} resizeMode="contain" />
-            <Text style={styles.effectCardCount}>{formatCount(1_200_000)}</Text>
+            <Text style={styles.effectCardCount}>{formatPreviewCount(template.viewCount)}</Text>
           </View>
         </View>
-        <TouchableOpacity
+        <View
           style={styles.effectCardTryBtn}
-          activeOpacity={0.8}
-          onPress={(e) => {
-            e.stopPropagation();
-          }}
         >
           <Text style={styles.effectCardTryText}>TRY</Text>
-        </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -127,16 +116,11 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
     setStatus(LOADING);
     try {
       const entry = await getOfficialTemplates();
-      // setList(entry ?? []);
-      // setStatus(!entry?.length ? EMPTY : 'idle');
-      const data = entry?.length ? entry : MOCK_TEMPLATES;
-      setList(data);
+      setList(entry);
       setStatus('idle');
     } catch {
-//  setList([]);
-//  setStatus(EMPTY);
-      setList(MOCK_TEMPLATES);
-      setStatus('idle');
+      setList([]);
+      setStatus(EMPTY);
     }
   }, []);
 
@@ -172,7 +156,7 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
             key={t.templateId}
             template={t}
             index={i}
-            cornerIcon={i % 2 === 0 ? dogIcon : cartIcon}
+            cornerIcon={t.templateType === 'dog' ? dogIcon : cartIcon}
          
           />
         ))}
