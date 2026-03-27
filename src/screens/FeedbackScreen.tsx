@@ -19,7 +19,11 @@ const BG = '#0f1419';
 const INPUT_BG = '#1a2332';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
-const SUBMIT_BG = '#22c4c4';
+/** 说明文案（与设置页副文案同色） */
+const HINT_COLOR = '#3A4A65';
+/** 与 Settings 页 FEEDBACK 按钮一致 */
+const SUBMIT_BG = '#00FFFF';
+const SUBMIT_TEXT = '#020410';
 
 const PLACEHOLDER =
   'Cinematic space explorer cat, high-fidelity astronaut suit, glowing nebula background, 8k resolution, photorealistic. Cinematic.';
@@ -72,13 +76,14 @@ export function FeedbackScreen() {
           textAlignVertical="top"
           editable={!submitting}
         />
+        <Text style={styles.hint}>We will reply to your email within 1-2 business days.</Text>
         <Pressable
           style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleSubmit}
           disabled={submitting}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color={TEXT_MAIN} />
+            <ActivityIndicator size="small" color={SUBMIT_TEXT} />
           ) : (
             <Text style={styles.submitBtnText}>SUBMIT</Text>
           )}
@@ -104,13 +109,21 @@ const styles = StyleSheet.create({
     padding: 16,
     fontFamily: 'Space Grotesk',
     fontSize: 16,
+    lineHeight: 20,
     color: TEXT_MAIN,
   },
   inputIssue: {
     minHeight: 160,
   },
+  hint: {
+    marginTop: 10,
+    fontFamily: 'Space Grotesk',
+    fontSize: 13,
+    lineHeight: 18,
+    color: HINT_COLOR,
+  },
   submitBtn: {
-    marginTop: 24,
+    marginTop: 20,
     backgroundColor: SUBMIT_BG,
     paddingVertical: 14,
     borderRadius: 12,
@@ -120,7 +133,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
-    color: TEXT_MAIN,
+    color: SUBMIT_TEXT,
     letterSpacing: 0.5,
   },
   submitBtnDisabled: {

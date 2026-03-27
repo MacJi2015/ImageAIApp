@@ -17,6 +17,13 @@ export function dp(size: number) {
 }
 
 /**
+ * 与 dp 同比例，使用实时窗口宽度（配合 useWindowDimensions，适配旋转/分屏）
+ */
+export function dpAtWidth(size: number, windowWidth: number) {
+  return (size * windowWidth) / DESIGN_WIDTH;
+}
+
+/**
  * 将设计稿（812 高）上的尺寸转换为当前设备的实际高度尺寸
  * 用法：height: hp(120), top: hp(40) 等
  */

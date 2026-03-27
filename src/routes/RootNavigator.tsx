@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Alert, Linking, Platform, Pressable, Text } from 'react-native';
+import { Alert, Linking, Platform, Pressable, Text, useWindowDimensions } from 'react-native';
+import { dpAtWidth } from '../utils/scale';
 import {
   useIAP,
   purchaseUpdatedListener,
@@ -108,6 +109,19 @@ type RootNavigatorProps = {
 const SUBSCRIPTION_SKUS = ['com.imageaiapp.premium.7d', 'com.imageaiapp.premium.30d'];
 
 export function RootNavigator({ navigationRef }: RootNavigatorProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  /** 设计稿：Space Grotesk Bold 18 / 行高 18 / 字间距 0，标题居中 */
+  const headerTitleStyle = useMemo(
+    () => ({
+      fontFamily: 'Space Grotesk',
+      fontWeight: '700' as const,
+      fontSize: dpAtWidth(18, windowWidth),
+      lineHeight: dpAtWidth(18, windowWidth),
+      letterSpacing: 0,
+    }),
+    [windowWidth],
+  );
+
   const showLoginModal = useAppStore(s => s.showLoginModal);
   const closeLoginModal = useAppStore(s => s.closeLoginModal);
   const showShareModal = useAppStore(s => s.showShareModal);
@@ -324,7 +338,8 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       screenOptions={{
         headerStyle: { backgroundColor: '#f5f5f5' },
         headerTintColor: '#333',
-        headerTitleStyle: { fontFamily: 'Space Grotesk', fontWeight: '600' },
+        headerTitleAlign: 'center',
+        headerTitleStyle,
       }}
     >
       <Stack.Screen
@@ -341,14 +356,14 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         component={SettingsScreen}
         options={({ navigation }) => ({
           title: 'Settings',
+          headerBackTitle: '',
           headerLeft: () => (
             <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
               <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
-          headerStyle: { backgroundColor: '#0f1419' },
+          headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '600' },
         })}
       />
       <Stack.Screen
@@ -363,17 +378,20 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           ),
           headerStyle: { backgroundColor: '#0f1419' },
           headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '600' },
         })}
       />
       <Stack.Screen
         name="WebView"
         component={WebViewScreen}
-        options={({ route }) => ({
+        options={({ route, navigation }) => ({
           title: route.params.title,
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
+              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
+            </Pressable>
+          ),
           headerStyle: { backgroundColor: '#0f1419' },
           headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '600' },
         })}
       />
       <Stack.Screen
@@ -388,7 +406,6 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           ),
           headerStyle: { backgroundColor: '#0f1419' },
           headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '600' },
         })}
       />
       <Stack.Screen

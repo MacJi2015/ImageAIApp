@@ -16,13 +16,20 @@ import { setAuthToken } from '../api/request';
 import { logoutApi } from '../api/services/user';
 import { clearAuth } from '../services/authStorage';
 
-const BG = '#0f1419';
+/** 设计稿背景蓝 */
+const BG = '#050A14';
 /** 设计稿列表背景： #303E57 20% 透明度 */
 const LIST_BG = 'rgba(48, 62, 87, 0.2)';
 const TEXT_MAIN = '#ffffff';
-const TEXT_MUTED = '#8b949e';
-const FEEDBACK_BG = '#22c4c4';
-const BORDER = 'rgba(139, 148, 158, 0.2)';
+/** 缓存数值、箭头、版本号、列表分割线 */
+const TEXT_SECONDARY = '#3A4A65';
+const FEEDBACK_BG = '#00FFFF';
+/** FEEDBACK 按钮文字色 */
+const FEEDBACK_TEXT = '#020410';
+/** LOG OUT 按钮 */
+const LOGOUT_BG = '#09111F';
+/** #00FFFF 20%（设计稿 #00FFFF33） */
+const LOGOUT_BORDER = 'rgba(0, 255, 255, 0.2)';
 /** 设计稿单行高度 56.5，使用 dp 适配不同屏幕 */
 const ROW_HEIGHT = 56.5;
 
@@ -200,7 +207,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: BORDER,
+    borderBottomColor: TEXT_SECONDARY,
   },
   rowLast: {
     borderBottomWidth: 0,
@@ -214,13 +221,13 @@ const styles = StyleSheet.create({
   rowRight: {
     fontFamily: 'Space Grotesk',
     fontSize: 14,
-    color: TEXT_MUTED,
+    color: TEXT_SECONDARY,
     marginRight: 8,
   },
   chevron: {
     fontFamily: 'Space Grotesk',
     fontSize: 18,
-    color: TEXT_MUTED,
+    color: TEXT_SECONDARY,
     fontWeight: '300',
   },
   version: {
@@ -228,7 +235,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: 32,
     fontSize: 14,
-    color: TEXT_MUTED,
+    color: TEXT_SECONDARY,
   },
   footer: {
     paddingHorizontal: 16,
@@ -245,15 +252,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
-    color: TEXT_MAIN,
+    color: FEEDBACK_TEXT,
     letterSpacing: 0.5,
   },
   logoutBtn: {
+    backgroundColor: LOGOUT_BG,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: LOGOUT_BORDER,
   },
   logoutBtnText: {
     fontFamily: 'Space Grotesk',
