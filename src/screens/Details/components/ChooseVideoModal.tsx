@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import {
   type Asset,
   launchCamera,
@@ -19,7 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { uploadImage } from '../../../api/services/upload';
 import CameraIcon from '../../../assets/details/camera.svg';
 import PhotoIcon from '../../../assets/details/photo.svg';
-import CloseIcon from '../../../assets/details/close-icon.svg';
+import { PromptCloseIcon } from '../../../utils';
+import { dp, hp } from '../../../utils/scale';
 
 const COLORS = {
   /** 接近纯黑的深底 */
@@ -28,9 +30,8 @@ const COLORS = {
   optionCard: '#0b121c',
   accent: '#00ffff',
   subtitle: '#4a5d7a',
-  closeBg: 'rgba(255, 255, 255, 0.06)',
-  closeBorder: 'rgba(0, 255, 255, 0.22)',
-  panelTopEdge: 'rgba(0, 255, 255, 0.35)',
+  closeBg: 'rgba(255,255,255,0.05)',
+  closeBorder: 'rgba(255,255,255,0.1)',
   optionBorder: 'rgba(0, 255, 255, 0.2)',
 };
 
@@ -55,9 +56,9 @@ export function ChooseVideoModal({
     if (!asset.uri || !callback) return;
     setUploading(true);
     try {
-      // const result = await uploadImage(asset.uri, 'pet');
-      // callback(asset, result.url);
-      callback(asset, 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png');
+      const result = await uploadImage(asset.uri, 'pet');
+      callback(asset, result.url);
+      // callback(asset, 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png');
       onClose();
     } catch (e) {
       __DEV__ && console.warn('[ChooseVideoModal] upload failed', e);
@@ -97,6 +98,8 @@ export function ChooseVideoModal({
         </View>
       )}
       <View style={styles.backdrop}>
+        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+        <View style={styles.backdropOverlay} />
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
@@ -111,6 +114,7 @@ export function ChooseVideoModal({
           ]}
           onStartShouldSetResponder={() => true}
         >
+          <View pointerEvents="none" style={styles.panelTopRim} />
           <View style={styles.header}>
             <View style={styles.headerLeading}>
               <TouchableOpacity
@@ -118,7 +122,7 @@ export function ChooseVideoModal({
                 onPress={onClose}
                 activeOpacity={0.8}
               >
-                <CloseIcon width={11} height={11} />
+                <PromptCloseIcon />
               </TouchableOpacity>
             </View>
             <View style={styles.headerTitleWrap}>
@@ -178,20 +182,39 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
   },
   panel: {
     backgroundColor: COLORS.panel,
-    borderTopLeftRadius: 44,
-    borderTopRightRadius: 44,
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: COLORS.panelTopEdge,
+    borderTopColor: 'transparent',
     borderLeftWidth: 0,
     borderRightWidth: 0,
+    borderBottomWidth: 0,
+    overflow: 'hidden',
+  },
+  panelTopRim: {
+    position: 'absolute',
+    left: 0.5,
+    right: 0.5,
+    top: -0.5,
+    height: hp(32),
+    borderTopLeftRadius: dp(32),
+    borderTopRightRadius: dp(32),
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(0,255,255,0.1)',
     borderBottomWidth: 0,
   },
   header: {
@@ -216,11 +239,11 @@ const styles = StyleSheet.create({
     width: 34,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.closeBg,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: COLORS.closeBorder,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,7 +1,35 @@
 import { get, post } from '../request';
 
+/** Feed item 的 attributes 为 JSON 字符串，常含 userAvatar、nickname */
+export type FeedUserAttributes = {
+  userAvatar?: string;
+  nickname?: string;
+};
+
+/**
+ * 解析 feed.attributes（可能为单层或二次 JSON 字符串，如 "{\"nickname\":\"a\"}"）
+ */
+export function parseFeedAttributes(raw?: string | null): FeedUserAttributes {
+  if (raw == null || raw === '') return {};
+  try {
+    let parsed: unknown = JSON.parse(raw);
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed);
+    }
+    if (!parsed || typeof parsed !== 'object') return {};
+    const o = parsed as Record<string, unknown>;
+    return {
+      userAvatar: typeof o.userAvatar === 'string' ? o.userAvatar : undefined,
+      nickname: typeof o.nickname === 'string' ? o.nickname : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 /** Feed 流单条 */
 export interface FeedItem {
+  attributes?: string;
   createdTime?: string;
   feedId: string;
   hasWatermark: boolean;
@@ -23,55 +51,6 @@ export interface FeedItem {
 export type FeedListResponse =
   | FeedItem[]
   | { list: FeedItem[]; pageNum?: number; pageSize?: number; total?: number };
-
-const OSS_BASE = 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/cat/';
-const OSS_FIRST_FIVE: { thumbnailUrl: string; videoUrl: string }[] = [
-  {
-    thumbnailUrl: `${OSS_BASE}dog1.jpg`,
-    videoUrl: `${OSS_BASE}dog-video1.mov`,
-  },
-  {
-    thumbnailUrl: `${OSS_BASE}cat2.jpg`,
-    videoUrl: `${OSS_BASE}cat-video2.mov`,
-  },
-  {
-    thumbnailUrl: `${OSS_BASE}cat3.jpg`,
-    videoUrl: `${OSS_BASE}cat-video3.mov`,
-  },
-  {
-    thumbnailUrl: `${OSS_BASE}cat4.jpg`,
-    videoUrl: `${OSS_BASE}cat-video4.mov`,
-  },
-  {
-    thumbnailUrl: `${OSS_BASE}cat1.jpg`,
-    videoUrl: `${OSS_BASE}cat-video1.mov`,
-  },
-];
-
-/** 接口无数据时使用的 20 条造数 */
-function createMockFeedList(): FeedItem[] {
-  return Array.from({ length: 20 }, (_, i) => {
-    const oss = i < 5 ? OSS_FIRST_FIVE[i] : null;
-    return {
-      id: i + 1,
-      feedId: `mock-feed-${i + 1}`,
-      thumbnailUrl:
-        oss?.thumbnailUrl ?? `https://picsum.photos/seed/feed${i + 1}/172/224`,
-      videoUrl: oss?.videoUrl,
-      likeCount: Math.floor(Math.random() * 500) + 10,
-      shareCount: Math.floor(Math.random() * 50),
-      viewCount: Math.floor(Math.random() * 2000) + 100,
-      userId: (i % 5) + 10001,
-      status: 'ACTIVE',
-      hasWatermark: i % 3 === 0,
-      promptText: `Pet video #${i + 1}`,
-      createdTime: new Date(Date.now() - i * 3600000).toISOString(),
-      modifiedTime: new Date(Date.now() - i * 1800000).toISOString(),
-    };
-  });
-}
-
-const MOCK_FEED_LIST = createMockFeedList();
 
 /**
  * 查询 Feed 流列表
@@ -112,12 +91,6 @@ export async function getFeedList(params?: {
     list = [];
   }
 
-  if (list.length === 0) {
-    const start = (pageNum - 1) * pageSize;
-    list = MOCK_FEED_LIST.slice(start, start + pageSize);
-    total = MOCK_FEED_LIST.length;
-  }
-
   return {
     list,
     pageNum,
@@ -148,4 +121,23 @@ export async function unlikeFeed(feedId: string): Promise<boolean> {
  */
 export async function viewFeed(feedId: string): Promise<void> {
   await post(`app/feed/view/${feedId}`);
+}
+
+/**
+ * 查询 Feed 详情
+ * GET /facial/app/feed/detail/{feedId}
+ */
+export async function getFeedDetail(feedId: string): Promise<FeedItem> {
+  const res = await get<FeedItem | { entry: FeedItem }>(
+    `app/feed/detail/${feedId}`,
+  );
+  if (
+    res &&
+    typeof res === 'object' &&
+    'entry' in res &&
+    (res as { entry?: FeedItem }).entry != null
+  ) {
+    return (res as { entry: FeedItem }).entry;
+  }
+  return res as FeedItem;
 }

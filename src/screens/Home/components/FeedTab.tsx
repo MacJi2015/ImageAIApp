@@ -1,12 +1,10 @@
-import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState, forwardRef } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useState, forwardRef } from 'react';
 import {
   Image,
-  ImageSourcePropType,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,37 +14,38 @@ import {
   getFeedList,
   likeFeed,
   unlikeFeed,
-  viewFeed,
+  parseFeedAttributes,
   type FeedItem,
 } from '../../../api/services/feed';
 import { useAppStore, useUserStore } from '../../../store';
 import likeDefaultIcon from '../../../assets/like-default-icon.png';
 import likeSelectedIcon from '../../../assets/like-selected-icon.png';
 import headNan from '../../../assets/head-nan.png';
-import headNv from '../../../assets/head-nv.png';
 import preGoodsImg from '../../../assets/details/pre-goods-img.png';
 import emptyImg from '../../../assets/details/empty.png';
 import { dp, hp } from '../../../utils/scale';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
-const AVATARS: ImageSourcePropType[] = [headNan, headNv, headNan, headNv, headNan, headNv];
-
 function FeedCard({
   item,
-  index,
   liked,
   onLikePress,
   onPress,
 }: {
   item: FeedItem;
-  index: number;
   liked: boolean;
   onLikePress: (e?: { stopPropagation?: () => void }) => void;
   onPress: () => void;
 }) {
-  const avatar = AVATARS[index % AVATARS.length];
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { userAvatar, nickname } = parseFeedAttributes(item.attributes);
+  const nick = nickname?.trim();
+  const displayName = nick
+    ? `@${nick.replace(/^@/, '')}`
+    : `@User${item.userId}`;
+  const avatarUri = userAvatar?.trim();
+  const avatarSource = avatarUri ? { uri: avatarUri } : headNan;
 
   return (
     <TouchableOpacity
@@ -83,9 +82,11 @@ function FeedCard({
         pointerEvents="none"
       />
       <View style={styles.cardAvatar}>
-        <Image source={avatar} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={avatarSource} style={StyleSheet.absoluteFill} resizeMode="cover" />
       </View>
-      <Text style={styles.cardUsername}>@User{item.userId}</Text>
+      <Text style={styles.cardUsername} numberOfLines={1}>
+        {displayName}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -172,15 +173,9 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
 
   const handleCardPress = useCallback(
     (item: FeedItem) => {
-      viewFeed(item.feedId).catch(() => {});
       navigation.navigate('Detail', {
         id: item.feedId,
-        title: item.promptText ?? 'Feed',
         source: 'feed',
-        videoUrl: item.videoUrl,
-        thumbnailUrl: item.thumbnailUrl,
-        userName: `@User${item.userId}`,
-        likeCount: item.likeCount,
       });
     },
     [navigation]
@@ -197,11 +192,10 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
   return (
     <View style={styles.cardsContainer}>
       <View style={styles.cardsGrid}>
-        {list.map((item, i) => (
+        {list.map((item) => (
           <FeedCard
             key={item.feedId}
             item={item}
-            index={i}
             liked={likedSet.has(item.feedId)}
             onLikePress={(e) => handleLikePress(item, e)}
             onPress={() => handleCardPress(item)}

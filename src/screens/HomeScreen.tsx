@@ -129,7 +129,7 @@ export function HomeScreen() {
           key={`l-${i}`}
           style={[styles.cardBase, styles.cardLeft, { top: i * 232 }]}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('Detail', { id: String(i + 1), title: '示例详情' })}
+          onPress={() => navigation.navigate('Detail', { id: String(i + 1), source: 'feed' })}
         >
           <Image source={FEED_CARD_SOURCES[i]} style={styles.cardImage} resizeMode="cover" />
           <TouchableOpacity
@@ -151,7 +151,7 @@ export function HomeScreen() {
           key={`r-${i}`}
           style={[styles.cardBase, styles.cardRight, { top: (i - 3) * 232 }]}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('Detail', { id: String(i + 1), title: '示例详情' })}
+          onPress={() => navigation.navigate('Detail', { id: String(i + 1), source: 'feed' })}
         >
           <Image source={FEED_CARD_SOURCES[i]} style={styles.cardImage} resizeMode="cover" />
           <TouchableOpacity
@@ -182,7 +182,7 @@ export function HomeScreen() {
       key={isLeft ? `effect-l-${index}` : `effect-r-${index}`}
       style={[styles.effectCard, isLeft ? styles.effectCardLeft : styles.effectCardRight]}
       activeOpacity={0.9}
-      onPress={() => navigation.navigate('Detail', { id: `effect-${index}`, title })}
+      onPress={() => navigation.navigate('Detail', { id: `effect-${index}`, source: 'effect' })}
     >
       <Image source={source} style={styles.effectCardImage} resizeMode="cover" />
       <View style={styles.effectCardGradient} />

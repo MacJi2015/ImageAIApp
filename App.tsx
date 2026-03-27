@@ -17,7 +17,7 @@ import { loadAuth } from './src/services/authStorage';
 
 /** 无本地 token 时使用的写死 token，登录成功后会替换为后端返回的 token */
 const DEFAULT_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTowL2U5b/Bv0PZCjdWiUIONtPjg4saQaFMxHFPJhQ1mntuVr0i+AsuFTT9b1IgpA+e1WRZNGM/XqAKyRspYwmYFLQ2NCeeQ0q4EEt6yn6QGK';
+  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
 
 function App() {
   const systemDark = useColorScheme() === 'dark';

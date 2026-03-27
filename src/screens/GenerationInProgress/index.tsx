@@ -31,14 +31,36 @@ export function GenerationInProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute<GenerationInProgressRoute>();
   const insets = useSafeAreaInsets();
-  const { taskId } = route.params;
+  const { taskId, imageUri } = route.params;
   const [remainingSec, setRemainingSec] = useState(60);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oneMinuteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigatedRef = useRef(false);
 
-  const navigateToMy = useCallback(() => {
-    (navigation as any).navigate('GenerateVideo', { videoUri: 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/55.mp4' });
-  }, [navigation]);
+  const cleanupTimers = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (oneMinuteTimerRef.current) {
+      clearTimeout(oneMinuteTimerRef.current);
+      oneMinuteTimerRef.current = null;
+    }
+  }, []);
+
+  const resetToGenerateVideo = useCallback(
+    (params: { thumbnailUrl?: string; videoUrl?: string }) => {
+      if (navigatedRef.current) return;
+      navigatedRef.current = true;
+      cleanupTimers();
+      const nextImageUri = params.thumbnailUrl || imageUri;
+      (navigation as any).replace('GenerateVideo', {
+        imageUri: nextImageUri,
+        videoUri: params.videoUrl,
+      });
+    },
+    [cleanupTimers, imageUri, navigation],
+  );
 
   // 60s 倒计时显示
   useEffect(() => {
@@ -52,7 +74,14 @@ export function GenerationInProgressScreen() {
   useEffect(() => {
     const poll = async () => {
       try {
-        await getVideoTaskStatus(taskId);
+        const res = await getVideoTaskStatus(taskId);
+        const status = (res as any)?.status as string | undefined;
+        if (status === 'SUCCESS') {
+          resetToGenerateVideo({
+            thumbnailUrl: (res as any)?.thumbnailUrl,
+            videoUrl: (res as any)?.videoUrl,
+          });
+        }
       } catch {
         // 忽略单次失败，继续轮询
       }
@@ -62,21 +91,17 @@ export function GenerationInProgressScreen() {
     poll();
 
     oneMinuteTimerRef.current = setTimeout(() => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-      navigateToMy();
+      cleanupTimers();
     }, POLL_DURATION_MS);
 
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-      if (oneMinuteTimerRef.current) clearTimeout(oneMinuteTimerRef.current);
+      cleanupTimers();
     };
-  }, [taskId, navigateToMy]);
+  }, [cleanupTimers, resetToGenerateVideo, taskId]);
 
   const handleBack = () => {
-    navigateToMy();
+    cleanupTimers();
+    navigation.goBack();
   };
 
   return (
@@ -103,7 +128,10 @@ export function GenerationInProgressScreen() {
 
       <TouchableOpacity
         style={[styles.continueBtn, { bottom: insets.bottom + 24 }]}
-        onPress={navigateToMy}
+        onPress={() => {
+          cleanupTimers();
+          navigation.goBack();
+        }}
         activeOpacity={0.8}
       >
         <Text style={styles.continueBtnTitle}>Continue in background</Text>

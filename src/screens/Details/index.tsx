@@ -1,5 +1,13 @@
-import React from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  ImageSourcePropType,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 // LinearGradient moved into DetailVideoPlayer
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -12,50 +20,164 @@ import seeIcon from '../../assets/details/see-icon.png';
 import shareIcon from '../../assets/details/share-icon.png';
 import timeIcon from '../../assets/details/time-icon.png';
 import LikeBigIcon from '../../assets/details/like-big-icon.svg';
+import { formatPreviewCount } from '../../utils';
 import { dp, hp } from '../../utils/scale';
 import headNan from '../../assets/head-nan.png';
-import { useAppStore } from '../../store';
+import { useAppStore, useUserStore } from '../../store';
 import { ChooseVideoModal } from './components/ChooseVideoModal';
 import { DetailVideoPlayer } from './components/DetailVideoPlayer';
+import {
+  getFeedDetail,
+  likeFeed,
+  parseFeedAttributes,
+  unlikeFeed,
+  viewFeed,
+} from '../../api/services/feed';
+import { getTemplateDetail } from '../../api/services/template';
 
 type DetailRoute = RouteProp<RootStackParamList, 'Detail'>;
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
+type DetailData = {
+  title?: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  userName?: string;
+  userAvatarUrl?: string;
+  likeCount: number;
+  viewCount: number;
+  liked: boolean;
+  templateIdForPrompt?: string;
+  templateThumbnailUrlForPrompt?: string;
+};
+
+const emptyDetail = (): DetailData => ({
+  likeCount: 0,
+  viewCount: 0,
+  liked: false,
+});
 
 export function DetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute<DetailRoute>();
   const insets = useSafeAreaInsets();
-  const openShareModal = useAppStore(s => s.openShareModal);
-  const {
-    title,
-    source = 'effect',
-    videoUrl,
-    thumbnailUrl,
-    userName,
-    likeCount = 0,
-  } = route.params;
-  const displayTitle = (title ?? 'Rock Star').toUpperCase();
-  const [chooseVideoVisible, setChooseVideoVisible] = React.useState(false);
+  const openShareModal = useAppStore((s) => s.openShareModal);
+  const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const { id, source } = route.params;
   const isEffect = source === 'effect';
+
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [chooseVideoVisible, setChooseVideoVisible] = useState(false);
+
+  const [detail, setDetail] = useState<DetailData>(emptyDetail);
+
+  const displayTitle = (detail.title?.trim() || (isEffect ? 'Effect' : 'Feed')).toUpperCase();
+  const canChooseVideo = isEffect || Boolean(detail.templateIdForPrompt);
+
+  // Feed 增加浏览数
+  useEffect(() => {
+    if (isEffect) return;
+    viewFeed(id).catch(() => {});
+  }, [id, isEffect]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      setLoadingDetail(true);
+      setLoadError(null);
+      setDetail(emptyDetail());
+      try {
+        if (isEffect) {
+          const t = await getTemplateDetail(id);
+          if (cancelled) return;
+          setDetail({
+            title: t.templateName,
+            videoUrl: t.previewVideoUrl,
+            thumbnailUrl: t.coverImageUrl,
+            likeCount: 0,
+            viewCount: t.viewCount ?? 0,
+            liked: false,
+            templateIdForPrompt: t.templateId,
+            templateThumbnailUrlForPrompt: t.coverImageUrl,
+          });
+        } else {
+          const f = await getFeedDetail(id);
+          if (cancelled) return;
+          const { userAvatar, nickname } = parseFeedAttributes(f.attributes);
+          const nick = nickname?.trim();
+          const userLabel = nick
+            ? `@${nick.replace(/^@/, '')}`
+            : `@User${f.userId}`;
+          setDetail({
+            title: f.promptText ?? 'Feed',
+            videoUrl: f.videoUrl,
+            thumbnailUrl: f.thumbnailUrl,
+            userName: userLabel,
+            userAvatarUrl: userAvatar?.trim() || undefined,
+            likeCount: f.likeCount ?? 0,
+            viewCount: f.viewCount ?? 0,
+            liked: false,
+            templateIdForPrompt: f.templateId,
+            templateThumbnailUrlForPrompt: f.thumbnailUrl,
+          });
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '加载失败';
+        setLoadError(msg);
+        __DEV__ && console.warn('[DetailsScreen] fetch detail failed', e);
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isEffect]);
+
+  const handleToggleLike = useCallback(async () => {
+    if (isEffect) return;
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+
+    const prevLiked = detail.liked;
+    const prevCount = detail.likeCount;
+    const nextLiked = !prevLiked;
+    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
+
+    setDetail((prev) => ({ ...prev, liked: nextLiked, likeCount: nextCount }));
+
+    try {
+      if (nextLiked) await likeFeed(id);
+      else await unlikeFeed(id);
+    } catch (e) {
+      // 回滚
+      setDetail((prev) => ({ ...prev, liked: prevLiked, likeCount: prevCount }));
+      __DEV__ && console.warn('[DetailsScreen] like toggle failed', e);
+    }
+  }, [detail.liked, detail.likeCount, id, isEffect, isLoggedIn, openLoginModal]);
 
   return (
     <View style={styles.container}>
       <View style={[styles.backgroundWrap, { paddingTop: insets.top }]}>
         <DetailVideoPlayer
-          videoUri={videoUrl}
-          posterUri={thumbnailUrl}
-          autoPlay={!isEffect}
-          showPlayOverlay={isEffect}
+          videoUri={detail.videoUrl}
+          posterUri={detail.thumbnailUrl}
           bottomGradientHeight={hp(100)}
           style={{ ...StyleSheet.absoluteFillObject, height: hp(667) }}
         />
+        {loadingDetail && (
+          <View style={styles.loadingOverlay} pointerEvents="none">
+            <ActivityIndicator size="large" color="#00ffff" />
+          </View>
+        )}
         {/* Header */}
         <View style={[styles.header]}>
           <TouchableOpacity
@@ -76,9 +198,9 @@ export function DetailsScreen() {
             activeOpacity={0.8}
             onPress={() =>
               openShareModal({
-                url: videoUrl,
-                title,
-                message: title,
+                url: detail.videoUrl ?? '',
+                title: detail.title,
+                message: detail.title ?? '',
               })
             }
           >
@@ -97,6 +219,9 @@ export function DetailsScreen() {
         <View style={[styles.bottomOverlayWrap, { paddingBottom: insets.bottom }]}>
         
           <View style={styles.bottomOverlay}>
+            {loadError ? (
+              <Text style={styles.errorText}>{loadError}</Text>
+            ) : null}
             {isEffect ? (
               <>
                 <Text style={styles.effectTitle}>{displayTitle}</Text>
@@ -111,13 +236,16 @@ export function DetailsScreen() {
                   </View>
                   <View style={styles.pill}>
                     <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
-                    <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
+                    <Text style={styles.pillText}>{formatPreviewCount(detail.viewCount)}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
                   style={styles.tryButton}
                   activeOpacity={0.8}
-                  onPress={() => setChooseVideoVisible(true)}
+                  onPress={() => {
+                    if (!canChooseVideo) return;
+                    setChooseVideoVisible(true);
+                  }}
                 >
                   <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
                   <Text style={styles.tryButtonText}>TRY IT</Text>
@@ -128,8 +256,18 @@ export function DetailsScreen() {
                 <View style={styles.feedTopRow}>
                   <View style={styles.feedLeftCol}>
                     <View style={styles.feedUserRow}>
-                      <Image source={headNan as ImageSourcePropType} style={styles.feedAvatar} resizeMode="cover" />
-                      <Text style={styles.feedUsername}>{userName ?? '@User'}</Text>
+                      <Image
+                        source={
+                          detail.userAvatarUrl
+                            ? { uri: detail.userAvatarUrl }
+                            : (headNan as ImageSourcePropType)
+                        }
+                        style={styles.feedAvatar}
+                        resizeMode="cover"
+                      />
+                      <Text style={styles.feedUsername}>
+                        {detail.userName ?? '@User'}
+                      </Text>
                     </View>
                     <View style={[styles.pillsRow, styles.pillsRowStart]}>
                       <View style={styles.pill}>
@@ -148,25 +286,40 @@ export function DetailsScreen() {
                         <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
                         <View style={styles.pillOverlay} />
                         <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
-                        <Text style={styles.pillText}>{formatCount(likeCount) || '2.4K'}</Text>
+                      <Text style={styles.pillText}>
+                        {formatPreviewCount(detail.viewCount)}
+                      </Text>
                       </View>
                     </View>
                   </View>
-                  <View style={styles.feedLikeBadge}>
+                  <TouchableOpacity
+                    style={styles.feedLikeBadge}
+                    activeOpacity={0.8}
+                    onPress={handleToggleLike}
+                  >
                     <BlurView
                       style={StyleSheet.absoluteFill}
                       blurType="dark"
                       blurAmount={5}
                     />
                     <View style={styles.feedLikeBadgeOverlay} />
-                    <LikeBigIcon width={23} height={22} />
-                    <Text style={styles.feedLikeCount}>{formatCount(likeCount) || '2.4K'}</Text>
-                  </View>
+                    <LikeBigIcon
+                      width={23}
+                      height={22}
+                      style={detail.liked ? styles.likeIconLiked : styles.likeIconUnliked}
+                    />
+                    <Text style={styles.feedLikeCount}>
+                      {formatPreviewCount(detail.likeCount)}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <TouchableOpacity
                   style={styles.tryButton}
                   activeOpacity={0.8}
-                  onPress={() => setChooseVideoVisible(true)}
+                  onPress={() => {
+                    if (!canChooseVideo) return;
+                    setChooseVideoVisible(true);
+                  }}
                 >
                   <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
                   <Text style={styles.tryButtonText}>CREATE NOW</Text>
@@ -190,8 +343,8 @@ export function DetailsScreen() {
             (navigation as any).navigate('CustomPrompt', {
               imageUri: asset.uri,
               petImageUrl: uploadedUrl,
-              templateId: route.params.id,
-              templateThumbnailUrl: route.params.thumbnailUrl,
+              templateId: detail.templateIdForPrompt,
+              templateThumbnailUrl: detail.templateThumbnailUrlForPrompt,
             });
           }
         }}
@@ -201,8 +354,8 @@ export function DetailsScreen() {
             (navigation as any).navigate('CustomPrompt', {
               imageUri: asset.uri,
               petImageUrl: uploadedUrl,
-              templateId: route.params.id,
-              templateThumbnailUrl: route.params.thumbnailUrl,
+              templateId: detail.templateIdForPrompt,
+              templateThumbnailUrl: detail.templateThumbnailUrlForPrompt,
             });
           }
         }}
@@ -220,6 +373,12 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     justifyContent: 'space-between',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   bottomOverlayWrap: {
     width: '100%',
@@ -269,6 +428,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: dp(16),
     paddingTop: hp(24),
     // backgroundColor: COLORS.bg,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: dp(13),
+    textAlign: 'center',
+    marginBottom: hp(12),
   },
   effectTitle: {
     fontSize: dp(24),
@@ -323,6 +488,12 @@ const styles = StyleSheet.create({
   feedLikeBadgeOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(5,10,20,0.2)',
+  },
+  likeIconLiked: {
+    opacity: 1,
+  },
+  likeIconUnliked: {
+    opacity: 0.4,
   },
   feedLikeCount: {
     fontSize: dp(12),

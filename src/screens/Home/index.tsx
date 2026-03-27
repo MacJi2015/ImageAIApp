@@ -17,11 +17,14 @@ import { FeedTab, type FeedTabRef } from './components/FeedTab';
 import logoIcon from '../../assets/logoIcon.png';
 import homeTips from '../../assets/home-tips.png';
 import { dp, hp } from '../../utils/scale';
+import { useUserStore } from '../../store/useUserStore';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const user = useUserStore((s) => s.user);
+  const isPro = user?.userType === 'Pro' || user?.isPremium === true;
   const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,8 +74,10 @@ export function HomeScreen() {
       {/* <View style={styles.heroGradient} /> */}
       <View style={styles.heroLogoRow} onLayout={onHeroLogoLayout}>
         <Image source={logoIcon} style={styles.heroLogo} resizeMode="contain" />
-        <View style={styles.proBadge}>
-          <Text style={styles.proText}>FREE</Text>
+        <View style={[styles.proBadge, isPro && styles.proBadgePro]}>
+          <Text style={[styles.proText, isPro && styles.proTextPro]}>
+            {isPro ? 'PRO' : 'FREE'}
+          </Text>
         </View>
       </View>
       <Image source={homeTips} style={styles.homeTipsImage} resizeMode="contain" />
@@ -128,8 +133,10 @@ export function HomeScreen() {
           {showStickyLogo && (
             <View style={styles.stickyHeaderRow}>
               <Image source={logoIcon} style={styles.stickyLogo} resizeMode="contain" />
-              <View style={styles.proBadge}>
-                <Text style={styles.proText}>FREE</Text>
+              <View style={[styles.proBadge, isPro && styles.proBadgePro]}>
+                <Text style={[styles.proText, isPro && styles.proTextPro]}>
+                  {isPro ? 'PRO' : 'FREE'}
+                </Text>
               </View>
             </View>
           )}
@@ -301,6 +308,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  proBadgePro: {
+    borderColor: '#FFEFD3',
+    backgroundColor: 'rgba(255,239,211,0.10)',
+  },
+  proTextPro: {
+    color: '#FFEFD3',
   },
   tabContainerSticky: {
     height: hp(44),

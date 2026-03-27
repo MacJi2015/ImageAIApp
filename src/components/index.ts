@@ -6,3 +6,4 @@ export { PremiumModal } from './PremiumModal';
 export type { PremiumModalProps } from './PremiumModal';
 export { SplashScreen } from './SplashScreen';
 export type { SplashScreenProps } from './SplashScreen';
+export { MediaPreviewPlayer } from './MediaPreviewPlayer';
