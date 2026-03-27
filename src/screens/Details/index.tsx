@@ -65,14 +65,20 @@ export function DetailsScreen() {
   const openShareModal = useAppStore((s) => s.openShareModal);
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
-  const { id, source } = route.params;
+  const { id, source, initialData } = route.params;
   const isEffect = source === 'effect';
 
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chooseVideoVisible, setChooseVideoVisible] = useState(false);
 
-  const [detail, setDetail] = useState<DetailData>(emptyDetail);
+  const [detail, setDetail] = useState<DetailData>(() => ({
+    ...emptyDetail(),
+    ...(initialData ?? {}),
+    likeCount: initialData?.likeCount ?? 0,
+    viewCount: initialData?.viewCount ?? 0,
+    liked: initialData?.liked ?? false,
+  }));
 
   const displayTitle = (detail.title?.trim() || (isEffect ? 'Effect' : 'Feed')).toUpperCase();
   const canChooseVideo = isEffect || Boolean(detail.templateIdForPrompt);
@@ -83,62 +89,58 @@ export function DetailsScreen() {
     viewFeed(id).catch(() => {});
   }, [id, isEffect]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      setLoadingDetail(true);
-      setLoadError(null);
-      setDetail(emptyDetail());
-      try {
-        if (isEffect) {
-          const t = await getTemplateDetail(id);
-          if (cancelled) return;
-          setDetail({
-            title: t.templateName,
-            videoUrl: t.previewVideoUrl,
-            thumbnailUrl: t.coverImageUrl,
-            likeCount: 0,
-            viewCount: t.viewCount ?? 0,
-            liked: false,
-            templateIdForPrompt: t.templateId,
-            templateThumbnailUrlForPrompt: t.coverImageUrl,
-          });
-        } else {
-          const f = await getFeedDetail(id);
-          if (cancelled) return;
-          const { userAvatar, nickname } = parseFeedAttributes(f.attributes);
-          const nick = nickname?.trim();
-          const userLabel = nick
-            ? `@${nick.replace(/^@/, '')}`
-            : `@User${f.userId}`;
-          setDetail({
-            title: f.promptText ?? 'Feed',
-            videoUrl: f.videoUrl,
-            thumbnailUrl: f.thumbnailUrl,
-            userName: userLabel,
-            userAvatarUrl: userAvatar?.trim() || undefined,
-            likeCount: f.likeCount ?? 0,
-            viewCount: f.viewCount ?? 0,
-            liked: false,
-            templateIdForPrompt: f.templateId,
-            templateThumbnailUrlForPrompt: f.thumbnailUrl,
-          });
-        }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : '加载失败';
-        setLoadError(msg);
-        __DEV__ && console.warn('[DetailsScreen] fetch detail failed', e);
-      } finally {
-        if (!cancelled) setLoadingDetail(false);
+  const fetchDetail = useCallback(async () => {
+    setLoadingDetail(true);
+    setLoadError(null);
+    try {
+      if (isEffect) {
+        const t = await getTemplateDetail(id);
+        setDetail({
+          title: t.templateName,
+          videoUrl: t.previewVideoUrl,
+          thumbnailUrl: t.coverImageUrl,
+          likeCount: 0,
+          viewCount: t.viewCount ?? 0,
+          liked: false,
+          templateIdForPrompt: t.templateId,
+          templateThumbnailUrlForPrompt: t.coverImageUrl,
+        });
+      } else {
+        const f = await getFeedDetail(id);
+        const { userAvatar, nickname } = parseFeedAttributes(f.attributes);
+        const nick = nickname?.trim();
+        const userLabel = nick ? `@${nick.replace(/^@/, '')}` : `@User${f.userId}`;
+        setDetail((prev) => ({
+          ...prev,
+          title: f.promptText ?? 'Feed',
+          videoUrl: f.videoUrl,
+          thumbnailUrl: f.thumbnailUrl,
+          userName: userLabel,
+          userAvatarUrl: userAvatar?.trim() || undefined,
+          likeCount: f.likeCount ?? 0,
+          viewCount: f.viewCount ?? 0,
+          // 若接口未返回 liked 字段，保留当前状态；返回时以接口为准
+          liked: typeof (f as { liked?: unknown }).liked === 'boolean' ? Boolean((f as { liked?: unknown }).liked) : prev.liked,
+          templateIdForPrompt: f.templateId,
+          templateThumbnailUrlForPrompt: f.thumbnailUrl,
+        }));
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '加载失败';
+      setLoadError(msg);
+      __DEV__ && console.warn('[DetailsScreen] fetch detail failed', e);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [id, isEffect]);
+
+  useEffect(() => {
+    async function run() {
+      await fetchDetail();
     }
 
     run();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isEffect]);
+  }, [fetchDetail, initialData]);
 
   const handleToggleLike = useCallback(async () => {
     if (isEffect) return;
@@ -147,22 +149,17 @@ export function DetailsScreen() {
       return;
     }
 
-    const prevLiked = detail.liked;
-    const prevCount = detail.likeCount;
-    const nextLiked = !prevLiked;
-    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
-
-    setDetail((prev) => ({ ...prev, liked: nextLiked, likeCount: nextCount }));
-
     try {
-      if (nextLiked) await likeFeed(id);
-      else await unlikeFeed(id);
+      if (detail.liked) {
+        await unlikeFeed(id);
+      } else {
+        await likeFeed(id);
+      }
+      await fetchDetail();
     } catch (e) {
-      // 回滚
-      setDetail((prev) => ({ ...prev, liked: prevLiked, likeCount: prevCount }));
       __DEV__ && console.warn('[DetailsScreen] like toggle failed', e);
     }
-  }, [detail.liked, detail.likeCount, id, isEffect, isLoggedIn, openLoginModal]);
+  }, [detail.liked, fetchDetail, id, isEffect, isLoggedIn, openLoginModal]);
 
   return (
     <View style={styles.container}>

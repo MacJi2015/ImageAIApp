@@ -28,6 +28,7 @@ import CloseIcon from '../../assets/details/close-icon.svg';
 import SelectedIcon from '../../assets/details/selected-icon.svg';
 import LianjieBg from '../../assets/details/lianjie-bg.svg';
 import LianjieIcon from '../../assets/details/lianjie-icon.svg';
+import { ChooseVideoModal } from '../Details/components/ChooseVideoModal';
 
 type CustomPromptRoute = RouteProp<RootStackParamList, 'CustomPrompt'>;
 
@@ -47,22 +48,26 @@ export function CustomPromptScreen() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const { imageUri, petImageUrl: initialPetImageUrl, templateId, templateThumbnailUrl } = route.params;
   const isFromEffect = Boolean(templateId);
+  const [currentImageUri, setCurrentImageUri] = useState(imageUri);
+  const [currentPetImageUrl, setCurrentPetImageUrl] = useState<string | undefined>(initialPetImageUrl);
   const [prompt, setPrompt] = useState('');
   const [removeWatermark, setRemoveWatermark] = useState(false);
   const [isPortrait, setIsPortrait] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [chooseVideoVisible, setChooseVideoVisible] = useState(false);
+  const [promptFocused, setPromptFocused] = useState(false);
 
   useEffect(() => {
     Image.getSize(
-      imageUri,
+      currentImageUri,
       (width, height) => setIsPortrait(height >= width),
       () => {}
     );
-  }, [imageUri]);
+  }, [currentImageUri]);
 
   const handleReplace = () => {
     Keyboard.dismiss();
-    navigation.goBack();
+    setChooseVideoVisible(true);
   };
 
   const handleGenerate = useCallback(async () => {
@@ -75,10 +80,10 @@ export function CustomPromptScreen() {
       return;
     }
 
-    let petImageUrl: string | undefined = initialPetImageUrl;
+    let petImageUrl: string | undefined = currentPetImageUrl;
     if (!petImageUrl) {
       try {
-        const result = await uploadImage(imageUri, 'pet');
+        const result = await uploadImage(currentImageUri, 'pet');
         petImageUrl = result.url;
       } catch {
         Alert.alert('提示', '图片上传失败，请重试');
@@ -104,7 +109,7 @@ export function CustomPromptScreen() {
 
       (navigation as any).navigate('GenerationInProgress', {
         taskId: res.taskId,
-        imageUri,
+        imageUri: currentImageUri,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '生成失败，请重试';
@@ -112,7 +117,7 @@ export function CustomPromptScreen() {
     } finally {
       setGenerating(false);
     }
-  }, [isLoggedIn, openLoginModal, prompt, initialPetImageUrl, imageUri, removeWatermark, templateId, navigation, isFromEffect]);
+  }, [isLoggedIn, openLoginModal, prompt, currentPetImageUrl, currentImageUri, removeWatermark, templateId, navigation, isFromEffect]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -138,7 +143,8 @@ export function CustomPromptScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View
               style={[
-                styles.scrollContent,
+                styles.contentInner,
+                promptFocused && styles.contentPushedUp,
                 { paddingBottom: Math.max(insets.bottom, 8) + hp(24) },
               ]}
             >
@@ -156,7 +162,7 @@ export function CustomPromptScreen() {
               </View>
             </View>
             <View style={styles.petCard}>
-              <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+              <Image source={{ uri: currentImageUri }} style={styles.previewImage} resizeMode="cover" />
               {isPortrait ? (
                 <>
                   <LinearGradient
@@ -215,7 +221,7 @@ export function CustomPromptScreen() {
           </>
         ) : (
           <View style={styles.imageFrame}>
-            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+            <Image source={{ uri: currentImageUri }} style={styles.previewImage} resizeMode="cover" />
             {isPortrait ? (
               <>
                 <LinearGradient
@@ -277,13 +283,10 @@ export function CustomPromptScreen() {
                 onChangeText={setPrompt}
                 placeholderTextColor={COLORS.muted}
                 multiline
+                scrollEnabled
                 placeholder="Describe your scene..."
-                returnKeyType="done"
-                blurOnSubmit
-                submitBehavior="blurAndSubmit"
-                onSubmitEditing={() => {
-                  Keyboard.dismiss();
-                }}
+                onFocus={() => setPromptFocused(true)}
+                onBlur={() => setPromptFocused(false)}
               />
 
               <TouchableOpacity
@@ -328,6 +331,22 @@ export function CustomPromptScreen() {
           </TouchableWithoutFeedback>
         </View>
       </KeyboardAvoidingView>
+      <ChooseVideoModal
+        visible={chooseVideoVisible}
+        onClose={() => setChooseVideoVisible(false)}
+        onChooseGallery={(asset, uploadedUrl) => {
+          setChooseVideoVisible(false);
+          if (!asset.uri) return;
+          setCurrentImageUri(asset.uri);
+          setCurrentPetImageUrl(uploadedUrl);
+        }}
+        onTakePhoto={(asset, uploadedUrl) => {
+          setChooseVideoVisible(false);
+          if (!asset.uri) return;
+          setCurrentImageUri(asset.uri);
+          setCurrentPetImageUrl(uploadedUrl);
+        }}
+      />
     </View>
   );
 }
@@ -346,6 +365,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  contentInner: {
+    flexGrow: 1,
+  },
+  contentPushedUp: {
+    transform: [{ translateY: -hp(165) }],
   },
   header: {
     flexDirection: 'row',
@@ -527,7 +552,8 @@ const styles = StyleSheet.create({
     paddingVertical: dp(12),
     fontSize: dp(12),
     color: COLORS.muted,
-    minHeight: hp(180),
+    height: hp(180),
+    maxHeight: hp(180),
     textAlignVertical: 'top',
     marginBottom: hp(8),
   },

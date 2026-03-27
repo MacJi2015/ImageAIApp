@@ -11,6 +11,7 @@ import DownIcon from '../../assets/details/down-icon.svg';
 import { useAppStore } from '../../store';
 import { PromptCloseIcon, saveMediaToGallery } from '../../utils';
 import { MediaPreviewPlayer } from '../../components';
+import { deleteVideo } from '../../api/services/feed';
 
 type WorkDetailRoute = RouteProp<RootStackParamList, 'WorkDetail'>;
 
@@ -26,6 +27,7 @@ export function WorkDetailScreen() {
   const videoUri = item.videoUrl;
   const [promptVisible, setPromptVisible] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   const displayDate = useMemo(() => {
     if (item.createdTime) return item.createdTime.slice(0, 10);
@@ -41,9 +43,36 @@ export function WorkDetailScreen() {
   };
 
   const handleDelete = () => {
+    if (deleting) return;
     Alert.alert('Delete', 'Are you sure you want to delete this work?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          const id = item.id;
+          if (!id) {
+            Alert.alert('Delete failed', 'This work has no feed id and cannot be removed.');
+            return;
+          }
+          const run = async () => {
+            setDeleting(true);
+            try {
+              const ok = await deleteVideo(id);
+              if (ok) {
+                navigation.goBack();
+              } else {
+                Alert.alert('Delete failed', 'Please try again later.');
+              }
+            } catch (e) {
+              Alert.alert('Delete failed', e instanceof Error ? e.message : 'Please try again later.');
+            } finally {
+              setDeleting(false);
+            }
+          };
+          run();
+        },
+      },
     ]);
   };
 
@@ -115,8 +144,17 @@ export function WorkDetailScreen() {
       </TouchableOpacity>
 
       <View style={styles.bottomRow}>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-          <Text style={styles.deleteBtnText}>DELETE</Text>
+        <TouchableOpacity
+          style={[styles.deleteBtn, deleting && styles.deleteBtnDisabled]}
+          onPress={handleDelete}
+          activeOpacity={0.8}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator size="small" color="#3a4a65" />
+          ) : (
+            <Text style={styles.deleteBtnText}>DELETE</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.secondaryBtn, saving && styles.secondaryBtnDisabled]}
@@ -358,6 +396,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  deleteBtnDisabled: {
+    opacity: 0.7,
   },
   deleteBtnText: {
     fontSize: dp(16),

@@ -29,6 +29,7 @@ export function parseFeedAttributes(raw?: string | null): FeedUserAttributes {
 
 /** Feed 流单条 */
 export interface FeedItem {
+  liked?: boolean;
   attributes?: string;
   createdTime?: string;
   feedId: string;
@@ -140,4 +141,13 @@ export async function getFeedDetail(feedId: string): Promise<FeedItem> {
     return (res as { entry: FeedItem }).entry;
   }
   return res as FeedItem;
+}
+
+/**
+ * 删除 Feed
+ * POST /facial/app/user/deleteVideo
+ */
+export async function deleteVideo(id: number): Promise<boolean> {
+  const res = await post(`app/user/deleteVideo`, undefined, { params: { id } });
+  return (res as unknown as { entry?: boolean }).entry ?? false;
 }

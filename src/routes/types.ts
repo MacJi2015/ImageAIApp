@@ -13,7 +13,22 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   /** 详情仅传 id + source，页面内请求详情接口渲染 */
-  Detail: { id: string; source: 'effect' | 'feed' };
+  Detail: {
+    id: string;
+    source: 'effect' | 'feed';
+    initialData?: {
+      title?: string;
+      videoUrl?: string;
+      thumbnailUrl?: string;
+      userName?: string;
+      userAvatarUrl?: string;
+      likeCount?: number;
+      viewCount?: number;
+      liked?: boolean;
+      templateIdForPrompt?: string;
+      templateThumbnailUrlForPrompt?: string;
+    };
+  };
   GenerateVideo: { imageUri: string; source?: 'gallery' | 'camera'; videoUri?: string };
   WorkDetail: { item: Partial<AppVideoTask> };
   CustomPrompt: { imageUri: string; petImageUrl?: string; templateId?: string; templateThumbnailUrl?: string };

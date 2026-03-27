@@ -29,15 +29,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 function FeedCard({
   item,
-  liked,
   onLikePress,
   onPress,
 }: {
   item: FeedItem;
-  liked: boolean;
   onLikePress: (e?: { stopPropagation?: () => void }) => void;
   onPress: () => void;
 }) {
+  const {liked} = item;
   const [imageLoaded, setImageLoaded] = useState(false);
   const { userAvatar, nickname } = parseFeedAttributes(item.attributes);
   const nick = nickname?.trim();
@@ -73,7 +72,7 @@ function FeedCard({
           resizeMode="contain"
         />
         <Text style={styles.cardLikeCountInside}>
-          {item.likeCount + (liked ? 1 : 0)}
+          {item.likeCount}
         </Text>
       </TouchableOpacity>
       <LinearGradient
@@ -106,7 +105,6 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const [list, setList] = useState<FeedItem[]>([]);
-  const [likedSet, setLikedSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageNum, setPageNum] = useState(1);
@@ -151,31 +149,43 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
   }, [refresh, refreshKey]);
 
   const handleLikePress = useCallback(
-    (item: FeedItem, e?: { stopPropagation?: () => void }) => {
+    async (item: FeedItem, e?: { stopPropagation?: () => void }) => {
       e?.stopPropagation?.();
       if (!isLoggedIn) {
         openLoginModal();
         return;
       }
       const fid = item.feedId;
-      const nextLiked = !likedSet.has(fid);
-      setLikedSet((prev) => {
-        const next = new Set(prev);
-        if (nextLiked) next.add(fid);
-        else next.delete(fid);
-        return next;
-      });
-      if (nextLiked) likeFeed(fid).catch(() => setLikedSet((p) => new Set(p)));
-      else unlikeFeed(fid).catch(() => setLikedSet((p) => new Set(p)));
+      const nextLiked = !item.liked;
+      try {
+        if (nextLiked) await likeFeed(fid);
+        else await unlikeFeed(fid);
+        refresh();
+      } catch {}
     },
-    [isLoggedIn, likedSet, openLoginModal]
+    [isLoggedIn, openLoginModal, refresh]
   );
 
   const handleCardPress = useCallback(
     (item: FeedItem) => {
+      const { userAvatar, nickname } = parseFeedAttributes(item.attributes);
+      const nick = nickname?.trim();
+      const userLabel = nick ? `@${nick.replace(/^@/, '')}` : `@User${item.userId}`;
       navigation.navigate('Detail', {
         id: item.feedId,
         source: 'feed',
+        initialData: {
+          title: item.promptText ?? 'Feed',
+          videoUrl: item.videoUrl,
+          thumbnailUrl: item.thumbnailUrl,
+          userName: userLabel,
+          userAvatarUrl: userAvatar?.trim() || undefined,
+          likeCount: item.likeCount ?? 0,
+          viewCount: item.viewCount ?? 0,
+          liked: Boolean(item.liked),
+          templateIdForPrompt: item.templateId,
+          templateThumbnailUrlForPrompt: item.thumbnailUrl,
+        },
       });
     },
     [navigation]
@@ -196,7 +206,6 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
           <FeedCard
             key={item.feedId}
             item={item}
-            liked={likedSet.has(item.feedId)}
             onLikePress={(e) => handleLikePress(item, e)}
             onPress={() => handleCardPress(item)}
           />
