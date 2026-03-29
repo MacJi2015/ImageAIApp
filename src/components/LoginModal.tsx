@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Modal,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
 import { PromptCloseIcon } from '../utils';
 import { dp, hp } from '../utils/scale';
+import { useAppStore } from '../store';
 
 // 设计稿配色：深色主题、青绿链接色
 const COLORS = {
@@ -133,6 +135,7 @@ export function LoginModal({
   termsUrl = 'https://example.com/terms',
 }: LoginModalProps) {
   const insets = useSafeAreaInsets();
+  const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
 
   const handlePrivacy = () => Linking.openURL(privacyUrl).catch(() => {});
   const handleTerms = () => Linking.openURL(termsUrl).catch(() => {});
@@ -210,6 +213,18 @@ export function LoginModal({
             </View>
           </View>
         </View>
+        {socialLoginSubmitting ? (
+          <View
+            style={[StyleSheet.absoluteFillObject, styles.submittingLayer]}
+            pointerEvents="auto"
+            accessibilityLabel="登录中"
+          >
+            <View style={styles.submittingCard}>
+              <ActivityIndicator size="large" color="#58a6ff" />
+              <Text style={styles.submittingText}>登录中…</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -343,5 +358,24 @@ const styles = StyleSheet.create({
     color: COLORS.link,
     fontWeight: '500',
     opacity: 0.95,
+  },
+  submittingLayer: {
+    zIndex: 100,
+    backgroundColor: 'rgba(5, 10, 20, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submittingCard: {
+    minWidth: 200,
+    paddingVertical: 28,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    backgroundColor: '#1a2332',
+    alignItems: 'center',
+    gap: 16,
+  },
+  submittingText: {
+    color: '#e6edf3',
+    fontSize: 15,
   },
 });

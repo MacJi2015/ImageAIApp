@@ -11,17 +11,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { useAppStore, useUserStore } from './src/store';
 import { setAuthToken } from './src/api/request';
+import { DEV_HARDCODED_AUTH_TOKEN } from './src/api/config';
 import { RootNavigator } from './src/routes';
 import { initGoogleSignIn, initFacebookSdk } from './src/services/thirdPartyAuth';
 import { loadAuth } from './src/services/authStorage';
 
-/** 无本地 token 时使用的写死 token，登录成功后会替换为后端返回的 token */
-const DEFAULT_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
-
 function App() {
   const systemDark = useColorScheme() === 'dark';
   const setDarkMode = useAppStore(state => state.setDarkMode);
+  const setAuthHydrated = useAppStore(state => state.setAuthHydrated);
   const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
@@ -36,17 +34,31 @@ function App() {
   useEffect(() => {
     loadAuth()
       .then(data => {
-        if (data?.token) {
-          setAuthToken(data.token);
-          useUserStore.getState().login(data.token, data.user);
+        const useDevToken = __DEV__ && DEV_HARDCODED_AUTH_TOKEN.length > 0;
+        const token = useDevToken ? DEV_HARDCODED_AUTH_TOKEN : data?.token ?? null;
+        const user =
+          token &&
+          (useDevToken
+            ? data?.user?.id
+              ? data.user
+              : { id: '0', name: 'User' }
+            : data?.user);
+        if (token && user) {
+          setAuthToken(token);
+          useUserStore.getState().login(token, user);
         } else {
-          setAuthToken(DEFAULT_TOKEN);
+          setAuthToken(null);
+          useUserStore.getState().logout();
         }
       })
       .catch(() => {
-        setAuthToken(DEFAULT_TOKEN);
+        setAuthToken(null);
+        useUserStore.getState().logout();
+      })
+      .finally(() => {
+        setAuthHydrated(true);
       });
-  }, []);
+  }, [setAuthHydrated]);
 
   return (
     <SafeAreaProvider>

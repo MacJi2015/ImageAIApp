@@ -104,7 +104,7 @@ imageai://auth/x
 
 ```bash
 # 后端 Firebase Twitter 登录页的完整 URL，授权完成后需重定向到 imageai://auth/x?token=xxx
-X_AUTHORIZE_URL=https://api.ipod.vip:3303/facial/auth/x
+X_AUTHORIZE_URL=https://api.petsai.net/facial/auth/x
 ```
 
 2. 或在 **`src/api/config.ts`** 的 `authConfig.xAuthorizeUrl` 中写死该 URL。

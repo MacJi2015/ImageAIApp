@@ -2,8 +2,7 @@ import { apiConfig } from './config';
 import { ApiError, ApiResponse, RequestConfig } from './types';
 import { useAppStore } from '../store/useAppStore';
 
-let authToken: string | null =
-  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
+let authToken: string | null = null;
 
 /** 401 时尝试刷新 token 的回调，返回 true 表示刷新成功可重试 */
 let on401Callback: (() => Promise<boolean>) | null = null;
@@ -98,10 +97,26 @@ function isLoginRequiredCode(raw: unknown): boolean {
   return LOGIN_REQUIRED_CODES.includes(s);
 }
 
-function openLoginModalIfNeeded(raw: unknown): void {
-  // if (isLoginRequiredCode(raw)) {
-  //   useAppStore.getState().openLoginModal();
-  // }
+/** 供页面判断：是否因登录态失效需引导用户重新登录（与请求层弹窗规则一致） */
+export function isLoginSessionError(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  if (e.statusCode === 401) return true;
+  const c = String(e.code);
+  return LOGIN_REQUIRED_CODES.includes(c);
+}
+
+function openLoginModalIfNeeded(
+  raw: unknown,
+  path: string,
+  responseStatus: number,
+): void {
+  if (isLoginRequiredCode(raw)) {
+    useAppStore.getState().openLoginModal();
+    return;
+  }
+  if (responseStatus === 401 && !isPublicLoginPath(path)) {
+    useAppStore.getState().openLoginModal();
+  }
 }
 
 /**
@@ -218,7 +233,7 @@ export async function request<T = unknown>(
       }
     }
     if (!response.ok) {
-      openLoginModalIfNeeded(raw);
+      openLoginModalIfNeeded(raw, path, response.status);
       logResponse(path, response.status, raw);
       const message =
         isJson && typeof raw === 'object' && raw && 'message' in raw
@@ -243,7 +258,8 @@ export async function request<T = unknown>(
   }
 
   if (isJson && raw && typeof raw === 'object' && isLoginRequiredCode(raw)) {
-    openLoginModalIfNeeded(raw);
+    logResponse(path, response.status, raw);
+    openLoginModalIfNeeded(raw, path, response.status);
     const message = (raw as { message?: string }).message ?? '请登录后再试';
     throw new ApiError(
       String(message),

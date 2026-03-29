@@ -1,5 +1,16 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,12 +20,20 @@ import { dp, hp } from '../../utils/scale';
 import ShareGenIcon from '../../assets/details/share-gen-icon.svg';
 import DownIcon from '../../assets/details/down-icon.svg';
 import { useAppStore } from '../../store';
+import { deleteUserVideo } from '../../api/services/video';
+import { isLoginSessionError } from '../../api/request';
 import { PromptCloseIcon, saveMediaToGallery } from '../../utils';
 import { MediaPreviewPlayer } from '../../components';
 
 type WorkDetailRoute = RouteProp<RootStackParamList, 'WorkDetail'>;
 
-const COLORS = { bg: '#050a14', accent: '#00ffff', card: '#09111f' };
+const COLORS = {
+  bg: '#050a14',
+  accent: '#00ffff',
+  card: '#09111f',
+  deleteModalSurface: '#121a28',
+  deleteModalCancelBg: '#0c131f',
+};
 
 export function WorkDetailScreen() {
   const navigation = useNavigation();
@@ -25,6 +44,8 @@ export function WorkDetailScreen() {
   const imageUri = item.thumbnailUrl ?? item.petImageUrl ?? item.videoUrl ?? '';
   const videoUri = item.videoUrl;
   const [promptVisible, setPromptVisible] = React.useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   const displayDate = useMemo(() => {
@@ -37,14 +58,37 @@ export function WorkDetailScreen() {
       url: videoUri ?? '',
       title: 'Share to get +1 free chance',
       message: 'Share to get +1 free chance',
+      /** 我的作品详情仅此入口，与首页 Detail 分享区分 */
+      showCommunityShareOption: true,
     });
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete', 'Are you sure you want to delete this work?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
-    ]);
+    const id = item.id;
+    if (id == null || typeof id !== 'number') {
+      Alert.alert('Notice', 'Cannot delete this item (missing id).');
+      return;
+    }
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteVideo = async () => {
+    const id = item.id;
+    if (id == null || typeof id !== 'number') return;
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteUserVideo(id);
+      setDeleteConfirmVisible(false);
+      navigation.goBack();
+    } catch (e: unknown) {
+      if (!isLoginSessionError(e)) {
+        const msg = e instanceof Error ? e.message : 'Please try again.';
+        Alert.alert('Delete failed', msg);
+      }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSaveToGallery = () => {
@@ -134,6 +178,49 @@ export function WorkDetailScreen() {
           </View>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.deleteModalRoot}>
+          <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={12} />
+          <View style={styles.deleteModalDim} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => !deleting && setDeleteConfirmVisible(false)}
+          />
+          <View style={styles.deleteModalCenter} pointerEvents="box-none">
+            <View style={styles.deleteModalCard}>
+              <Text style={styles.deleteModalTitle}>Delete Video?</Text>
+              <View style={styles.deleteModalRow}>
+                <TouchableOpacity
+                  style={[styles.deleteModalCancelBtn, deleting && styles.deleteModalBtnDisabled]}
+                  onPress={() => !deleting && setDeleteConfirmVisible(false)}
+                  activeOpacity={0.85}
+                  disabled={deleting}
+                >
+                  <Text style={styles.deleteModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteModalConfirmBtn, deleting && styles.deleteModalBtnDisabled]}
+                  onPress={() => void confirmDeleteVideo()}
+                  activeOpacity={0.85}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <ActivityIndicator size="small" color="#020410" />
+                  ) : (
+                    <Text style={styles.deleteModalConfirmText}>Confirm</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={promptVisible}
@@ -249,6 +336,72 @@ const styles = StyleSheet.create({
     lineHeight: dp(12),
     color: '#3a4a65',
     marginLeft: dp(12),
+  },
+  deleteModalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5, 10, 20, 0.72)',
+  },
+  deleteModalCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: dp(28),
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: dp(320),
+    backgroundColor: COLORS.deleteModalSurface,
+    borderRadius: dp(16),
+    paddingTop: hp(28),
+    paddingBottom: hp(22),
+    paddingHorizontal: dp(20),
+  },
+  deleteModalTitle: {
+    fontSize: dp(18),
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: hp(24),
+  },
+  deleteModalRow: {
+    flexDirection: 'row',
+    gap: dp(12),
+  },
+  deleteModalCancelBtn: {
+    flex: 1,
+    height: hp(48),
+    borderRadius: dp(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    backgroundColor: COLORS.deleteModalCancelBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteModalCancelText: {
+    fontSize: dp(15),
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  deleteModalConfirmBtn: {
+    flex: 1,
+    height: hp(48),
+    borderRadius: dp(12),
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteModalBtnDisabled: {
+    opacity: 0.65,
+  },
+  deleteModalConfirmText: {
+    fontSize: dp(15),
+    fontWeight: '700',
+    color: '#020410',
   },
   promptModalMask: {
     flex: 1,

@@ -1,12 +1,16 @@
+/**
+ * 开发调试用：非空且 App 在 __DEV__ 下启动时，优先使用该 Token 登录（会覆盖本地已存 token）。
+ * 正式发版前请清空或删除，勿将真实 Token 提交到公开仓库。
+ */
+export const DEV_HARDCODED_AUTH_TOKEN =
+  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
+
 /** API 基础配置 */
 export const apiConfig = {
-  baseURL: process.env.API_BASE_URL || 'https://api.ipod.vip:3303/facial',
+  baseURL: process.env.API_BASE_URL || 'https://api.petsai.net/facial',
+  // baseURL: process.env.API_BASE_URL || 'https://api.ipod.vip:3303/facial',
   defaultTimeout: 15000,
 };
-
-/** 写死的默认 token，无 token 时请求层与 store 均使用；登录后会被正式 token 覆盖 */
-export const DEFAULT_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
 
 /** 第三方登录配置：Web Client ID 必须与 GoogleService-Info.plist 中 iOS 客户端同属一个 Firebase 项目，否则会报 invalid_audience */
 export const authConfig = {
@@ -14,8 +18,11 @@ export const authConfig = {
   googleWebClientId:
     process.env.GOOGLE_WEB_CLIENT_ID ||
     '823712304553-3613sgsqo0ipecmfub5nhvulcvc3v3p3.apps.googleusercontent.com',
-  /** TikTok OpenSDK 回调地址（建议配置为 Universal Link / App Link） */
-  tiktokOpenSdkRedirectUri: 'https://example.com/auth/tiktok/callback',
+  /**
+   * TikTok OpenSDK 的 redirect_uri，须与 TikTok 开发者平台、后端兑换接口一致。
+   * 未配置时 OpenSDK 会失败并自动走 WebView OAuth（仍依赖后端 authorize-url）。
+   */
+  tiktokOpenSdkRedirectUri: process.env.TIKTOK_OPENSDK_REDIRECT_URI || '',
   /** X (Twitter) OAuth 2.0 PKCE 回调地址，需与 X 开发者平台及后端配置一致 */
   xRedirectUri: process.env.X_REDIRECT_URI || 'imageai://auth/x',
   /**

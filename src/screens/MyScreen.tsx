@@ -14,6 +14,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore, useAppStore } from '../store';
+import { isLoginSessionError } from '../api/request';
 import { getMyVideos, type AppVideoTask } from '../api/services/video';
 import { getProfile, profileToUserInfo } from '../api/services/user';
 
@@ -33,6 +34,13 @@ const STAT_LABEL_CYAN = '#40D3E5';
 const PREMIUM_BG = '#efe4d4';
 const PREMIUM_TEXT = '#2c241c';
 
+/** 统计数字展示，避免接口返回 undefined / 非数字 / 异常字符串时出现 "undefined" */
+function formatStatInt(n: unknown): string {
+  if (n === '' || n === 'undefined' || n === 'null') return '0';
+  const x = Number(n);
+  return Number.isFinite(x) ? String(Math.max(0, Math.trunc(x))) : '0';
+}
+
 export function MyScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -41,6 +49,8 @@ export function MyScreen() {
   const setUser = useUserStore(state => state.setUser);
   /** 通过是否有 token 判断是否登录 */
   const isLoggedIn = useUserStore(state => !!state.token);
+  const authSessionEpoch = useAppStore(state => state.authSessionEpoch);
+  const authHydrated = useAppStore(state => state.authHydrated);
   const openLoginModal = useAppStore(state => state.openLoginModal);
   const openShareModal = useAppStore(state => state.openShareModal);
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
@@ -48,8 +58,11 @@ export function MyScreen() {
   const colCount = 3;
   const cellSize = (width - 24 - gap * (colCount - 1)) / colCount;
 
-  const displayName = user?.name ?? 'SpacePup';
-  const displayEmail = user?.email ?? 'sparky@petsgo.ai';
+  /** 未登录时不使用假名假邮箱，避免看起来像已登录 */
+  const displayName = isLoggedIn
+    ? (user?.name?.trim() || 'User')
+    : '';
+  const displayEmail = isLoggedIn ? (user?.email?.trim() || '') : '';
   const avatarUri = user?.avatar;
   const isPremium = user?.isPremium ?? false;
   const premiumExpireAt = user?.premiumExpireAt;
@@ -75,28 +88,15 @@ export function MyScreen() {
     setVideoError(null);
     try {
       const res = await getMyVideos({ pageNum: page, pageSize: PAGE_SIZE });
-      setTotalPage(res.totalPage);
-      setVideoTotal(res.totalRecord);
+      setTotalPage(res.totalPage ?? 0);
+      setVideoTotal(res.totalRecord ?? 0);
       setPageNum(page);
       setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '加载失败，请重试';
-      // 登录态失效类错误不在页面上展示，避免影响 UI（可让登录弹窗接管）
-      const normalized = msg.replace(/\s/g, '');
-      const isLoginInvalid =
-        normalized.includes('登录') &&
-        (normalized.includes('失效') ||
-          normalized.includes('未登录') ||
-          normalized.includes('登录态') ||
-          normalized.includes('token') ||
-          normalized.includes('请登录') ||
-          normalized.includes('登录后') ||
-          normalized.includes('登录后重试') ||
-          normalized.includes('登录后再试'));
-
-      if (isLoginInvalid) {
+      // 登录态类错误由 request 层统一 openLoginModal；此处只清错误文案避免与弹窗叠字
+      if (isLoginSessionError(e)) {
         setVideoError(null);
-        openLoginModal();
       } else {
         setVideoError(msg);
       }
@@ -104,15 +104,21 @@ export function MyScreen() {
     } finally {
       setVideoLoading(false);
     }
-  }, [openLoginModal]);
+  }, []);
 
-  /** 进入页面时：已登录则拉取用户基本信息并同步到 store，同时拉取视频列表（focus 时从 store 取最新登录态，避免 tab 预挂载导致闭包陈旧） */
+  /** 进入页面时：无 token 则弹出登录（去掉默认 token 后不会发接口，需主动引导）；已登录则拉 profile + 我的视频 */
   useFocusEffect(
     useCallback(() => {
+      if (!authHydrated) return;
       const hasToken = !!useUserStore.getState().token;
       if (!hasToken) {
-        __DEV__ && console.log('[MyScreen] useFocusEffect: 无 token，跳过 getProfile');
-        return;
+        __DEV__ && console.log('[MyScreen] useFocusEffect: 无 token，打开登录弹窗');
+        const frame = requestAnimationFrame(() => {
+          if (useUserStore.getState().token) return;
+          if (useAppStore.getState().showLoginModal) return;
+          openLoginModal();
+        });
+        return () => cancelAnimationFrame(frame);
       }
       __DEV__ && console.log('[MyScreen] useFocusEffect: 有 token，拉取 getProfile');
       (async () => {
@@ -130,7 +136,7 @@ export function MyScreen() {
         }
       })();
       loadMyVideos(1, false);
-    }, [loadMyVideos, setUser])
+    }, [loadMyVideos, setUser, authSessionEpoch, openLoginModal, authHydrated])
   );
 
   const loadMore = useCallback(() => {
@@ -138,20 +144,27 @@ export function MyScreen() {
     loadMyVideos(pageNum + 1, true);
   }, [videoLoading, pageNum, totalPage, isLoggedIn, loadMyVideos]);
 
-  const likesCount = user?.likesAmount ?? 0;
-  const videosCount = user?.videosAmount ?? videoTotal;
-  const freeQuotaLeft = user?.remainingQuota ?? 3;
+  /** 视频数：优先 profile；未返回时用「我的视频」列表 total，避免界面出现 undefined */
+  const likesStat = formatStatInt(user?.likesAmount);
+  const videosStat = formatStatInt(
+    user?.videosAmount !== undefined && user?.videosAmount !== null
+      ? user.videosAmount
+      : videoTotal
+  );
+  const freeQuotaStat = formatStatInt(user?.remainingQuota);
+  const hasSubEnd = Boolean(premiumExpireAt && !Number.isNaN(new Date(premiumExpireAt).getTime()));
+  const proPlanValue = hasSubEnd ? `${daysRemaining} Left` : '—';
   const statsItems =
     isPremium
       ? [
-          { value: String(videosCount), label: 'VIDEOS' },
-          { value: String(likesCount), label: 'LIKES' },
-          { value: `${daysRemaining} Left`, label: 'PRO MEMBER' },
+          { value: videosStat, label: 'VIDEOS' },
+          { value: likesStat, label: 'LIKES' },
+          { value: proPlanValue, label: 'PRO MEMBER' },
         ]
       : [
-          { value: String(videosCount), label: 'VIDEOS' },
-          { value: String(likesCount), label: 'LIKES' },
-          { value: `${freeQuotaLeft} Left`, label: 'FREE PLAN' },
+          { value: videosStat, label: 'VIDEOS' },
+          { value: likesStat, label: 'LIKES' },
+          { value: `${freeQuotaStat} Left`, label: 'FREE PLAN' },
         ];
 
   const [showCompactHeader, setShowCompactHeader] = useState(false);
@@ -164,6 +177,18 @@ export function MyScreen() {
     },
     []
   );
+
+  /** GET PREMIUM / RENEW NOW：未登录先弹登录，已登录再打开会员购买弹窗 */
+  const handlePremiumCtaPress = useCallback(() => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    openPremiumModal();
+  }, [isLoggedIn, openLoginModal, openPremiumModal]);
+
+  /** 与 MainTabs 绝对定位 Tab 同高：56 + safe bottom，避免最后一行视频被底栏挡住 */
+  const scrollBottomPadding = 56 + Math.max(insets.bottom, 8) + 16;
 
   return (
     <View style={styles.container}>
@@ -205,13 +230,13 @@ export function MyScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* 头像：点击弹出登录弹窗 */}
-        <Pressable style={styles.avatarWrap} onPress={openLoginModal}>
+        {/* 头像 + 编辑入口 */}
+        <View style={styles.avatarWrap}>
           <View style={styles.avatarCircle}>
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
@@ -221,32 +246,39 @@ export function MyScreen() {
           </View>
           <Pressable
             style={styles.editAvatarBtn}
-            onPress={(e) => { e.stopPropagation(); navigation.navigate('EditProfile'); }}
+            onPress={() => navigation.navigate('EditProfile')}
           >
             <Image source={editIcon} style={styles.editAvatarIconImage} resizeMode="contain" />
           </Pressable>
-        </Pressable>
-
-        <View style={styles.profileTextBlock}>
-          <View style={styles.userNameRow}>
-            <Text style={styles.userName}>{displayName}</Text>
-            {isPremium && (
-              <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>PRO</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.userEmail}>{displayEmail}</Text>
         </View>
 
-        {/* 统计栏：会员版第三项 PRO MEMBER 点击弹出购买/续费弹窗；免费版第三项 FREE PLAN 点击弹出分享弹窗 */}
+        {isLoggedIn ? (
+          <View style={styles.profileTextBlock}>
+            <View style={styles.userNameRow}>
+              <Text style={styles.userName}>{displayName}</Text>
+              {isPremium && (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              )}
+            </View>
+            {displayEmail ? <Text style={styles.userEmail}>{displayEmail}</Text> : null}
+          </View>
+        ) : null}
+
+        {/* 统计栏：会员第三项 PRO MEMBER、免费第三项 FREE PLAN 可点（续费 / 分享） */}
         <View style={styles.statsBar}>
           {statsItems.map((item, index) => {
             const isPlanItem = index === statsItems.length - 1;
             if (isPlanItem) {
               const onPlanPress = isPremium
-                ? openPremiumModal
-                : () => openShareModal({ title: 'ImageAI', message: 'Turn your pets into superstar!' });
+                ? handlePremiumCtaPress
+                : () =>
+                    openShareModal({
+                      title: 'ImageAI',
+                      message: 'Turn your pets into superstar!',
+                      showCommunityShareOption: true,
+                    });
               return (
                 <Pressable
                   key={item.label}
@@ -255,8 +287,15 @@ export function MyScreen() {
                 >
                   <View style={styles.statItem}>
                     {index > 0 && <View style={styles.statDivider} />}
-                    <Text style={styles.statValue}>{item.value}</Text>
-                    <Text style={styles.statLabel}>{item.label}</Text>
+                    <Text style={styles.statValue}>{item.value ?? '0'}</Text>
+                    <Text
+                      style={[
+                        styles.statLabel,
+                        item.label === 'PRO MEMBER' && styles.statLabelProMember,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
                   </View>
                 </Pressable>
               );
@@ -264,38 +303,50 @@ export function MyScreen() {
             return (
               <View key={item.label} style={styles.statItem}>
                 {index > 0 && <View style={styles.statDivider} />}
-                <Text style={styles.statValue}>{item.value}</Text>
-                <Text style={styles.statLabel}>{item.label}</Text>
+                <Text style={styles.statValue}>{item.value ?? '0'}</Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    item.label === 'PRO MEMBER' && styles.statLabelProMember,
+                  ]}
+                >
+                  {item.label}
+                </Text>
               </View>
             );
           })}
         </View>
 
-        {/* 免费版：胶囊条内图标+GET PREMIUM 整体居中；会员版：RENEW NOW 与剩余天数两端分布 */}
+        {/* 免费版：图标+GET PREMIUM 居中；会员版：图标+RENEW NOW+剩余天数 同一行整体居中（设计稿） */}
         <Pressable
           style={[styles.premiumBtn, isPremium ? styles.premiumBtnMember : styles.premiumBtnFree]}
-          onPress={openPremiumModal}
+          onPress={handlePremiumCtaPress}
         >
-          <Image source={vipIcon} style={styles.premiumIconImage} resizeMode="contain" />
           {isPremium ? (
-            <View style={styles.premiumTextRow}>
-              <Text style={styles.premiumTextMember} numberOfLines={1}>
-                RENEW NOW
-              </Text>
-              <Text style={styles.premiumSubtext} numberOfLines={1}>
-                {premiumExpireAt
-                  ? `${daysRemaining} days remaining`
-                  : '28 days remaining'}
-              </Text>
+            <View style={styles.premiumMemberRow}>
+              <Image source={vipIcon} style={styles.premiumIconImage} resizeMode="contain" />
+              <View style={styles.premiumMemberTitles}>
+                <Text style={styles.premiumTextMember} numberOfLines={1}>
+                  RENEW NOW
+                </Text>
+                <Text style={styles.premiumSubtextMember} numberOfLines={1}>
+                  {hasSubEnd
+                    ? `${daysRemaining} days remaining`
+                    : 'No expiry date'}
+                </Text>
+              </View>
             </View>
           ) : (
-            <Text style={styles.premiumTextFree} numberOfLines={1}>
-              GET PREMIUM
-            </Text>
+            <>
+              <Image source={vipIcon} style={styles.premiumIconImage} resizeMode="contain" />
+              <Text style={styles.premiumTextFree} numberOfLines={1}>
+                GET PREMIUM
+              </Text>
+            </>
           )}
         </Pressable>
 
-        {/* 用户创作的视频列表：仅展示接口数据；已登录且列表为空时不展示占位文案 */}
+        {/* 用户创作的视频列表：仅展示接口数据；未登录不展示提示文案（由登录弹窗引导） */}
         <View style={[styles.grid, { marginTop: 24 }]}>
           {isLoggedIn && !videoError && videoLoading && videoList.length === 0 ? (
             <View style={styles.gridLoadingWrap}>
@@ -306,11 +357,7 @@ export function MyScreen() {
             <View style={styles.gridEmptyWrap}>
               <Text style={styles.gridEmptyText}>{videoError}</Text>
             </View>
-          ) : !isLoggedIn ? (
-            <View style={styles.gridEmptyWrap}>
-              <Text style={styles.gridEmptyText}>登录后在此查看你的作品</Text>
-            </View>
-          ) : videoList.length > 0 ? (
+          ) : !isLoggedIn ? null : videoList.length > 0 ? (
             <>
               {videoList.map((item, index) => {
                 const dateStr = item.createdTime
@@ -457,7 +504,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingBottom: 32,
     alignItems: 'center',
   },
   avatarWrap: {
@@ -577,6 +623,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textAlign: 'center',
   },
+  statLabelProMember: {
+    color: '#FFEFD3',
+  },
   premiumBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -593,23 +642,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 10,
   },
-  /** 会员续费：左图标 + 右侧文案行拉满 */
+  /** 会员续费：钻石标 + 主副文案成组水平居中 */
   premiumBtnMember: {
-    justifyContent: 'flex-start',
-    paddingHorizontal: 22,
-    gap: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
   },
   premiumIconImage: {
     width: 22,
     height: 22,
   },
-  premiumTextRow: {
-    flex: 1,
+  premiumMemberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    maxWidth: '100%',
     gap: 10,
+  },
+  premiumMemberTitles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     minWidth: 0,
+    flexShrink: 1,
   },
   premiumTextFree: {
     fontFamily: 'Space Grotesk',
@@ -627,14 +681,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     flexShrink: 1,
   },
-  premiumSubtext: {
+  /** 副文案：较轻字重、略浅色，与主标题间距由 premiumMemberTitles.gap 控制 */
+  premiumSubtextMember: {
     fontFamily: 'Space Grotesk',
-    flexShrink: 0,
     fontSize: 12,
-    fontWeight: '600',
-    color: PREMIUM_TEXT,
-    opacity: 0.78,
+    fontWeight: '400',
+    color: '#5F5B57',
     letterSpacing: 0.2,
+    flexShrink: 1,
   },
   grid: {
     flexDirection: 'row',

@@ -50,7 +50,13 @@ function showSdkNotSupported(appName: string): void {
 
 /** 是否为“需在应用内登录”类错误（Facebook 等会返回） */
 function isLoginRequiredError(e: unknown): boolean {
-  const msg = String((e as { message?: string })?.message ?? '').toLowerCase();
+  const raw =
+    typeof e === 'string'
+      ? e
+      : String(
+          (e as { message?: string })?.message ?? (e instanceof Error ? e.message : '') ?? ''
+        );
+  const msg = raw.toLowerCase();
   return (
     /login|登录|sign\s*in|account|未登录|未授权|authorize|auth/i.test(msg) ||
     msg.includes('user must be logged in') ||
@@ -78,7 +84,7 @@ function isSdkNotSupportedError(e: unknown): boolean {
   );
 }
 
-/** Facebook：使用 Facebook SDK 单平台分享 */
+/** Facebook：仅走 react-native-share 的 shareSingle，直达 Facebook */
 export async function shareToFacebook(payload: SharePayload): Promise<void> {
   const installed = await isAppInstalled('fb://', 'com.facebook.katana');
   if (!installed) {

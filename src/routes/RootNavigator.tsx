@@ -20,7 +20,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, ShareModal, PremiumModal, SplashScreen } from '../components';
+import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, SplashScreen } from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -125,6 +125,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
 
   const showLoginModal = useAppStore(s => s.showLoginModal);
   const closeLoginModal = useAppStore(s => s.closeLoginModal);
+  const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
   const showShareModal = useAppStore(s => s.showShareModal);
   const closeShareModal = useAppStore(s => s.closeShareModal);
   const sharePayload = useAppStore(s => s.sharePayload);
@@ -426,6 +427,8 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       onX={handleX}
       onTikTok={handleTikTok}
     />
+    {/* iOS 上双 Modal 叠层后一层常不显示；登录弹窗打开时在 LoginModal 内展示 loading；此处仅弹窗关闭时（如 OAuth 深链兑换） */}
+    <LoginSubmittingOverlay visible={socialLoginSubmitting && !showLoginModal} />
     <ShareModal
       visible={showShareModal}
       onClose={closeShareModal}

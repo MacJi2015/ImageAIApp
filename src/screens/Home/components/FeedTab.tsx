@@ -99,9 +99,14 @@ export interface FeedTabRef {
 
 interface FeedTabProps {
   refreshKey?: number;
+  /** 登录成功等导致会话变化时递增，用于在未下拉刷新时重新拉取 Feed */
+  authSessionEpoch?: number;
 }
 
-export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ refreshKey }, ref) {
+export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
+  { refreshKey, authSessionEpoch = 0 },
+  ref,
+) {
   const navigation = useNavigation<Nav>();
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
@@ -148,7 +153,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab({ r
 
   useEffect(() => {
     refresh();
-  }, [refresh, refreshKey]);
+  }, [refresh, refreshKey, authSessionEpoch]);
 
   const handleLikePress = useCallback(
     (item: FeedItem, e?: { stopPropagation?: () => void }) => {

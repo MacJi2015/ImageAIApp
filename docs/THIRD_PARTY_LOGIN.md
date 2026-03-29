@@ -2,7 +2,7 @@
 
 ## 当前对接接口
 
-- **Base URL**：`https://api.ipod.vip:3303/facial`
+- **Base URL**：`https://api.petsai.net/facial`
 - **登录接口**：`POST /app/user/snsThreePartyLogin`（后端校验 **Firebase ID Token**）
 
 ## 前端流程（Firebase）

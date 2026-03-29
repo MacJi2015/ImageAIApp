@@ -17,13 +17,14 @@ import { FeedTab, type FeedTabRef } from './components/FeedTab';
 import logoIcon from '../../assets/logoIcon.png';
 import homeTips from '../../assets/home-tips.png';
 import { dp, hp } from '../../utils/scale';
-import { useUserStore } from '../../store/useUserStore';
+import { useAppStore, useUserStore } from '../../store';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const user = useUserStore((s) => s.user);
+  const authSessionEpoch = useAppStore((s) => s.authSessionEpoch);
   const isPro = user?.userType === 'Pro' || user?.isPremium === true;
   const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -200,9 +201,9 @@ export function HomeScreen() {
         {renderHeroBlock()}
         {renderTabBar()}
         {activeTab === 'feed' ? (
-          <FeedTab ref={feedTabRef} refreshKey={refreshKey} />
+          <FeedTab ref={feedTabRef} refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
         ) : (
-          <EffectsTab refreshKey={refreshKey} />
+          <EffectsTab refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
         )}
       </ScrollView>
       {renderStickyOverlay()}

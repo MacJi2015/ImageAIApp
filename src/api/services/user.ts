@@ -39,12 +39,18 @@ export interface UserProfile {
   isPremium?: boolean;
   /** 会员到期日，如 "2025-03-24" */
   premiumExpireAt?: string;
+  /** 订阅结束时间（付费用户，与 premiumExpireAt 二选一或并存） */
+  subscriptionEndTime?: string;
   /** 会员类型枚举：Free | Pro（动态字段，文档可能未体现） */
   userType?: 'Free' | 'Pro';
   /** 获赞个数（动态字段） */
   likesAmount?: number;
+  /** 与 likesAmount 同义（部分后端 DTO 命名） */
+  totalLikes?: number;
   /** 视频数量（动态字段） */
   videosAmount?: number;
+  /** 与 videosAmount 同义（部分后端 DTO 命名） */
+  totalVideos?: number;
   /** 剩余可用次数（动态字段） */
   remainingQuota?: number;
 }
@@ -96,16 +102,17 @@ export async function updateProfile(params: UpdateUserProfileParam): Promise<boo
 /** 将接口 UserProfile 转为应用内 UserInfo，便于写入 store；isPremium 优先用接口字段，否则由 userType === 'Pro' 推导 */
 export function profileToUserInfo(p: UserProfile): UserInfo {
   const isPremium = p.isPremium ?? p.userType === 'Pro';
+  const premiumExpireAt = p.premiumExpireAt ?? p.subscriptionEndTime;
   return {
     id: p.id != null ? String(p.id) : '',
     name: p.name ?? p.nickname ?? '',
     avatar: p.userAvatar,
     email: p.email,
     isPremium,
-    premiumExpireAt: p.premiumExpireAt,
+    premiumExpireAt,
     userType: p.userType,
-    likesAmount: p.likesAmount,
-    videosAmount: p.videosAmount,
+    likesAmount: p.likesAmount ?? p.totalLikes,
+    videosAmount: p.videosAmount ?? p.totalVideos,
     remainingQuota: p.remainingQuota,
   };
 }

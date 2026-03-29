@@ -3,6 +3,7 @@ import {
   Alert,
   Image,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,6 +31,9 @@ const COLORS = {
   title: '#FFFFFF',
   iconCircle: '#0b121c',
   iconCircleBorder: 'rgba(0, 255, 255, 0.18)',
+  communityLabel: 'rgba(140, 160, 190, 0.95)',
+  checkboxOn: '#00E8DC',
+  checkboxOffBorder: 'rgba(0, 255, 255, 0.35)',
 };
 
 export type ShareModalProps = {
@@ -79,10 +83,29 @@ export function ShareModal({
   onTikTok,
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
+  const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
+
+  const showCommunityOption = payload?.showCommunityShareOption === true;
+
+  React.useEffect(() => {
+    if (visible && showCommunityOption) {
+      setAlsoShareToCommunity(true);
+    }
+  }, [visible, showCommunityOption]);
+
   const sharePayload: SharePayload = React.useMemo(
     () => payload ?? { message: getRandomDefaultMessage() },
     [payload]
   );
+
+  /** 去掉仅弹窗 UI 使用的字段；勾选状态仅在 showCommunityShareOption 时写入 shareToCommunity */
+  const payloadForShare = React.useMemo((): SharePayload => {
+    const { showCommunityShareOption: _omit, ...rest } = sharePayload;
+    if (showCommunityOption) {
+      return { ...rest, shareToCommunity: alsoShareToCommunity };
+    }
+    return rest;
+  }, [sharePayload, alsoShareToCommunity, showCommunityOption]);
 
   const handlers = {
     facebook: onFacebook ?? fallbackShare,
@@ -137,13 +160,35 @@ export function ShareModal({
                 onPress={() => {
                   // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
                   onClose();
-                  setTimeout(() => handlers[key](sharePayload), 650);
+                  setTimeout(() => handlers[key](payloadForShare), 650);
                 }}
               >
                 <Image source={source} style={styles.shareIconImage} resizeMode="contain" />
               </TouchableOpacity>
             ))}
           </View>
+
+          {showCommunityOption ? (
+            <Pressable
+              style={({ pressed }) => [styles.communityRow, pressed && styles.communityRowPressed]}
+              onPress={() => setAlsoShareToCommunity(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: alsoShareToCommunity }}
+              accessibilityLabel="Also share to the PetsGO community"
+            >
+              <View
+                style={[
+                  styles.checkboxOuter,
+                  alsoShareToCommunity ? styles.checkboxOuterOn : styles.checkboxOuterOff,
+                ]}
+              >
+                {alsoShareToCommunity ? (
+                  <Text style={styles.checkboxMark}>✓</Text>
+                ) : null}
+              </View>
+              <Text style={styles.communityLabel}>Also share to the PetsGO community</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -225,7 +270,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 4,
-    paddingBottom: 8,
+    paddingBottom: 4,
+  },
+  communityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignSelf: 'center',
+    maxWidth: '100%',
+  },
+  communityRowPressed: {
+    opacity: 0.85,
+  },
+  checkboxOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxOuterOn: {
+    backgroundColor: COLORS.checkboxOn,
+  },
+  checkboxOuterOff: {
+    borderWidth: 2,
+    borderColor: COLORS.checkboxOffBorder,
+    backgroundColor: 'transparent',
+  },
+  checkboxMark: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#020308',
+    marginTop: -1,
+  },
+  communityLabel: {
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: COLORS.communityLabel,
+    fontFamily: 'Space Grotesk',
+    lineHeight: 20,
+    textAlign: 'left',
   },
   iconCircle: {
     width: 58,

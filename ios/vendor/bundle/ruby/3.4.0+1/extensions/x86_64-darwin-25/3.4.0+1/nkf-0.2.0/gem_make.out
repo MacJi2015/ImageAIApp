@@ -1,0 +1,18 @@
+current directory: /Users/huahua/Documents/lianqicloud/imageAIapp/ImageAIApp/ios/vendor/bundle/ruby/3.4.0+1/gems/nkf-0.2.0/ext/nkf
+/Users/huahua/.rvm/rubies/ruby-3.4.0/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/huahua/Documents/lianqicloud/imageAIapp/ImageAIApp/ios/vendor/bundle/ruby/3.4.0+1/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20260328-99917-9rjdu6 sitelibdir\=./.gem.20260328-99917-9rjdu6 clean
+
+current directory: /Users/huahua/Documents/lianqicloud/imageAIapp/ImageAIApp/ios/vendor/bundle/ruby/3.4.0+1/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20260328-99917-9rjdu6 sitelibdir\=./.gem.20260328-99917-9rjdu6
+compiling nkf.c
+linking shared-object nkf.bundle
+
+current directory: /Users/huahua/Documents/lianqicloud/imageAIapp/ImageAIApp/ios/vendor/bundle/ruby/3.4.0+1/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20260328-99917-9rjdu6 sitelibdir\=./.gem.20260328-99917-9rjdu6 install
+/usr/local/opt/coreutils/bin/ginstall -c -m 0755 nkf.bundle ./.gem.20260328-99917-9rjdu6
+
+current directory: /Users/huahua/Documents/lianqicloud/imageAIapp/ImageAIApp/ios/vendor/bundle/ruby/3.4.0+1/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20260328-99917-9rjdu6 sitelibdir\=./.gem.20260328-99917-9rjdu6 clean

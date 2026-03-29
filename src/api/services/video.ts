@@ -130,3 +130,21 @@ export async function getVideoTaskStatus(
   );
   return (res as unknown as { entry: VideoTaskResponse }).entry;
 }
+
+/**
+ * 删除用户视频任务（同时删除关联社区 Feed）
+ * POST app/user/deleteVideo?id=...，Content-Type: application/x-www-form-urlencoded；token 由 request 层 header 携带
+ */
+export async function deleteUserVideo(id: number): Promise<boolean> {
+  const res = await post<unknown>('app/user/deleteVideo', undefined, {
+    params: { id },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (typeof res === 'boolean') return res;
+  if (res && typeof res === 'object') {
+    const o = res as Record<string, unknown>;
+    if (typeof o.entry === 'boolean') return o.entry;
+    if (typeof o.data === 'boolean') return o.data;
+  }
+  return true;
+}

@@ -64,6 +64,7 @@ export function DetailsScreen() {
   const insets = useSafeAreaInsets();
   const openShareModal = useAppStore((s) => s.openShareModal);
   const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const authSessionEpoch = useAppStore((s) => s.authSessionEpoch);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const { id, source } = route.params;
   const isEffect = source === 'effect';
@@ -138,7 +139,7 @@ export function DetailsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, isEffect]);
+  }, [id, isEffect, isEffect ? 0 : authSessionEpoch]);
 
   const handleToggleLike = useCallback(async () => {
     if (isEffect) return;

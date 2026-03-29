@@ -23,7 +23,7 @@ import {
   exchangeXCode,
   exchangeTikTokSdkCode,
 } from '../api/services/auth';
-import { useUserStore, type UserInfo } from '../store';
+import { useAppStore, useUserStore, type UserInfo } from '../store';
 import { saveAuth } from './authStorage';
 
 /** 从当前已登录的 Firebase 用户获取 idToken，兼容模拟器下 user 方法未绑定的情况 */
@@ -90,10 +90,26 @@ const LOG_TAG = '[AppleLogin]';
 
 type LoginFromValue = (typeof LoginFrom)[keyof typeof LoginFrom];
 
+/** 调后端 snsThreePartyLogin / 写入本地登录态期间展示全局加载层 */
+async function withSocialLoginLoading<T>(fn: () => Promise<T>): Promise<T> {
+  const { setSocialLoginSubmitting } = useAppStore.getState();
+  setSocialLoginSubmitting(true);
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => resolve());
+  });
+  try {
+    return await fn();
+  } finally {
+    setSocialLoginSubmitting(false);
+  }
+}
+
 /** 统一登录收敛：Firebase idToken -> 后端 snsThreePartyLogin -> 本地写入登录态 */
 async function applyFirebaseIdTokenLogin(idToken: string, loginFrom: LoginFromValue): Promise<void> {
-  const result = await snsThreePartyLogin({ idToken, loginFrom });
-  await applyLoginResult(result.token, result.user);
+  await withSocialLoginLoading(async () => {
+    const result = await snsThreePartyLogin({ idToken, loginFrom });
+    await applyLoginResult(result.token, result.user);
+  });
 }
 
 /** Apple 登录：Apple Sign In → Firebase credential → Firebase idToken → 后端 snsThreePartyLogin */
@@ -136,42 +152,47 @@ export async function loginWithApple(): Promise<boolean> {
     if (__DEV__) console.warn(LOG_TAG, '4. Firebase idToken 长度:', firebaseIdToken?.length ?? 0);
 
     if (__DEV__) console.warn(LOG_TAG, '5. 调用后端 snsThreePartyLogin...');
-    const result = await snsThreePartyLogin({ idToken: firebaseIdToken, loginFrom: LoginFrom.Apple });
-    if (__DEV__) console.warn(LOG_TAG, '5. 后端登录成功');
+    let appleBackendOk = false;
+    await withSocialLoginLoading(async () => {
+      const result = await snsThreePartyLogin({ idToken: firebaseIdToken, loginFrom: LoginFrom.Apple });
+      if (__DEV__) console.warn(LOG_TAG, '5. 后端登录成功');
 
-    if (result.token == null || result.token === '') {
-      if (__DEV__) console.warn(LOG_TAG, '[监控] 后端未返回 token，无法完成登录');
-      Alert.alert('登录失败', '后端未返回登录凭证，请稍后重试或联系客服');
-      return false;
-    }
-
-    if (__DEV__) {
-      console.warn(LOG_TAG, '[监控] result.token 类型:', typeof result?.token, 'result.user 类型:', typeof result?.user);
-      console.warn(LOG_TAG, '[监控] setAuthToken 类型:', typeof setAuthToken);
-      console.warn(LOG_TAG, '[监控] useUserStore.getState 类型:', typeof useUserStore.getState);
-      console.warn(LOG_TAG, '[监控] saveAuth 类型:', typeof saveAuth);
-    }
-
-    const stepTry = async (stepName: string, fn: () => void | Promise<void>) => {
-      try {
-        await fn();
-      } catch (stepErr) {
-        if (__DEV__) console.warn(LOG_TAG, '[监控] 步骤抛出:', stepName, stepErr);
-        throw stepErr;
+      if (result.token == null || result.token === '') {
+        if (__DEV__) console.warn(LOG_TAG, '[监控] 后端未返回 token，无法完成登录');
+        Alert.alert('登录失败', '后端未返回登录凭证，请稍后重试或联系客服');
+        return;
       }
-    };
 
-    let user: UserInfo;
-    await stepTry('0 构建 user', () => {
-      const name = fullName?.givenName && fullName?.familyName
-        ? `${fullName.givenName} ${fullName.familyName}`.trim()
-        : result.user?.name ?? 'User';
-      user = { ...(result.user ?? {}), name: (result.user?.name || name) || 'User' } as UserInfo;
+      if (__DEV__) {
+        console.warn(LOG_TAG, '[监控] result.token 类型:', typeof result?.token, 'result.user 类型:', typeof result?.user);
+        console.warn(LOG_TAG, '[监控] setAuthToken 类型:', typeof setAuthToken);
+        console.warn(LOG_TAG, '[监控] useUserStore.getState 类型:', typeof useUserStore.getState);
+        console.warn(LOG_TAG, '[监控] saveAuth 类型:', typeof saveAuth);
+      }
+
+      const stepTry = async (stepName: string, fn: () => void | Promise<void>) => {
+        try {
+          await fn();
+        } catch (stepErr) {
+          if (__DEV__) console.warn(LOG_TAG, '[监控] 步骤抛出:', stepName, stepErr);
+          throw stepErr;
+        }
+      };
+
+      let user: UserInfo;
+      await stepTry('0 构建 user', () => {
+        const name = fullName?.givenName && fullName?.familyName
+          ? `${fullName.givenName} ${fullName.familyName}`.trim()
+          : result.user?.name ?? 'User';
+        user = { ...(result.user ?? {}), name: (result.user?.name || name) || 'User' } as UserInfo;
+      });
+
+      await stepTry('A applyLoginResult', () => applyLoginResult(result.token, user));
+      appleBackendOk = true;
     });
 
-    await stepTry('A applyLoginResult', () => applyLoginResult(result.token, user));
-    if (__DEV__) console.warn(LOG_TAG, '6. 登录完成');
-    return true;
+    if (__DEV__ && appleBackendOk) console.warn(LOG_TAG, '6. 登录完成');
+    return appleBackendOk;
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string; response?: { data?: unknown }; cause?: unknown; statusCode?: number; data?: unknown };
     if (__DEV__) {
@@ -186,16 +207,20 @@ export async function loginWithApple(): Promise<boolean> {
     }
     if (err.code === appleAuth.Error.CANCELED) return false;
     const errMsg = typeof err?.message === 'string' ? err.message : String(e);
+    const isFirebaseNetwork =
+      err.code === 'auth/network-request-failed' || errMsg.includes('network-request-failed');
     const isFirebaseAudience =
       err.code === 1170010001 ||
       String(err?.code) === '1170010001' ||
       errMsg.includes('Firebase') ||
       (errMsg.includes('aud') && errMsg.includes('Expected'));
-    const message = isFirebaseAudience
-      ? 'App 与后端使用的 Firebase 项目不一致。\n\n请二选一：\n1) 后端改用与 App 相同的 Firebase 项目（imageapp-1553c）校验 token；\n2) 或将 App 的 Firebase 配置改为后端使用的项目（facial-magic）。'
-      : (err.code === appleAuth.Error.UNKNOWN || errMsg.includes('1000'))
-        ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
-        : errMsg;
+    const message = isFirebaseNetwork
+      ? '无法连接 Firebase 认证服务（网络错误）。Apple 登录已成功，但向 Google/Firebase 校验凭证需要访问外网。\n\n请检查：Wi‑Fi/蜂窝是否正常；是否需切换网络或使用可访问 Google 服务的网络环境后再试。'
+      : isFirebaseAudience
+        ? 'App 与后端使用的 Firebase 项目不一致。\n\n请二选一：\n1) 后端改用与 App 相同的 Firebase 项目（imageapp-1553c）校验 token；\n2) 或将 App 的 Firebase 配置改为后端使用的项目（facial-magic）。'
+        : (err.code === appleAuth.Error.UNKNOWN || errMsg.includes('1000'))
+          ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
+          : errMsg;
     Alert.alert('Apple 登录失败', message);
     return false;
   }
@@ -444,6 +469,7 @@ type TikTokSdkLoginResult = 'success' | 'fallback' | 'cancelled';
 function applyLoginResult(token: string, user: UserInfo): Promise<void> {
   setAuthToken(token);
   useUserStore.getState().login(token, user);
+  useAppStore.getState().notifyAuthSessionChanged();
   return saveAuth(token, user);
 }
 

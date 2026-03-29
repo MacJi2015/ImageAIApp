@@ -105,9 +105,10 @@ function EffectCard({
 
 interface EffectsTabProps {
   refreshKey?: number;
+  authSessionEpoch?: number;
 }
 
-export function EffectsTab({ refreshKey }: EffectsTabProps) {
+export function EffectsTab({ refreshKey, authSessionEpoch = 0 }: EffectsTabProps) {
   const [list, setList] = useState<AppVideoTemplate[]>([]);
   const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>('idle');
 
@@ -126,7 +127,7 @@ export function EffectsTab({ refreshKey }: EffectsTabProps) {
 
   useEffect(() => {
     loadData();
-  }, [loadData, refreshKey]);
+  }, [loadData, refreshKey, authSessionEpoch]);
 
   if (status === LOADING) {
     return (
