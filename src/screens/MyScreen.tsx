@@ -52,7 +52,6 @@ export function MyScreen() {
   const authSessionEpoch = useAppStore(state => state.authSessionEpoch);
   const authHydrated = useAppStore(state => state.authHydrated);
   const openLoginModal = useAppStore(state => state.openLoginModal);
-  const openShareModal = useAppStore(state => state.openShareModal);
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
   const gap = 8;
   const colCount = 3;
@@ -80,10 +79,13 @@ export function MyScreen() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [totalPage, setTotalPage] = useState(0);
+  /** 避免首帧在「未请求 / 请求中」时误显示「暂无数据」 */
+  const [myVideosFetched, setMyVideosFetched] = useState(false);
   const PAGE_SIZE = 20;
 
   const loadMyVideos = useCallback(async (page: number = 1, append = false) => {
     if (!useUserStore.getState().token) return;
+    if (page === 1 && !append) setMyVideosFetched(false);
     setVideoLoading(true);
     setVideoError(null);
     try {
@@ -103,6 +105,7 @@ export function MyScreen() {
       if (!append) setVideoList([]);
     } finally {
       setVideoLoading(false);
+      setMyVideosFetched(true);
     }
   }, []);
 
@@ -187,6 +190,15 @@ export function MyScreen() {
     openPremiumModal();
   }, [isLoggedIn, openLoginModal, openPremiumModal]);
 
+  /** 编辑资料：无 token 时先引导登录 */
+  const handleEditProfilePress = useCallback(() => {
+    if (!useUserStore.getState().token) {
+      openLoginModal();
+      return;
+    }
+    navigation.navigate('EditProfile');
+  }, [navigation, openLoginModal]);
+
   /** 与 MainTabs 绝对定位 Tab 同高：56 + safe bottom，避免最后一行视频被底栏挡住 */
   const scrollBottomPadding = 56 + Math.max(insets.bottom, 8) + 16;
 
@@ -244,10 +256,7 @@ export function MyScreen() {
               <Image source={defaultAvatar} style={styles.avatarImage} resizeMode="cover" />
             )}
           </View>
-          <Pressable
-            style={styles.editAvatarBtn}
-            onPress={() => navigation.navigate('EditProfile')}
-          >
+          <Pressable style={styles.editAvatarBtn} onPress={handleEditProfilePress}>
             <Image source={editIcon} style={styles.editAvatarIconImage} resizeMode="contain" />
           </Pressable>
         </View>
@@ -266,24 +275,16 @@ export function MyScreen() {
           </View>
         ) : null}
 
-        {/* 统计栏：会员第三项 PRO MEMBER、免费第三项 FREE PLAN 可点（续费 / 分享） */}
+        {/* 统计栏：仅会员第三项 PRO MEMBER 可点（续费）；FREE PLAN 仅展示 */}
         <View style={styles.statsBar}>
           {statsItems.map((item, index) => {
             const isPlanItem = index === statsItems.length - 1;
-            if (isPlanItem) {
-              const onPlanPress = isPremium
-                ? handlePremiumCtaPress
-                : () =>
-                    openShareModal({
-                      title: 'ImageAI',
-                      message: 'Turn your pets into superstar!',
-                      showCommunityShareOption: true,
-                    });
+            if (isPlanItem && isPremium) {
               return (
                 <Pressable
                   key={item.label}
                   style={({ pressed }) => [styles.statItemPressable, pressed && styles.statItemPressed]}
-                  onPress={onPlanPress}
+                  onPress={handlePremiumCtaPress}
                 >
                   <View style={styles.statItem}>
                     {index > 0 && <View style={styles.statDivider} />}
@@ -348,7 +349,10 @@ export function MyScreen() {
 
         {/* 用户创作的视频列表：仅展示接口数据；未登录不展示提示文案（由登录弹窗引导） */}
         <View style={[styles.grid, { marginTop: 24 }]}>
-          {isLoggedIn && !videoError && videoLoading && videoList.length === 0 ? (
+          {isLoggedIn &&
+          !videoError &&
+          videoList.length === 0 &&
+          (!myVideosFetched || videoLoading) ? (
             <View style={styles.gridLoadingWrap}>
               <ActivityIndicator size="large" color={ACCENT} />
               <Text style={styles.gridEmptyText}>加载中...</Text>
@@ -425,6 +429,10 @@ export function MyScreen() {
                 </View>
               )}
             </>
+          ) : isLoggedIn && myVideosFetched && !videoLoading ? (
+            <View style={styles.gridEmptyWrap}>
+              {/* <Text style={styles.gridEmptyText}>暂无数据</Text> */}
+            </View>
           ) : null}
         </View>
         {isLoggedIn && videoList.length > 0 && pageNum < totalPage && !videoLoading && (

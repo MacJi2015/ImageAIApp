@@ -31,9 +31,11 @@ import {
   getTikTokAuthUrl,
   loginWithXPreferPKCE,
   loginWithTikTokPreferSdk,
+  loginWithXUsingAuthSession,
   exchangeWithIdToken,
   exchangeXCodeFromDeepLink,
 } from '../services/thirdPartyAuth';
+import { AUTH_DEEP_LINK_PREFIX, parseAuthCallbackUrl } from '../utils/authDeepLink';
 import {
   shareToFacebook,
   shareToInstagram,
@@ -73,37 +75,12 @@ function SplashRouteScreen() {
   );
 }
 
-/** OAuth 回调：imageai://auth/instagram?token=xxx / imageai://auth/x?token=xxx 或 ?code=xxx&state=xxx（PKCE）/ imageai://auth/tiktok?token=xxx */
-const AUTH_DEEP_LINK_PREFIX = 'imageai://auth/';
-
-type AuthCallbackResult =
-  | { type: 'token'; loginFrom: 7 | 8 | 9; idToken: string }
-  | { type: 'x_code'; code: string; state: string };
-
-function parseAuthCallbackUrl(url: string): AuthCallbackResult | null {
-  if (!url.startsWith(AUTH_DEEP_LINK_PREFIX)) return null;
-  const path = url.slice(AUTH_DEEP_LINK_PREFIX.length);
-  const [provider, query] = path.split('?');
-  if (!query) return null;
-  const params = new URLSearchParams(query);
-  const code = params.get('code');
-  const state = params.get('state');
-  if (provider === 'x' && code && state) {
-    return { type: 'x_code', code, state };
-  }
-  const token = params.get('token');
-  if (!token) return null;
-  if (provider === 'instagram') return { type: 'token', loginFrom: 7, idToken: token };
-  if (provider === 'x') return { type: 'token', loginFrom: 8, idToken: token };
-  if (provider === 'tiktok') return { type: 'token', loginFrom: 9, idToken: token };
-  return null;
-}
-
 type RootNavigatorProps = {
   navigationRef: React.RefObject<{
     navigate: (name: keyof RootStackParamList, params?: RootStackParamList[keyof RootStackParamList]) => void;
     goBack: () => void;
     isReady: () => boolean;
+    getRootState: () => { index: number; routes: { name: keyof RootStackParamList }[] };
   } | null>;
 };
 
@@ -294,6 +271,28 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     const url = await getXAuthUrl();
     if (url) {
       closeLoginModal();
+      const isHttp = url.startsWith('https://') || url.startsWith('http://');
+      /**
+       * iOS/Android：优先 ASWebAuthenticationSession / Chrome Custom Tabs（openAuth）。
+       * 授权页跳转到 imageai://auth/x?token=… 时由系统把 URL 直接交给本调用，不依赖外部 Safari 能否唤起 App（解决「一直停在 Safari」）。
+       */
+      if (isHttp && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+        const sessionResult = await loginWithXUsingAuthSession(url);
+        if (sessionResult === 'ok' || sessionResult === 'aborted') return;
+        // fallback：未拉起认证会话时再尝试外开浏览器
+      }
+      /** 回退：外开系统浏览器（仅当 openAuth 不可用或用户取消时再试） */
+      if (isHttp) {
+        try {
+          await Linking.openURL(url);
+          return;
+        } catch (e) {
+          Alert.alert(
+            '无法打开 X 授权页',
+            `${(e as Error)?.message ?? String(e)}\n\n将尝试应用内 WebView（可能无法完成登录）。`,
+          );
+        }
+      }
       navigationRef.current?.navigate('WebView', { url, title: 'X' });
     }
   }, [closeLoginModal, navigationRef]);
@@ -316,22 +315,48 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
 
   useEffect(() => {
     const onUrl = async (event: { url: string }) => {
-      const parsed = parseAuthCallbackUrl(event.url);
-      if (!parsed) return;
-      let ok = false;
-      if (parsed.type === 'x_code') {
-        ok = await exchangeXCodeFromDeepLink(parsed.code, parsed.state);
-      } else {
-        ok = await exchangeWithIdToken(parsed.loginFrom, parsed.idToken);
+      const raw = event.url ?? '';
+      try {
+        if (raw.startsWith(AUTH_DEEP_LINK_PREFIX)) {
+          const parsed = parseAuthCallbackUrl(raw);
+          if (!parsed) {
+            Alert.alert(
+              'OAuth 深链无法解析',
+              `请把下面内容发给开发排查（勿在公开群发送完整链接）：\n\n长度 ${raw.length}\n前 240 字：\n${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`,
+            );
+            return;
+          }
+          let ok = false;
+          if (parsed.type === 'x_code') {
+            ok = await exchangeXCodeFromDeepLink(parsed.code, parsed.state);
+          } else {
+            ok = await exchangeWithIdToken(parsed.loginFrom, parsed.idToken);
+          }
+          if (ok) {
+            closeLoginModal();
+            const nav = navigationRef.current;
+            if (nav?.isReady()) {
+              const root = nav.getRootState();
+              const idx = root?.index ?? 0;
+              const topName = root?.routes?.[idx]?.name;
+              if (topName === 'WebView') nav.goBack();
+            }
+          }
+          return;
+        }
+      } catch (e) {
+        Alert.alert(
+          'OAuth 深链处理异常',
+          (e as Error)?.message ?? String(e),
+        );
       }
-      if (ok && navigationRef.current?.isReady()) navigationRef.current?.goBack();
     };
     const sub = Linking.addEventListener('url', onUrl);
     Linking.getInitialURL().then(url => {
       if (url) onUrl({ url });
     });
     return () => sub.remove();
-  }, [navigationRef]);
+  }, [navigationRef, closeLoginModal]);
 
   return (
     <>

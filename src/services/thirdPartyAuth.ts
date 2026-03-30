@@ -1,4 +1,5 @@
 import { Platform, Alert, Linking } from 'react-native';
+import InAppBrowser from 'react-native-inappbrowser-reborn';
 import CryptoJS from 'crypto-js';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -25,6 +26,8 @@ import {
 } from '../api/services/auth';
 import { useAppStore, useUserStore, type UserInfo } from '../store';
 import { saveAuth } from './authStorage';
+import { ApiError } from '../api/types';
+import { parseAuthCallbackUrl } from '../utils/authDeepLink';
 
 /** 从当前已登录的 Firebase 用户获取 idToken，兼容模拟器下 user 方法未绑定的情况 */
 async function getFirebaseIdToken(auth: ReturnType<typeof getAuth>, user: unknown): Promise<string> {
@@ -370,11 +373,23 @@ function generatePKCE(): { code_verifier: string; code_challenge: string; state:
 /** X PKCE 流程中按 state 暂存 code_verifier，供深链回调时兑换 */
 const xPkceStateStore = new Map<string, { code_verifier: string }>();
 
+/** 固定 X 授权页（`X_AUTHORIZE_URL`）：完整 https 或相对 `baseURL`，未配置则 null */
+function resolveXAuthorizeStaticUrl(): string | null {
+  const raw = (authConfig.xAuthorizeUrl ?? '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  const base = apiConfig.baseURL?.trim();
+  if (!base) return null;
+  return `${base.replace(/\/$/, '')}/${raw.replace(/^\//, '')}`;
+}
+
 export type XSdkLoginResult = 'pending' | 'fallback';
 
 /** X 登录：优先走 OAuth 2.0 PKCE（系统浏览器），失败或后端未支持时回退 WebView OAuth */
 export async function loginWithXPreferPKCE(): Promise<XSdkLoginResult> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'fallback';
+  /** 不配后端 authorize-url 时：仅用 WebView 打开固定页，不请求 PKCE 接口 */
+  if (resolveXAuthorizeStaticUrl()) return 'fallback';
   const redirectUri = authConfig.xRedirectUri;
   if (!redirectUri) return 'fallback';
   try {
@@ -405,6 +420,10 @@ export async function exchangeXCodeFromDeepLink(code: string, state: string): Pr
   xPkceStateStore.delete(state);
   if (!stored) {
     if (__DEV__) console.warn('[XLogin] 未找到 state 对应的 code_verifier，可能已过期或未走 PKCE');
+    Alert.alert(
+      'X 登录失败（PKCE）',
+      '未找到与该次授权对应的 state / code_verifier（可能 App 被系统杀进程、或重复点击）。请关闭浏览器后重新点「使用 X 登录」。',
+    );
     return false;
   }
   try {
@@ -419,14 +438,18 @@ export async function exchangeXCodeFromDeepLink(code: string, state: string): Pr
       return true;
     }
     if (__DEV__) console.warn('[XLogin] code 兑换结果缺少 idToken（仅允许统一流程）');
+    Alert.alert('X 登录失败（PKCE）', '后端兑换接口未返回 idToken，请检查接口实现或联系后端。');
     return false;
   } catch (e) {
     if (__DEV__) console.warn('[XLogin] code 兑换失败:', e);
+    const msg =
+      e instanceof ApiError ? `[${e.code}] ${e.message}` : (e as Error)?.message ?? String(e);
+    Alert.alert('X 登录失败（PKCE）', msg);
     return false;
   }
 }
 
-/** 获取 X (Twitter) OAuth 授权页 URL（WebView 回退用）；后端用 Firebase 做 Twitter 登录时可配置 authConfig.xAuthorizeUrl 兜底 */
+/** 获取 X (Twitter) OAuth 授权页 URL（WebView 用）。配置了 X_AUTHORIZE_URL 时不再请求 authorize-url 接口 */
 export async function getXAuthUrl(): Promise<string | null> {
   const normalizeUrl = (raw: string): string | null => {
     const value = raw.trim();
@@ -437,6 +460,9 @@ export async function getXAuthUrl(): Promise<string | null> {
     return `${base.replace(/\/$/, '')}/${value.replace(/^\//, '')}`;
   };
 
+  const staticUrl = resolveXAuthorizeStaticUrl();
+  if (staticUrl) return staticUrl;
+
   try {
     const { url } = await getOAuthAuthorizeUrl('x');
     const normalized = typeof url === 'string' ? normalizeUrl(url) : null;
@@ -444,13 +470,69 @@ export async function getXAuthUrl(): Promise<string | null> {
   } catch (e) {
     if (__DEV__) console.warn('[XLogin] 获取授权 URL 接口失败，尝试使用配置的 xAuthorizeUrl', e);
   }
-  const fallback = normalizeUrl(authConfig.xAuthorizeUrl ?? '');
-  if (fallback) return fallback;
   Alert.alert(
     '提示',
-    'X 登录授权地址无效或未配置。\n\n请检查后端 GET /auth/social/authorize-url?provider=x 返回完整可访问 URL；或在 .env 配置 X_AUTHORIZE_URL（完整 http/https 地址）。',
+    'X 登录授权地址无效或未配置。\n\n请配置 X_AUTHORIZE_URL（完整 https 授权页，授权结束后需跳转到 imageai://auth/x?token=...）；或让后端提供 GET /auth/social/authorize-url?provider=x。',
   );
   return null;
+}
+
+/** ASWebAuthenticationSession / Custom Tabs 是否实际参与；aborted=已弹窗或用户取消，勿再外开系统浏览器 */
+export type XAuthSessionResult = 'ok' | 'aborted' | 'fallback';
+
+const X_CLOSED_WITHOUT_CALLBACK_TITLE = '登录失败';
+const X_CLOSED_WITHOUT_CALLBACK_MESSAGE =
+  '未完成 X 授权。\n\n若页面提示账号已被停用或封禁，说明该 X 账号无法登录，请更换账号或向 X 申诉后再试。\n\n也可点授权页左上角「关闭」退出。';
+
+/**
+ * X 固定 https 授权页：用系统认证会话（iOS ASWebAuthenticationSession / Android Custom Tabs）打开。
+ * 回调 scheme 与 authConfig.xRedirectUri 一致时，原生层拦截 `imageai://auth/x?...` 并把完整 URL 交给 JS，无需经外部 Safari。
+ */
+export async function loginWithXUsingAuthSession(authorizeUrl: string): Promise<XAuthSessionResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'fallback';
+  const redirectUrl = authConfig.xRedirectUri?.trim();
+  if (!redirectUrl) return 'fallback';
+  try {
+    const available = await InAppBrowser.isAvailable();
+    if (!available) return 'fallback';
+  } catch {
+    return 'fallback';
+  }
+  try {
+    const result = await InAppBrowser.openAuth(authorizeUrl, redirectUrl, {
+      ephemeralWebSession: false,
+      showTitle: false,
+      enableBarCollapsing: true,
+      // iOS：用「关闭」比「取消」更直观；封号等情况需用户主动点这里结束会话
+      dismissButtonStyle: 'close',
+    });
+    if (result.type === 'cancel' || result.type === 'dismiss') {
+      Alert.alert(X_CLOSED_WITHOUT_CALLBACK_TITLE, X_CLOSED_WITHOUT_CALLBACK_MESSAGE);
+      return 'aborted';
+    }
+    if (result.type !== 'success' || !result.url) {
+      Alert.alert(X_CLOSED_WITHOUT_CALLBACK_TITLE, X_CLOSED_WITHOUT_CALLBACK_MESSAGE);
+      return 'aborted';
+    }
+    const parsed = parseAuthCallbackUrl(result.url);
+    if (!parsed) {
+      Alert.alert(
+        'X 登录',
+        '已返回应用，但无法解析回调链接。请把链接前 200 字发给开发排查（勿公开完整 token）。',
+      );
+      return 'aborted';
+    }
+    if (parsed.type === 'x_code') {
+      const ok = await exchangeXCodeFromDeepLink(parsed.code, parsed.state);
+      return ok ? 'ok' : 'aborted';
+    }
+    const ok = await exchangeWithIdToken(parsed.loginFrom, parsed.idToken);
+    return ok ? 'ok' : 'aborted';
+  } catch (e) {
+    if (__DEV__) console.warn('[XLogin] InAppBrowser.openAuth:', e);
+    Alert.alert('登录失败', '打开 X 授权时出错，请稍后重试。');
+    return 'aborted';
+  }
 }
 
 /** 获取 TikTok OAuth 授权页 URL */
@@ -548,11 +630,24 @@ export async function loginWithTikTokPreferSdk(): Promise<TikTokSdkLoginResult> 
 
 /** 使用 OAuth 回调中的 idToken 调用三方登录（Meta/Instagram=7, X(Twitter)=8, TikTok=9）；深链格式 imageai://auth/instagram?token=xxx */
 export async function exchangeWithIdToken(loginFrom: 7 | 8 | 9, idToken: string): Promise<boolean> {
+  const providerLabel =
+    loginFrom === 8 ? 'X(Twitter)' : loginFrom === 7 ? 'Instagram/Meta' : 'TikTok';
+  if (!idToken || idToken.length < 10) {
+    Alert.alert(
+      `${providerLabel} 登录失败`,
+      `深链里的 token 异常：长度为 ${idToken?.length ?? 0}，可能被系统截断。请改用 firebaseapp.com 授权页并重试。`,
+    );
+    return false;
+  }
   try {
     await applyFirebaseIdTokenLogin(idToken, loginFrom);
     return true;
   } catch (e) {
-    Alert.alert('登录失败', (e as Error)?.message ?? '兑换凭证失败');
+    const msg =
+      e instanceof ApiError
+        ? `[业务码 ${e.code}] ${e.message}`
+        : `${(e as Error)?.message ?? '兑换凭证失败'}`;
+    Alert.alert(`${providerLabel} 登录失败`, msg);
     return false;
   }
 }

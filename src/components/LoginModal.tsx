@@ -143,10 +143,10 @@ export function LoginModal({
   const buttons = [
     { key: 'apple', label: 'Apple', Icon: AppleIcon, onPress: onApple },
     { key: 'google', label: 'Google', Icon: GoogleIcon, onPress: onGoogle },
-    { key: 'facebook', label: 'Facebook', Icon: FacebookIcon, onPress: onFacebook },
-    { key: 'instagram', label: 'Instagram', Icon: InstagramIcon, onPress: onInstagram },
+    // { key: 'facebook', label: 'Facebook', Icon: FacebookIcon, onPress: onFacebook },
+    // { key: 'instagram', label: 'Instagram', Icon: InstagramIcon, onPress: onInstagram },
     { key: 'x', label: 'X', Icon: XIcon, onPress: onX },
-    { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
+    // { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
   ];
 
   return (

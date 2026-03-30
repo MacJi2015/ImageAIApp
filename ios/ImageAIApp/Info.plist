@@ -34,6 +34,8 @@
 	<string>PetsGO</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
+		<string>https</string>
+		<string>http</string>
 		<string>fb</string>
 		<string>instagram</string>
 		<string>twitter</string>

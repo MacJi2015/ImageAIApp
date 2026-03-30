@@ -12,6 +12,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
 import type { SharePayload } from '../store/useAppStore';
+import { useUserStore } from '../store/useUserStore';
+import { shareVideoToCommunity } from '../api/services/video';
 import { PromptCloseIcon } from '../utils';
 import { dp, hp } from '../utils/scale';
 
@@ -73,6 +75,10 @@ function fallbackShare(_payload: SharePayload) {
   Alert.alert('分享未配置', '当前平台分享能力未配置，请联系开发同学。');
 }
 
+function isCommunityTaskId(s: unknown): s is string {
+  return typeof s === 'string' && s.trim().length > 0;
+}
+
 export function ShareModal({
   visible,
   onClose,
@@ -85,7 +91,9 @@ export function ShareModal({
   const insets = useSafeAreaInsets();
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
 
-  const showCommunityOption = payload?.showCommunityShareOption === true;
+  const communityTaskId = (payload?.communityShareTaskId ?? '').trim();
+  const showCommunityOption =
+    payload?.showCommunityShareOption === true && isCommunityTaskId(communityTaskId);
 
   React.useEffect(() => {
     if (visible && showCommunityOption) {
@@ -100,7 +108,11 @@ export function ShareModal({
 
   /** 去掉仅弹窗 UI 使用的字段；勾选状态仅在 showCommunityShareOption 时写入 shareToCommunity */
   const payloadForShare = React.useMemo((): SharePayload => {
-    const { showCommunityShareOption: _omit, ...rest } = sharePayload;
+    const {
+      showCommunityShareOption: _omit,
+      communityShareTaskId: _omitTask,
+      ...rest
+    } = sharePayload;
     if (showCommunityOption) {
       return { ...rest, shareToCommunity: alsoShareToCommunity };
     }
@@ -158,9 +170,19 @@ export function ShareModal({
                 style={styles.iconCircle}
                 activeOpacity={0.8}
                 onPress={() => {
+                  const shouldShareToCommunity =
+                    showCommunityOption &&
+                    alsoShareToCommunity &&
+                    !!useUserStore.getState().token &&
+                    isCommunityTaskId(communityTaskId);
                   // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
                   onClose();
-                  setTimeout(() => handlers[key](payloadForShare), 650);
+                  setTimeout(() => {
+                    if (shouldShareToCommunity) {
+                      shareVideoToCommunity(communityTaskId).catch(() => {});
+                    }
+                    handlers[key](payloadForShare);
+                  }, 650);
                 }}
               >
                 <Image source={source} style={styles.shareIconImage} resizeMode="contain" />

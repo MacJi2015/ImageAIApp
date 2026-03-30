@@ -58,8 +58,11 @@ export function WorkDetailScreen() {
       url: videoUri ?? '',
       title: 'Share to get +1 free chance',
       message: 'Share to get +1 free chance',
-      /** 我的作品详情仅此入口，与首页 Detail 分享区分 */
+      /** 我的作品详情：可选同步到社区 Feed（query taskId = 列表任务 ID taskId） */
       showCommunityShareOption: true,
+      ...(typeof item.taskId === 'string' && item.taskId.trim() !== ''
+        ? { communityShareTaskId: item.taskId.trim() }
+        : {}),
     });
   };
 

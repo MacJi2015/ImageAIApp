@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Safari：页面在 *.web.app 与 authDomain *.firebaseapp.com 跨站时，signInWithRedirect 状态丢失 → 无限「使用 X 继续」。强制同站 -->
+  <script>
+    (function () {
+      if (location.hostname === 'imageapp-1553c.web.app') {
+        location.replace(
+          location.protocol + '//imageapp-1553c.firebaseapp.com' + location.pathname + location.search + location.hash
+        );
+      }
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>X 登录</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #0f1419; color: #e6edf3; max-width: 520px; }
+    #config-warn { display: none; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #3d2115; color: #ffbea8; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div id="config-warn"></div>
+  <p id="status">正在处理…</p>
+  <p id="hint" style="display:none;font-size:14px;color:#8b949e;margin-top:12px;">
+    若从 X 应用内打开失败，请用右上角菜单在 <strong>Safari / Chrome</strong> 中打开本页。勿使用无痕/私密浏览。
+  </p>
+  <button id="btn" type="button" style="display:none;margin-top:16px;padding:12px 20px;font-size:16px;border-radius:8px;border:none;background:#1d9bf0;color:#fff;cursor:pointer;">
+    使用 X 账号继续
+  </button>
+  <!-- 必须在 Firebase 控制台「项目设置 → 您的应用」里选「Web」应用，复制整段配置；appId 必须为 1:xxxx:web:xxxx -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script>
+    /** Web 应用「imageAI」— 与 Firebase 控制台「项目设置 → 您的应用 → imageAI」一致 */
+    var firebaseConfig = {
+      apiKey: 'AIzaSyAw8HRrAuGdbvbz3WddOr980C-YIgaHMkM',
+      authDomain: 'imageapp-1553c.firebaseapp.com',
+      projectId: 'imageapp-1553c',
+      storageBucket: 'imageapp-1553c.firebasestorage.app',
+      messagingSenderId: '823712304553',
+      appId: '1:823712304553:web:ccc8de98824c27ce2cc8b8',
+      measurementId: 'G-88Q6K32S4N',
+    };
+
+    /** 与 handler 内失败同属一类：直接看 Google 返回的 error.message（勿长期公开使用，仅排查） */
+    var diagMode = /[?&]diag=1(?:&|$)/.test(location.search);
+    if (diagMode) {
+      (function () {
+        var pre = document.createElement('pre');
+        pre.style.cssText =
+          'font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;background:#1a1f26;padding:12px;border-radius:8px;margin:12px 0;max-height:280px;overflow:auto;border:1px solid #30363d;color:#c9d1d9';
+        pre.textContent = 'diag=1：请求 identitytoolkit …/accounts:createAuthUri …';
+        var w = document.getElementById('config-warn');
+        if (w && w.nextSibling) document.body.insertBefore(pre, w.nextSibling);
+        else document.body.insertBefore(pre, document.body.firstChild);
+        /** 与 X 后台应登记的 OAuth 1.0a 回调一致；勿用当前页 URL，否则易 415 而 signInWithPopup 仍成功 */
+        var continueUri =
+          'https://' + firebaseConfig.authDomain.replace(/^\/+/, '') + '/__/auth/handler';
+        var pageUri = location.origin + location.pathname;
+        fetch(
+          'https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=' +
+            encodeURIComponent(firebaseConfig.apiKey),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ providerId: 'twitter.com', continueUri: continueUri }),
+          }
+        )
+          .then(function (res) {
+            return res.text().then(function (text) {
+              var body;
+              try {
+                body = JSON.parse(text);
+              } catch (e) {
+                body = text;
+              }
+              return { httpStatus: res.status, ok: res.ok, body: body };
+            });
+          })
+          .then(function (out) {
+            pre.textContent =
+              '【diag=1】POST v1/accounts:createAuthUri\ncontinueUri（探测用，与 Firebase Twitter 常用回调一致）: ' +
+              continueUri +
+              '\n本页地址（供对照，勿与上面混淆）: ' +
+              pageUri +
+              '\n\n' +
+              JSON.stringify(out, null, 2) +
+              '\n\n解读：\n• 探测故意使用 …/__/auth/handler，与「弹窗登录」及 X 后台应登记的 OAuth 1.0a 回调一致；若曾用当前页作 continueUri 会误报 415，而 signInWithPopup 仍成功。\n• request token 403 + Twitter 415 → 在 X 开发者后台 Callback 加入（逐字）https://' +
+              firebaseConfig.authDomain +
+              '/__/auth/handler；OAuth2 与 OAuth1.0a 回调列表可能分开，需都检查。\n• 401 + code 32 → Consumer Key/Secret 与 Firebase 不一致；勿填 OAuth2 Client ID/Secret。\n• INVALID_APP_CREDENTIAL / API key / OPERATION_NOT_ALLOWED → 密钥或 Google Cloud 浏览器引荐来源、Identity Toolkit。\n• http 200 含 authUri 仍闪退 → 扩展、系统浏览器、sessionStorage。';
+          })
+          .catch(function (err) {
+            pre.textContent =
+              '【diag=1】请求失败（常见：本机/网络访问不了 identitytoolkit.googleapis.com）：\n' +
+              (err && err.message ? err.message : String(err));
+          });
+      })();
+    }
+
+    var warnEl = document.getElementById('config-warn');
+    var appId = firebaseConfig.appId || '';
+    if (appId.indexOf(':web:') === -1) {
+      warnEl.style.display = 'block';
+      warnEl.innerHTML =
+        '<strong>配置错误：</strong>当前 <code>appId</code> 不是 Web 应用（应为 <code>:web:</code>）。请在 Firebase 控制台为项目添加/打开 <strong>Web</strong> 应用「imageAI」，把整段 <code>firebaseConfig</code> 粘贴到本文件并重新部署 Hosting，否则 Twitter 重定向登录容易「回到原页、无报错」。';
+    }
+
+    firebase.initializeApp(firebaseConfig);
+    var auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+    if (diagMode) {
+      var popBtn = document.createElement('button');
+      popBtn.type = 'button';
+      popBtn.textContent = '弹窗登录（仅桌面排查，可绕过部分重定向问题）';
+      popBtn.style.cssText =
+        'display:block;margin:8px 0 16px;padding:10px 14px;font-size:14px;border-radius:8px;border:1px solid #30363d;background:#21262d;color:#e6edf3;cursor:pointer;max-width:100%';
+      popBtn.onclick = function () {
+        popBtn.disabled = true;
+        auth
+          .signInWithPopup(new firebase.auth.TwitterAuthProvider())
+          .then(function (cred) {
+            return finishLogin(cred.user);
+          })
+          .catch(function (err) {
+            popBtn.disabled = false;
+            window.alert((err && err.code ? err.code + '\n' : '') + (err && err.message ? err.message : String(err)));
+          });
+      };
+      document.body.insertBefore(popBtn, document.getElementById('status'));
+    }
+
+    var statusEl = document.getElementById('status');
+    var hintEl = document.getElementById('hint');
+    var btnEl = document.getElementById('btn');
+    var finished = false;
+
+    function finishLogin(user) {
+      if (finished || !user) return;
+      finished = true;
+      var isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      statusEl.innerHTML =
+        '登录成功。<br/><span style="color:#8b949e;font-size:13px;">' +
+        (isIOS
+          ? 'iOS Safari 常在<strong>异步拿到 token 后</strong>拦截自动跳转自定义链接，页面会<strong>一直停在 Safari</strong>。请<strong>点击下方蓝色按钮</strong>返回 App（等同于一次用户手势，系统才会唤起应用）。'
+          : '正在尝试打开 App… 若仍停在浏览器，请点下方按钮；或看顶部是否提示「打开」并确认。') +
+        '</span>';
+      return user.getIdToken().then(function (idToken) {
+        var deepLink = 'imageai://auth/x?token=' + encodeURIComponent(idToken);
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'margin-top:20px;';
+        var openA = document.createElement('a');
+        openA.href = deepLink;
+        openA.textContent = '返回 App（点我）';
+        openA.setAttribute('role', 'button');
+        openA.style.cssText =
+          'display:inline-block;padding:16px 28px;font-size:17px;border-radius:12px;background:#1d9bf0;color:#fff;text-decoration:none;font-weight:600;';
+        wrap.appendChild(openA);
+        statusEl.appendChild(wrap);
+        try {
+          window.location.replace(deepLink);
+        } catch (e) {
+          /* ignore */
+        }
+        window.setTimeout(function () {
+          if (document.visibilityState !== 'visible') return;
+          openA.textContent = '仍未打开？再点这里返回 App';
+        }, 1500);
+      });
+    }
+
+    function showLoginButton() {
+      if (finished) return;
+      statusEl.textContent = '点击下方按钮使用 X 登录';
+      hintEl.style.display = 'block';
+      btnEl.style.display = 'inline-block';
+      btnEl.disabled = false;
+      btnEl.onclick = function () {
+        btnEl.disabled = true;
+        statusEl.textContent = '正在跳转至 X (Twitter)…';
+        var stuckTimer = window.setTimeout(function () {
+          if (finished) return;
+          statusEl.innerHTML =
+            '长时间停在这一步，通常是<strong>当前网络访问不到 Google / Firebase</strong>（跳转前要先连上 Google 接口），在国内需给<strong>整个系统/浏览器开代理或 VPN</strong>后再刷新本页重试。<br/><br/>也可在电脑终端测：<code>curl -I -m 10 https://www.googleapis.com</code>，若一直超时即属此类。';
+          hintEl.style.display = 'block';
+          btnEl.disabled = false;
+        }, 18000);
+        auth
+          .signInWithRedirect(new firebase.auth.TwitterAuthProvider())
+          .then(function () {
+            window.clearTimeout(stuckTimer);
+          })
+          .catch(function (err) {
+            window.clearTimeout(stuckTimer);
+            var code = err && err.code ? err.code + ' ' : '';
+            var msg = err && err.message ? err.message : String(err);
+            statusEl.textContent = '无法跳转 X：' + code + msg;
+            hintEl.style.display = 'block';
+            btnEl.disabled = false;
+          });
+      };
+    }
+
+    function parseUrlAuthError() {
+      var q = new URLSearchParams(window.location.search || '');
+      var hash = (window.location.hash || '').replace(/^#/, '');
+      var h = new URLSearchParams(hash);
+      var error = q.get('error') || h.get('error');
+      var desc = q.get('error_description') || h.get('error_description');
+      if (error) return { error: error, desc: desc };
+      return null;
+    }
+
+    /** 若刚从 X/Twitter 授权页回来，说明重定向已发生；此时仍无用户多半是 sessionStorage 被应用内浏览器隔离或清空 */
+    function likelyReturnedFromX() {
+      try {
+        var h = new URL(document.referrer || 'about:blank').hostname.toLowerCase();
+        if (!h || h === 'about') return false;
+        return h === 'x.com' || h.endsWith('.x.com') || h.includes('twitter.com');
+      } catch (e) {
+        var r = (document.referrer || '').toLowerCase();
+        return r.indexOf('twitter.com') !== -1 || r.indexOf('x.com') !== -1;
+      }
+    }
+
+    var urlErr = parseUrlAuthError();
+    if (urlErr) {
+      statusEl.textContent =
+        '授权失败：' + (urlErr.desc ? decodeURIComponent(urlErr.desc.replace(/\+/g, ' ')) : urlErr.error);
+      hintEl.style.display = 'block';
+      showLoginButton();
+    } else {
+      auth
+        .getRedirectResult()
+        .then(function (result) {
+          var user = (result && result.user) || auth.currentUser;
+          if (user) {
+            return finishLogin(user);
+          }
+          var unsub = auth.onAuthStateChanged(function (u) {
+            if (finished) return;
+            if (u) {
+              unsub();
+              finishLogin(u);
+            }
+          });
+          setTimeout(function () {
+            if (finished) return;
+            unsub();
+            var u = auth.currentUser;
+            if (u) {
+              finishLogin(u);
+              return;
+            }
+            if (location.hostname.indexOf('web.app') !== -1) {
+              statusEl.innerHTML =
+                '当前地址为 <code>*.web.app</code>，与 Firebase <code>authDomain</code>（<code>*.firebaseapp.com</code>）跨站，Safari 下容易无法完成登录。<br/><br/>请改用：<br/><a href="' +
+                location.href.replace(location.host, 'imageapp-1553c.firebaseapp.com') +
+                '" style="color:#58a6ff">打开 firebaseapp.com 上的同一页面</a>';
+              hintEl.style.display = 'block';
+              showLoginButton();
+              return;
+            }
+            var fromX = likelyReturnedFromX();
+            var extra =
+              '<br/><br/><span style="color:#8b949e;font-size:13px;">说明：<code>getProjectConfig</code> 能返回只表示能连上 Firebase 配置接口，<strong>不代表</strong> X 授权已完成。若页面像「刷新」后仍停在登录前，多半是 <strong>signInWithRedirect</strong> 依赖的 sessionStorage 在 <strong>X 内置浏览器 / 部分 WebView</strong> 里丢失；请用右上角菜单在 <strong>Safari 或 Chrome</strong> 中打开本页再试。电脑浏览器测试时 <code>imageai://</code> 无法唤起手机 App 属正常现象。</span>';
+            if (fromX) {
+              statusEl.innerHTML =
+                '已从 X 回到本页，但未读到 Firebase 登录状态（常见于应用内浏览器隔离存储）。请<strong>复制本页地址</strong>，用 <strong>Safari / Chrome</strong> 打开后再点「使用 X 账号继续」。' +
+                extra;
+            } else {
+              statusEl.innerHTML =
+                '未检测到登录结果。请确认：① Firebase Authentication → Twitter 已启用并填写 X 的 Key/Secret；② X 开发者后台 Callback 为 <code>https://imageapp-1553c.firebaseapp.com/__/auth/handler</code>；③ 使用 <strong>firebaseapp.com</strong> 本页（勿用 web.app）；④ 非无痕；⑤ 勿在 X 应用内嵌浏览器完成全程。' +
+                extra;
+            }
+            hintEl.style.display = 'block';
+            showLoginButton();
+          }, 2500);
+        })
+        .catch(function (err) {
+          var code = err && err.code ? err.code + ' ' : '';
+          var msg = err && err.message ? err.message : String(err);
+          statusEl.textContent = 'getRedirectResult 错误：' + code + msg;
+          hintEl.style.display = 'block';
+          showLoginButton();
+        });
+    }
+  </script>
+</body>
+</html>

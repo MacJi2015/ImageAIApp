@@ -5,9 +5,14 @@ export interface SharePayload {
   url?: string;
   title?: string;
   message?: string;
-  /** 为 true 时弹窗显示「同时分享到社区」行；仅部分入口需要（如我的页），不会传给原生分享 */
+  /** 为 true 时弹窗显示「同时分享到社区」行；需同时传 communityShareTaskId（任务 ID / taskId） */
   showCommunityShareOption?: boolean;
-  /** 是否同时分享到 PetsGO 社区；由分享弹窗勾选，仅当 showCommunityShareOption 为 true 时写入 */
+  /**
+   * 视频任务 ID（与列表/详情的 taskId，UUID）；请求 shareVideoToCommunity 时作为 query taskId 传递。
+   * 未传或空字符串则不展示勾选，也不会请求社区接口。
+   */
+  communityShareTaskId?: string;
+  /** 是否同时分享到 PetsGO 社区；由分享弹窗勾选，仅当展示社区行时写入 */
   shareToCommunity?: boolean;
 }
 

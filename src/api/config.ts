@@ -1,9 +1,8 @@
 /**
- * 开发调试用：非空且 App 在 __DEV__ 下启动时，优先使用该 Token 登录（会覆盖本地已存 token）。
- * 正式发版前请清空或删除，勿将真实 Token 提交到公开仓库。
+ * 开发调试用：仅在 __DEV__ 且非空时覆盖本地已持久化的 token（会覆盖 AsyncStorage 里的登录态）。
+ * 仓库内不设默认 token；需要本地连调时在 .env 配置 DEV_AUTH_TOKEN，勿提交真实值。
  */
-export const DEV_HARDCODED_AUTH_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTJ620JoKEtCiPZCjdWiUIONgSJxlayvSW/pDGVm6q8zJz6YD14a1KHZ6Wny2SgNgFxib4R3oM94+AKyRspYwmYEKg2uR6weUE7zSTc7cbZrm';
+export const DEV_HARDCODED_AUTH_TOKEN = (process.env.DEV_AUTH_TOKEN ?? '').trim();
 
 /** API 基础配置 */
 export const apiConfig = {
@@ -26,12 +25,13 @@ export const authConfig = {
   /** X (Twitter) OAuth 2.0 PKCE 回调地址，需与 X 开发者平台及后端配置一致 */
   xRedirectUri: process.env.X_REDIRECT_URI || 'imageai://auth/x',
   /**
-   * X（Twitter）Firebase 登录页 URL（可选）。
-   * 若后端用 Firebase 做 Twitter 登录且未提供 GET /auth/social/authorize-url?provider=x，
-   * 可在此或环境变量 X_AUTHORIZE_URL 中配置后端提供的登录页地址，授权完成后需重定向到 imageai://auth/x?token=Firebase_idToken。
-   * 未配置时不做默认回退，避免跳转到不存在页面导致 404。
+   * X（Twitter）固定授权页：必须是「登录起始页」，禁止填 …/__/auth/handler（仅为 Firebase 内部回调，直接打开会 missing initial state）。
+   * 须与 firebaseConfig.authDomain 同站点：用「项目ID.firebaseapp.com」，不要用 *.web.app，否则 Safari 存储分区会导致 signInWithRedirect 回到本页却无用户（按钮死循环）。
+   * 部署：`firebase deploy --only hosting`。环境变量 X_AUTHORIZE_URL 可覆盖。
    */
-  xAuthorizeUrl: process.env.X_AUTHORIZE_URL || '',
+  xAuthorizeUrl:
+    process.env.X_AUTHORIZE_URL ||
+    'https://imageapp-1553c.firebaseapp.com/x-twitter-login.html',
 };
 
 export const setBaseURL = (url: string) => {

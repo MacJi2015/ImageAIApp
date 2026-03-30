@@ -6,6 +6,12 @@ require Pod::Executable.execute_command('node', ['-p',
   )', __dir__]).strip
 
 platform :ios, min_ios_version_supported
+
+# 与 node_modules 内 @react-native-firebase/app 的 sdkVersions.ios.firebase 一致（当前 23.8.x → 12.10.0）。
+# 若 Podfile.lock 仍锁在旧版（如 12.8.0），pod install 会报 RNFBAuth 与 Firebase/Auth 版本冲突，请在本目录执行：
+#   bundle exec pod update Firebase/Auth Firebase/CoreOnly
+$FirebaseSDKVersion = '12.10.0'
+
 prepare_react_native_project!
 
 # Firebase 等 Swift pods 依赖的库需要生成 module map（静态库时）

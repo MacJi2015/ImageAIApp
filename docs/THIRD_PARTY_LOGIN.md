@@ -65,9 +65,10 @@ loginFrom：5=Google, 6=Apple, 7=Meta, 8=Twitter(X), 9=TikTok
 ### Firebase（必配）
 
 1. 在 [Firebase Console](https://console.firebase.google.com/) 创建项目，并启用 **Authentication** 中的 **Apple**、**Google** 登录方式。
-2. **iOS**：下载 `GoogleService-Info.plist`，放入 `ios/YourApp/` 并在 Xcode 中加入工程。
-3. **Android**：下载 `google-services.json`，放入 `android/app/`。
-4. 执行 `cd ios && pod install` 后重新编译。
+2. **X（Twitter）在 Firebase 中启用 Twitter 提供商、TikTok 无内置开关**等说明，见 **[Firebase 与开放平台（X / TikTok）配置步骤](./FIREBASE_AND_OPEN_PLATFORM_X_TIKTOK.md)**。
+3. **iOS**：下载 `GoogleService-Info.plist`，放入 `ios/YourApp/` 并在 Xcode 中加入工程。
+4. **Android**：下载 `google-services.json`，放入 `android/app/`。
+5. 执行 `cd ios && pod install` 后重新编译。
 
 ### Google 登录
 
@@ -105,16 +106,17 @@ loginFrom：5=Google, 6=Apple, 7=Meta, 8=Twitter(X), 9=TikTok
 ### Instagram / X / TikTok
 
 1. 在后端实现 OAuth 流程：生成授权 URL、处理回调、用 `code` 换 access token、用 token 拉用户信息。
-2. **X**：若支持 PKCE，在 X 开发者平台配置 Callback URL 为 `imageai://auth/x`（或与前端 `authConfig.xRedirectUri` 一致）；并实现 `GET /auth/social/authorize-url?provider=x&code_challenge=...&state=...&redirect_uri=...` 与 `POST /auth/social/x/code-exchange`（见上文）。**详细步骤（含 X 平台与 App 内 Callback/URL Scheme）见 [X 登录配置流程](./X_LOGIN_CONFIG.md)。**
-3. TikTok OpenSDK 需额外提供 `POST /auth/social/tiktok/sdk-exchange`，入参建议：
+2. **X**：**分步图文与测试清单见 [X 登录配置流程](./X_LOGIN_CONFIG.md)**（X 开发者平台 Callback、`imageai://auth/x`、iOS/Android URL Scheme、PKCE 与 WebView、`X_AUTHORIZE_URL` 兜底等）。
+3. **TikTok**：**分步图文见 [TikTok 登录配置流程](./TIKTOK_LOGIN_CONFIG.md)**（开放平台 Redirect URI、Client Key、iOS/Android 原生项、`TIKTOK_OPENSDK_REDIRECT_URI`、`sdk-exchange` 与 WebView 回退）。
+4. TikTok OpenSDK 需额外提供 `POST /auth/social/tiktok/sdk-exchange`，入参建议：
    - `authCode`（必传）
    - `codeVerifier`（Android 建议传）
    - `redirectUri`（与 TikTok 开发者平台配置一致）
    返回可为：
    - 直接登录结果 `token + user/userProfile`，或
    - `idToken`（前端再走 `/app/user/snsThreePartyLogin`，`loginFrom=9`）
-4. 回调页重定向到 `imageai://auth/instagram?token=xxx`、`imageai://auth/x?token=xxx` 或 `imageai://auth/tiktok?token=xxx`。
-5. 在 iOS（Info.plist）和 Android（intent-filter）中注册 URL Scheme `imageai`。
+5. 回调页重定向到 `imageai://auth/instagram?token=xxx`、`imageai://auth/x?token=xxx` 或 `imageai://auth/tiktok?token=xxx`。
+6. 在 iOS（Info.plist）和 Android（intent-filter）中注册 URL Scheme `imageai`（X / TikTok WebView 回退共用）。
 
 ## 本地运行
 

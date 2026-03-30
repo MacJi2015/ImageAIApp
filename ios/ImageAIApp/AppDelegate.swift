@@ -42,13 +42,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
+    // OAuth 深链须先于第三方 SDK：否则 TikTok/FB 若误判 true，会吞掉 imageai:// 且 JS 收不到回调
+    if url.scheme?.caseInsensitiveCompare("imageai") == .orderedSame {
+      NotificationCenter.default.post(
+        name: NSNotification.Name("RCTOpenURLNotification"),
+        object: nil,
+        userInfo: ["url": url.absoluteString]
+      )
+      return true
+    }
     if TikTokURLHandler.handleOpenURL(url) {
       return true
     }
     if ApplicationDelegate.shared.application(app, open: url, options: options) {
       return true
     }
-    return false
+    // React Native Linking：须触发与 RCTLinkingManager 相同的通知，否则其它自定义 scheme 到不了 JS
+    NotificationCenter.default.post(
+      name: NSNotification.Name("RCTOpenURLNotification"),
+      object: nil,
+      userInfo: ["url": url.absoluteString]
+    )
+    return true
   }
 
   func application(

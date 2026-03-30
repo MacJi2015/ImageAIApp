@@ -51,14 +51,52 @@ export interface GetMyVideosParams {
 export async function getMyVideos(
   params?: GetMyVideosParams,
 ): Promise<MyVideosResponse> {
-  const res = await get<MyVideosResponse>('app/user/myVideos', {
+  const pageNum = params?.pageNum ?? 1;
+  const pageSize = params?.pageSize ?? 20;
+  const empty: MyVideosResponse = {
+    list: [],
+    pageNum,
+    pageSize,
+    totalPage: 0,
+    totalRecord: 0,
+  };
+
+  const res = await get<unknown>('app/user/myVideos', {
     params: {
-      pageNum: params?.pageNum ?? 1,
-      pageSize: params?.pageSize ?? 20,
+      pageNum,
+      pageSize,
       ...(params?.status ? { status: params.status } : {}),
     },
   });
-  return (res as unknown as { entry: MyVideosResponse }).entry;
+
+  if (!res || typeof res !== 'object') return empty;
+
+  const entry = (res as { entry?: MyVideosResponse | null }).entry;
+  if (entry && typeof entry === 'object') {
+    return {
+      ...empty,
+      ...entry,
+      list: entry.list ?? [],
+      pageNum: entry.pageNum ?? pageNum,
+      pageSize: entry.pageSize ?? pageSize,
+      totalPage: entry.totalPage ?? 0,
+      totalRecord: entry.totalRecord ?? 0,
+    };
+  }
+
+  const direct = res as Partial<MyVideosResponse>;
+  if (Array.isArray(direct.list)) {
+    return {
+      list: direct.list,
+      pageNum: direct.pageNum ?? pageNum,
+      pageSize: direct.pageSize ?? pageSize,
+      totalPage: direct.totalPage ?? 0,
+      totalRecord: direct.totalRecord ?? 0,
+    };
+  }
+
+  // HTTP 200 但业务失败（如 entry: null、「用户ID无效」）：按无数据处理，不抛错
+  return empty;
 }
 
 // --- 图生视频 ---
@@ -138,6 +176,24 @@ export async function getVideoTaskStatus(
 export async function deleteUserVideo(id: number): Promise<boolean> {
   const res = await post<unknown>('app/user/deleteVideo', undefined, {
     params: { id },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (typeof res === 'boolean') return res;
+  if (res && typeof res === 'object') {
+    const o = res as Record<string, unknown>;
+    if (typeof o.entry === 'boolean') return o.entry;
+    if (typeof o.data === 'boolean') return o.data;
+  }
+  return true;
+}
+
+/**
+ * 分享视频到社区 Feed
+ * POST app/user/shareVideoToCommunity?taskId=...（任务 ID，与列表字段 taskId / UUID 一致）；Content-Type: application/x-www-form-urlencoded；token 由 request 层 header 携带
+ */
+export async function shareVideoToCommunity(taskId: string): Promise<boolean> {
+  const res = await post<unknown>('app/user/shareVideoToCommunity', undefined, {
+    params: { taskId },
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
   if (typeof res === 'boolean') return res;

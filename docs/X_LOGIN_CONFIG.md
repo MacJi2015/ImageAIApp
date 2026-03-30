@@ -96,20 +96,26 @@ imageai://auth/x
 
 ---
 
-## 四、后端使用 Firebase 做 Twitter 登录时的配置
+## 四、不配 `authorize-url`：仅用固定授权页（推荐）
 
-若后端是**用 Firebase 三方登录实现 Twitter（X）**（例如后端有一个网页用 Firebase Auth 的 Twitter 提供商，登录成功后重定向到 `imageai://auth/x?token=Firebase_idToken`），且**没有**提供接口 `GET /auth/social/authorize-url?provider=x`，则可以在前端直接配置**该登录页的完整 URL**，无需后端额外接口：
+若**不想实现** `GET /auth/social/authorize-url?provider=x`，只要有一个 **https 授权页**（例如 Firebase Hosting + Firebase Auth 的 Twitter 登录页），在用户登录成功后 **重定向到 `imageai://auth/x?token=Firebase_idToken`** 即可。
 
-1. 在项目根目录的 **`.env`** 中增加（把示例换成你们后端提供的登录页地址）：
+1. 配置 **`X_AUTHORIZE_URL`**（完整 `https://...`），或在 **`src/api/config.ts`** 的 **`authConfig.xAuthorizeUrl`** 中填写同一地址。  
+   **注意**：若项目未用 `react-native-config` 等注入 `.env`，`process.env.X_AUTHORIZE_URL` 可能为空，联调时请**直接改 `config.ts` 默认值**。
 
-```bash
-# 后端 Firebase Twitter 登录页的完整 URL，授权完成后需重定向到 imageai://auth/x?token=xxx
-X_AUTHORIZE_URL=https://api.petsai.net/facial/auth/x
-```
+2. **当前 App 行为**（已改）：只要配置了 `xAuthorizeUrl`，**不会再请求** `authorize-url`，也**不会先走 PKCE**。  
+   - **X 登录的 https 授权页一律用系统浏览器（Safari / Chrome）打开**，不再用应用内 WebView，避免 Firebase `signInWithRedirect` 报 **「missing initial state」**（`sessionStorage` 在 WebView 中不可靠；自建域名 `xAuthorizeUrl` 也同样）。  
+   - 授权结束后跳转到 `imageai://auth/x?token=...`，由 App 深链处理并调用 `snsThreePartyLogin(idToken, 8)`。
 
-2. 或在 **`src/api/config.ts`** 的 `authConfig.xAuthorizeUrl` 中写死该 URL。
+**不要**把 `xAuthorizeUrl` 设为 `https://<项目>.firebaseapp.com/__/auth/handler`：那是回调端点，不是用户入口。
 
-配置后，点击「Continue with X」会先请求接口获取 URL；若接口不存在或失败，会使用上述 `X_AUTHORIZE_URL` 在 WebView 中打开，用户完成 Firebase Twitter 登录后重定向到 `imageai://auth/x?token=xxx`，应用内会收到并调用 `snsThreePartyLogin(idToken, 8)` 完成登录。
+本仓库提供可部署的起始页 **`firebase-hosting-public/x-twitter-login.html`**（内用 Firebase Twitter `signInWithRedirect`，成功后跳 `imageai://auth/x?token=...`）。部署步骤：
+
+1. 在 `ImageAIApp` 目录执行（无需全局安装 `firebase` 命令）：`yarn firebase:login`（或 `npx firebase-tools@latest login`）。
+2. `npx firebase-tools@latest use imageapp-1553c`（或你的项目 ID），然后 `yarn firebase:deploy:hosting`（或 `npx firebase-tools@latest deploy --only hosting`）。  
+   若已 `npm i -g firebase-tools` 但仍提示 `command not found`，把 npm 全局 `bin` 加入 PATH，或始终用上面的 `npx` / `yarn` 脚本。
+3. 默认 `authConfig.xAuthorizeUrl` 为 **`https://imageapp-1553c.firebaseapp.com/x-twitter-login.html`**（与 `authDomain` 同站，勿用 `*.web.app`，否则 Safari 下 `signInWithRedirect` 易死循环）；若项目 ID 不同，改 `config.ts` 或 `.env` 的 `X_AUTHORIZE_URL`。
+4. Firebase 控制台 → Authentication → 设置 → **授权网域**，保留 `imageapp-1553c.firebaseapp.com`（默认会有），并可保留 `imageapp-1553c.web.app`（若别处仍用）。
 
 ---
 
@@ -180,6 +186,12 @@ X_REDIRECT_URI=imageai://auth/x
 | 回到 App 但未登录 / 提示失败 | 1. `token` 或 `code` 无效/过期<br>2. 后端兑换接口报错 | 查看控制台或后端日志；确认后端用 token 或 code 能正确换到用户并返回 app token。 |
 | iOS：Safari 打开 `imageai://auth/x?code=test&state=test` 不唤起 App | URL Types 未生效或 Scheme 填错 | 在 Xcode 中确认 URL Schemes 为 `imageai`（无 `://`），Clean Build 后重新安装。 |
 | Android：点击链接不唤起 App | intent-filter 的 scheme/host 与链接不一致 | 确认 Manifest 中为 `scheme="imageai"`、`host="auth"`，链接为 `imageai://auth/x?...`。 |
+| **`?diag=1` 里 `createAuthUri` 报 415，但「弹窗登录」成功** | 旧逻辑用**当前页**（`…/x-twitter-login.html`）作 `continueUri` 探测，Twitter 若只登记了 `__/auth/handler` 会误报 | 探测已改为 `https://<authDomain>/__/auth/handler`，与 X 后台应配回调一致；**弹窗与重定向仍以真实按钮为准**。 |
+| **系统浏览器**仍提示 **missing initial state** | `xAuthorizeUrl` 填成了 **`__/auth/handler` 回调地址**，或未在同一浏览会话内先执行 `signInWithRedirect` | `xAuthorizeUrl` 必须是**登录起始页**（页面内加载 Firebase 并调用 `signInWithRedirect`），不能是用户直接打开的 handler；勿用收藏夹/外部 App 只打开 handler。 |
+| **missing initial state** 且页面像在 **应用内 WebView** 里打开 | iOS 上 `Linking.canOpenURL(https://…)` 曾误为 false，未走系统浏览器而进了 App 内 WebView | 工程已改为对 http(s) **直接 `Linking.openURL`**，并在 `Info.plist` 的 `LSApplicationQueriesSchemes` 中加入 `https`、`http`；请重新编译安装 App。Hosting 页改为**点击按钮**后再 `signInWithRedirect`，勿在 X 内置浏览器里完成全流程（必要时「在 Safari 中打开」）。 |
+| Safari 已打开 App，但 **App 内不登录 / 像没收到回调** | iOS `AppDelegate` 未把自定义 URL 交给 React Native `Linking` | 已在 `ios/ImageAIApp/AppDelegate.swift` 的 `application(_:open:options:)` 中发送 **`RCTOpenURLNotification`**（与 `RCTLinkingManager` 一致），使 `imageai://auth/x?token=…` 能到达 JS；请 **Clean + 重装** 后再测。 |
+| 点击「使用 X 继续」→ 加载后又回到 **同一按钮**（死循环） | 授权页在 **`*.web.app`**，与 **`authDomain`（`*.firebaseapp.com`）** 跨站，Safari 分区存储导致 `getRedirectResult` 拿不到用户 | 使用 **`https://<项目ID>.firebaseapp.com/x-twitter-login.html`** 作为 `X_AUTHORIZE_URL`（见 `config.ts` 默认）；Hosting 页已支持从 web.app **自动跳转到 firebaseapp.com**。部署后重装 App 再测。 |
+| 页面提示 **`auth/api-key-not-valid`** / `please-pass-a-valid-api-key` | 1. `x-twitter-login.html` 里 `apiKey` 与控制台 **Web 应用** 不一致或复制错（易混 `0`/`O`）<br>2. 在 [Google Cloud 控制台 → API 与服务 → 凭据](https://console.cloud.google.com/apis/credentials) 中，该密钥的**应用限制**未包含浏览器来源 | ① Firebase → 项目设置 → **Web 应用 imageAI** → 重新复制整段 `firebaseConfig`，覆盖 HTML 后 `firebase deploy --only hosting`。<br>② 在 **Google Cloud** 打开同项目，找到与 Web 配置同名的 **API 密钥** → **应用限制**选「HTTP 引荐来源网址」，添加：`https://<项目ID>.firebaseapp.com/*`、`https://<项目ID>.web.app/*`（本地可加 `http://localhost:*`）；或为排查暂时选「无」再测。<br>③ **API 限制**须允许 **Identity Toolkit API** 等（或选「不限制 API」配合仅 HTTP 引荐来源限制）。**勿**把 iOS `GoogleService-Info.plist` 里的 `API_KEY` 当网页 `apiKey` 使用（平台不同）。 |
 
 ### 快速验证深链是否生效（不依赖后端）
 
