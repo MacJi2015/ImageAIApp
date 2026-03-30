@@ -177,9 +177,17 @@ export async function shareToX(payload: SharePayload): Promise<void> {
   }
 }
 
-/** TikTok：使用 TikTok SDK 单平台分享 */
+/** TikTok：使用系统分享选择器（react-native-share 该版本不支持 shareSingle->TikTok） */
 export async function shareToTikTok(payload: SharePayload): Promise<void> {
-  const installed = await isAppInstalled('snssdk1233://', 'com.zhiliaoapp.musically');
+  const url = payload.url ?? '';
+  if (!url) {
+    showShareFailure('TikTok');
+    return;
+  }
+
+  // iOS：TikTok Share SDK scheme；Android：OpenSDK scheme
+  const scheme = Platform.OS === 'ios' ? 'tiktoksharesdk://' : 'snssdk1233://';
+  const installed = await isAppInstalled(scheme, 'com.zhiliaoapp.musically');
   if (!installed) {
     showShareFailure('TikTok');
     return;
@@ -187,11 +195,15 @@ export async function shareToTikTok(payload: SharePayload): Promise<void> {
 
   const message = buildMessage(payload);
   try {
-    await RNShare.shareSingle({
+    const isVideo = /\.mp4($|\?)/i.test(url);
+    await RNShare.open({
       title: payload.title ?? 'Share',
       message,
-      url: payload.url || undefined,
-      social: RNShare.Social.TIKTOK,
+      url,
+      // Hint for share sheet (mostly helps iOS / some Android implementations)
+      type: isVideo ? 'video/mp4' : undefined,
+      showAppsToView: true,
+      failOnCancel: false,
     });
   } catch (e) {
     if (isUserCancel(e)) return;
