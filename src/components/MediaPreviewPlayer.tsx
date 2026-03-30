@@ -33,9 +33,8 @@ export function MediaPreviewPlayer({
     setEnded(false);
   }, [videoUri, imageUri]);
 
-  const showPlayBtn =
-    hasVideo &&
-    (playButtonMode === 'always' || paused || ended);
+  const canShowPlayBtn = playButtonMode === 'always' || playButtonMode === 'pausedOrEnded';
+  const showPlayBtn = hasVideo && canShowPlayBtn && (paused || ended);
 
   const handleTogglePlay = () => {
     if (!hasVideo) return;

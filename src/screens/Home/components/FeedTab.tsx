@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
@@ -14,7 +15,6 @@ import {
   getFeedList,
   likeFeed,
   unlikeFeed,
-  parseFeedAttributes,
   type FeedItem,
 } from '../../../api/services/feed';
 import { useAppStore, useUserStore } from '../../../store';
@@ -36,13 +36,12 @@ function FeedCard({
   onLikePress: (e?: { stopPropagation?: () => void }) => void;
   onPress: () => void;
 }) {
-  const {liked} = item;
+  const { liked } = item;
+  const nickname = item.nickname ?? '';
+  const userAvatar = item.userAvatar;
   const [imageLoaded, setImageLoaded] = useState(false);
-  const { userAvatar, nickname } = parseFeedAttributes(item.attributes);
-  const nick = nickname?.trim();
-  const displayName = nick
-    ? `@${nick.replace(/^@/, '')}`
-    : `@User${item.userId}`;
+ 
+  const displayName = nickname;
   const avatarUri = userAvatar?.trim();
   const avatarSource = avatarUri ? { uri: avatarUri } : headNan;
 
@@ -66,6 +65,8 @@ function FeedCard({
         onPress={onLikePress}
         activeOpacity={0.8}
       >
+        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+        <View style={styles.cardLikeBadgeOverlay} />
         <Image
           source={liked ? likeSelectedIcon : likeDefaultIcon}
           style={styles.cardLikeIconSize}
@@ -100,10 +101,12 @@ interface FeedTabProps {
   refreshKey?: number;
   /** 登录成功等导致会话变化时递增，用于在未下拉刷新时重新拉取 Feed */
   authSessionEpoch?: number;
+  /** 详情点赞等导致 Feed 变更时递增 */
+  feedRefreshEpoch?: number;
 }
 
 export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
-  { refreshKey, authSessionEpoch = 0 },
+  { refreshKey, authSessionEpoch = 0, feedRefreshEpoch = 0 },
   ref,
 ) {
   const navigation = useNavigation<Nav>();
@@ -151,7 +154,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
 
   useEffect(() => {
     refresh();
-  }, [refresh, refreshKey, authSessionEpoch]);
+  }, [refresh, refreshKey, authSessionEpoch, feedRefreshEpoch]);
 
   const handleLikePress = useCallback(
     async (item: FeedItem, e?: { stopPropagation?: () => void }) => {
@@ -173,9 +176,6 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
 
   const handleCardPress = useCallback(
     (item: FeedItem) => {
-      const { userAvatar, nickname } = parseFeedAttributes(item.attributes);
-      const nick = nickname?.trim();
-      const userLabel = nick ? `@${nick.replace(/^@/, '')}` : `@User${item.userId}`;
       navigation.navigate('Detail', {
         id: item.feedId,
         source: 'feed',
@@ -183,8 +183,8 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
           title: item.promptText ?? 'Feed',
           videoUrl: item.videoUrl,
           thumbnailUrl: item.thumbnailUrl,
-          userName: userLabel,
-          userAvatarUrl: userAvatar?.trim() || undefined,
+          userName: item.nickname,
+          userAvatarUrl: item.userAvatar,
           likeCount: item.likeCount ?? 0,
           viewCount: item.viewCount ?? 0,
           liked: Boolean(item.liked),
@@ -285,11 +285,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: dp(8),
     top: hp(8),
-    backgroundColor: '#00000099',
     borderRadius: dp(12),
     height: hp(20),
     minWidth: dp(42),
     paddingHorizontal: dp(6),
+    overflow: 'hidden',
+  },
+  cardLikeBadgeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   cardLikeBadgeRow: {
     flexDirection: 'row',

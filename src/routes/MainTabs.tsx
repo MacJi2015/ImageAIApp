@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { HomeScreen } from '../screens/Home';
 import { MyScreen } from '../screens/MyScreen';
 import { ChooseVideoModal } from '../screens/Details/components/ChooseVideoModal';
 import type { MainTabParamList } from './types';
+import { useAppStore } from '../store';
 
 import homeDefaultIcon from '../assets/home-default-icon.png';
 import homeSelectedIcon from '../assets/home-selected-icon.png';
@@ -19,15 +20,29 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const ACCENT = '#00ffff';
 const TAB_BAR_BLUR = 10;
-const TAB_BAR_OVERLAY = 'rgba(5, 10, 20, 0.80)';
+const TAB_BAR_OVERLAY = 'rgba(5, 10, 20, 0.8)';
+const TAB_BAR_SOLID = '#050A14';
 
 function TabBarBackground() {
+  const translucent = useAppStore((s) => s.tabBarTranslucent);
+  console.log('translucent', translucent);
   return (
     <>
-      <BlurView style={tabBarBackgroundStyles.blur} blurType="dark" blurAmount={TAB_BAR_BLUR} />
-      <View style={tabBarBackgroundStyles.overlay} />
+      {translucent ? (
+        <BlurView style={tabBarBackgroundStyles.blur} blurType="dark" blurAmount={TAB_BAR_BLUR} />
+      ) : null}
+      <View
+        style={[
+          tabBarBackgroundStyles.overlay,
+          { backgroundColor: translucent ? TAB_BAR_OVERLAY : TAB_BAR_SOLID },
+        ]}
+      />
     </>
   );
+}
+
+function EmptyTabScreen() {
+  return <View />;
 }
 const tabBarBackgroundStyles = StyleSheet.create({
   blur: {
@@ -132,6 +147,11 @@ export function MainTabs() {
           justifyContent: 'flex-start',
         },
       }}
+      screenListeners={{
+        tabPress: () => {
+          useAppStore.getState().setTabBarTranslucent(false);
+        },
+      }}
     >
       <Tab.Screen
         name="Home"
@@ -143,16 +163,16 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Add"
-        component={()=><View/>}
+        component={EmptyTabScreen}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            handleAddTabPress();
+          },
+        }}
         options={{
           title: 'Add',
           tabBarIcon: renderPublishIcon,
-          tabBarButton: (props) => (
-            <Pressable
-              {...(props as object)}
-              onPress={handleAddTabPress}
-            />
-          ),
         }}
       />
       <Tab.Screen

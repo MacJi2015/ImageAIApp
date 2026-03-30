@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
+  Animated,
   Alert,
+  Easing,
   Image,
   Modal,
   Pressable,
@@ -27,7 +29,7 @@ const shareIcons = {
 // 与 Create Video 底栏一致：深底、大圆角、标题独立一行（分享弹窗无顶边描边，避免色偏）
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.75)',
-  panel: '#020308',
+  panel: '#050A14',
   closeBtnBg: 'rgba(255,255,255,0.05)',
   closeBtnBorder: 'rgba(255,255,255,0.1)',
   title: '#FFFFFF',
@@ -90,16 +92,44 @@ export function ShareModal({
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
+  const panelTranslateY = useRef(new Animated.Value(48)).current;
+  const closingRef = useRef(false);
 
   const communityTaskId = (payload?.communityShareTaskId ?? '').trim();
   const showCommunityOption =
     payload?.showCommunityShareOption === true && isCommunityTaskId(communityTaskId);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && showCommunityOption) {
       setAlsoShareToCommunity(true);
     }
   }, [visible, showCommunityOption]);
+
+  useEffect(() => {
+    if (!visible) return;
+    closingRef.current = false;
+    panelTranslateY.setValue(48);
+    Animated.timing(panelTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [panelTranslateY, visible]);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    Animated.timing(panelTranslateY, {
+      toValue: 48,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      closingRef.current = false;
+      onClose();
+    });
+  }, [onClose, panelTranslateY]);
 
   const sharePayload: SharePayload = React.useMemo(
     () => payload ?? { message: getRandomDefaultMessage() },
@@ -130,17 +160,20 @@ export function ShareModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={requestClose}
     >
       <View style={styles.backdrop}>
         <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
         <View style={styles.backdropOverlay} />
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        <View
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
+        <Animated.View
           style={[
             styles.panel,
-            { paddingBottom: insets.bottom + 28 },
+            {
+              paddingBottom: insets.bottom + 28,
+              transform: [{ translateY: panelTranslateY }],
+            },
           ]}
           onStartShouldSetResponder={() => true}
         >
@@ -149,7 +182,7 @@ export function ShareModal({
             <View style={styles.headerLeading}>
               <TouchableOpacity
                 style={styles.closeBtn}
-                onPress={onClose}
+                onPress={requestClose}
                 activeOpacity={0.8}
               >
                 <PromptCloseIcon />
@@ -176,13 +209,13 @@ export function ShareModal({
                     !!useUserStore.getState().token &&
                     isCommunityTaskId(communityTaskId);
                   // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
-                  onClose();
+                  requestClose();
                   setTimeout(() => {
                     if (shouldShareToCommunity) {
                       shareVideoToCommunity(communityTaskId).catch(() => {});
                     }
                     handlers[key](payloadForShare);
-                  }, 650);
+                  }, 280);
                 }}
               >
                 <Image source={source} style={styles.shareIconImage} resizeMode="contain" />
@@ -211,7 +244,7 @@ export function ShareModal({
               <Text style={styles.communityLabel}>Also share to the PetsGO community</Text>
             </Pressable>
           ) : null}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

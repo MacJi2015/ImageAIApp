@@ -45,9 +45,12 @@ export function CustomPromptScreen() {
   const route = useRoute<CustomPromptRoute>();
   const insets = useSafeAreaInsets();
   const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const openPremiumModal = useAppStore((s) => s.openPremiumModal);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const user = useUserStore((s) => s.user);
   const { imageUri, petImageUrl: initialPetImageUrl, templateId, templateThumbnailUrl } = route.params;
   const isFromEffect = Boolean(templateId);
+  const remainingQuota = Math.max(0, Number(user?.remainingQuota ?? 0));
   const [currentImageUri, setCurrentImageUri] = useState(imageUri);
   const [currentPetImageUrl, setCurrentPetImageUrl] = useState<string | undefined>(initialPetImageUrl);
   const [prompt, setPrompt] = useState('');
@@ -73,6 +76,10 @@ export function CustomPromptScreen() {
   const handleGenerate = useCallback(async () => {
     if (!isLoggedIn) {
       openLoginModal();
+      return;
+    }
+    if (remainingQuota <= 0) {
+      openPremiumModal();
       return;
     }
     if (!isFromEffect && !prompt.trim()) {
@@ -117,7 +124,7 @@ export function CustomPromptScreen() {
     } finally {
       setGenerating(false);
     }
-  }, [isLoggedIn, openLoginModal, prompt, currentPetImageUrl, currentImageUri, removeWatermark, templateId, navigation, isFromEffect]);
+  }, [isLoggedIn, openLoginModal, openPremiumModal, remainingQuota, prompt, currentPetImageUrl, currentImageUri, removeWatermark, templateId, navigation, isFromEffect]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -325,7 +332,7 @@ export function CustomPromptScreen() {
               </TouchableOpacity>
               <View style={styles.chancesRow}>
                 <View style={styles.chanceDot} />
-                <Text style={styles.chancesText}>3 Free Chances Remaining</Text>
+                <Text style={styles.chancesText}>{remainingQuota} Free Chances Remaining</Text>
               </View>
             </View>
           </TouchableWithoutFeedback>

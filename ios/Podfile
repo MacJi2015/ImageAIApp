@@ -7,10 +7,17 @@ require Pod::Executable.execute_command('node', ['-p',
 
 platform :ios, min_ios_version_supported
 
-# 与 node_modules 内 @react-native-firebase/app 的 sdkVersions.ios.firebase 一致（当前 23.8.x → 12.10.0）。
-# 若 Podfile.lock 仍锁在旧版（如 12.8.0），pod install 会报 RNFBAuth 与 Firebase/Auth 版本冲突，请在本目录执行：
-#   bundle exec pod update Firebase/Auth Firebase/CoreOnly
-$FirebaseSDKVersion = '12.10.0'
+# 与 node_modules 里 RNFB 声明的 ios firebase 版本严格一致；勿手写版本号，避免与锁文件/升级不同步。
+# 若出现 “In snapshot (Podfile.lock): Firebase/CoreOnly (= x) … RNFBApp … (= y)”：删除 ios/Podfile.lock 后重新 pod install，
+# 或执行：bundle exec pod update Firebase/CoreOnly Firebase/Auth
+begin
+  require 'json'
+  rnfb = File.join(__dir__, '..', 'node_modules', '@react-native-firebase', 'app', 'package.json')
+  if File.exist?(rnfb)
+    fb_ios = JSON.parse(File.read(rnfb)).dig('sdkVersions', 'ios', 'firebase')
+    $FirebaseSDKVersion = fb_ios if fb_ios
+  end
+end
 
 prepare_react_native_project!
 

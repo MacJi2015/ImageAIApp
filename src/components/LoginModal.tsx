@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Modal,
   StyleSheet,
   Text,
@@ -18,7 +20,7 @@ import { useAppStore } from '../store';
 // 设计稿配色：深色主题、青绿链接色
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.35)',
-  panel: '#0f1419',
+  panel: '#050A14',
   panelBorder: 'transparent',
   // 关闭按钮需要“两色”：中间更深，外圈有一圈描边
   closeBtnBg: '#0d1117',
@@ -136,6 +138,34 @@ export function LoginModal({
 }: LoginModalProps) {
   const insets = useSafeAreaInsets();
   const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
+  const panelTranslateY = useRef(new Animated.Value(48)).current;
+  const closingRef = useRef(false);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    Animated.timing(panelTranslateY, {
+      toValue: 48,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      closingRef.current = false;
+      onClose();
+    });
+  }, [onClose, panelTranslateY]);
+
+  useEffect(() => {
+    if (!visible) return;
+    closingRef.current = false;
+    panelTranslateY.setValue(48);
+    Animated.timing(panelTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [panelTranslateY, visible]);
 
   const handlePrivacy = () => Linking.openURL(privacyUrl).catch(() => {});
   const handleTerms = () => Linking.openURL(termsUrl).catch(() => {});
@@ -153,18 +183,21 @@ export function LoginModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={requestClose}
     >
       <View style={styles.backdrop}>
         {/* 背景模糊层（解决“背景模糊效果有瑕疵”） */}
         <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
         <View style={styles.backdropOverlay} />
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        <View
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
+        <Animated.View
           style={[
             styles.panel,
-            { paddingBottom: insets.bottom + 24 },
+            {
+              paddingBottom: insets.bottom + 24,
+              transform: [{ translateY: panelTranslateY }],
+            },
           ]}
           onStartShouldSetResponder={() => true}
         >
@@ -172,7 +205,7 @@ export function LoginModal({
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.closeBtn}
-              onPress={onClose}
+              onPress={requestClose}
               activeOpacity={0.8}
             >
               <PromptCloseIcon />
@@ -212,7 +245,7 @@ export function LoginModal({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Animated.View>
         {socialLoginSubmitting ? (
           <View
             style={[StyleSheet.absoluteFillObject, styles.submittingLayer]}

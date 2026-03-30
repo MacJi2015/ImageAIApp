@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
   Modal,
   Platform,
@@ -25,8 +27,8 @@ const MODAL_HEIGHT_RATIO = 0.78;
 
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.72)',
-  panelStart: '#061126',
-  panelEnd: '#020914',
+  panelStart: '#050A14',
+  panelEnd: '#050A14',
   accent: '#00f0ff',
   titleWhite: '#ffffff',
   titleAccent: '#00f0ff',
@@ -137,9 +139,19 @@ export function PremiumModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const panelTranslateY = useRef(new Animated.Value(48)).current;
+  const closingRef = useRef(false);
 
   useEffect(() => {
     if (!visible) return;
+    closingRef.current = false;
+    panelTranslateY.setValue(48);
+    Animated.timing(panelTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
     setError(null);
     setLoading(true);
     getSubscriptionList(platform)
@@ -160,10 +172,24 @@ export function PremiumModal({
       .finally(() => setLoading(false));
   }, [visible]);
 
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    Animated.timing(panelTranslateY, {
+      toValue: 48,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      closingRef.current = false;
+      onClose();
+    });
+  }, [onClose, panelTranslateY]);
+
   const handleSubscribe = () => {
     if (selectedProductId) {
       onSubscribe?.(selectedProductId);
-      onClose();
+      requestClose();
     }
   };
 
@@ -171,19 +197,20 @@ export function PremiumModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={requestClose}
     >
       <View style={styles.backdrop}>
         <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
         <View style={styles.backdropOverlay} />
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        <View
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
+        <Animated.View
           style={[
             styles.panelWrap,
             {
               height: screenHeight * MODAL_HEIGHT_RATIO,
               paddingBottom: insets.bottom + 36,
+              transform: [{ translateY: panelTranslateY }],
             },
           ]}
           onStartShouldSetResponder={() => true}
@@ -197,7 +224,7 @@ export function PremiumModal({
               <View style={styles.header}>
               <TouchableOpacity
                 style={styles.closeBtn}
-                onPress={onClose}
+                onPress={requestClose}
                 activeOpacity={0.8}
               >
                 <PromptCloseIcon />
@@ -284,7 +311,7 @@ export function PremiumModal({
               </TouchableOpacity>
             </View>
           </LinearGradient>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

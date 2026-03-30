@@ -30,6 +30,8 @@ export function parseFeedAttributes(raw?: string | null): FeedUserAttributes {
 /** Feed 流单条 */
 export interface FeedItem {
   liked?: boolean;
+  nickname?: string;
+  userAvatar?: string;
   attributes?: string;
   createdTime?: string;
   feedId: string;
@@ -129,9 +131,9 @@ export async function viewFeed(feedId: string): Promise<void> {
  * GET /facial/app/feed/detail/{feedId}
  */
 export async function getFeedDetail(feedId: string): Promise<FeedItem> {
-  const res = await get<FeedItem | { entry: FeedItem }>(
-    `app/feed/detail/${feedId}`,
-  );
+  const res = await get<FeedItem | { entry: FeedItem }>(`app/feed/detail`, {
+    params: { feedId },
+  });
   if (
     res &&
     typeof res === 'object' &&

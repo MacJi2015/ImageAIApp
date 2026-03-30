@@ -48,6 +48,12 @@ export interface AppState {
   /** loadAuth 已跑完，避免冷启动尚未恢复 token 就弹登录 */
   authHydrated: boolean;
   setAuthHydrated: (value: boolean) => void;
+  /** MainTabs 底栏背景是否半透明 */
+  tabBarTranslucent: boolean;
+  setTabBarTranslucent: (value: boolean) => void;
+  /** Feed 数据变更（详情点赞等）后递增，用于触发 Home/FeedTab 刷新 */
+  feedRefreshEpoch: number;
+  notifyFeedRefresh: () => void;
 }
 
 export const useAppStore = create<AppState>(set => ({
@@ -75,4 +81,8 @@ export const useAppStore = create<AppState>(set => ({
   setSocialLoginSubmitting: value => set({ socialLoginSubmitting: value }),
   authHydrated: false,
   setAuthHydrated: value => set({ authHydrated: value }),
+  tabBarTranslucent: false,
+  setTabBarTranslucent: value => set({ tabBarTranslucent: value }),
+  feedRefreshEpoch: 0,
+  notifyFeedRefresh: () => set(state => ({ feedRefreshEpoch: state.feedRefreshEpoch + 1 })),
 }));

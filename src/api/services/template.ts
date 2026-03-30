@@ -37,9 +37,15 @@ export async function getTemplateDetail(
   templateId: string,
 ): Promise<AppVideoTemplate> {
   const res = await get<AppVideoTemplate | { entry: AppVideoTemplate }>(
-    `app/template/${templateId}`,
+    `app/template/detail`,
+    { params: { templateId } },
   );
-  if (res && typeof res === 'object' && 'entry' in res && (res as { entry?: AppVideoTemplate }).entry != null) {
+  if (
+    res &&
+    typeof res === 'object' &&
+    'entry' in res &&
+    (res as { entry?: AppVideoTemplate }).entry != null
+  ) {
     return (res as { entry: AppVideoTemplate }).entry;
   }
   return res as AppVideoTemplate;

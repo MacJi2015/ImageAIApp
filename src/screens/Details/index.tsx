@@ -20,6 +20,7 @@ import seeIcon from '../../assets/details/see-icon.png';
 import shareIcon from '../../assets/details/share-icon.png';
 import timeIcon from '../../assets/details/time-icon.png';
 import LikeBigIcon from '../../assets/details/like-big-icon.svg';
+import LikedIcon from '../../assets/details/liked-icon.svg';
 import { formatPreviewCount } from '../../utils';
 import { dp, hp } from '../../utils/scale';
 import headNan from '../../assets/head-nan.png';
@@ -29,7 +30,6 @@ import { DetailVideoPlayer } from './components/DetailVideoPlayer';
 import {
   getFeedDetail,
   likeFeed,
-  parseFeedAttributes,
   unlikeFeed,
   viewFeed,
 } from '../../api/services/feed';
@@ -64,13 +64,14 @@ export function DetailsScreen() {
   const insets = useSafeAreaInsets();
   const openShareModal = useAppStore((s) => s.openShareModal);
   const openLoginModal = useAppStore((s) => s.openLoginModal);
-  const authSessionEpoch = useAppStore((s) => s.authSessionEpoch);
+  const openPremiumModal = useAppStore((s) => s.openPremiumModal);
+  const notifyFeedRefresh = useAppStore((s) => s.notifyFeedRefresh);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const user = useUserStore((s) => s.user);
   const { id, source, initialData } = route.params;
   const isEffect = source === 'effect';
 
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [chooseVideoVisible, setChooseVideoVisible] = useState(false);
 
   const [detail, setDetail] = useState<DetailData>(() => ({
@@ -82,17 +83,16 @@ export function DetailsScreen() {
   }));
 
   const displayTitle = (detail.title?.trim() || (isEffect ? 'Effect' : 'Feed')).toUpperCase();
-  const canChooseVideo = isEffect || Boolean(detail.templateIdForPrompt);
+  const remainingQuota = Math.max(0, Number(user?.remainingQuota ?? 0));
 
   // Feed 增加浏览数
   useEffect(() => {
-    if (isEffect) return;
+    if (isEffect || !isLoggedIn) return;
     viewFeed(id).catch(() => {});
-  }, [id, isEffect]);
+  }, [id, isEffect,isLoggedIn]);
 
   const fetchDetail = useCallback(async () => {
     setLoadingDetail(true);
-    setLoadError(null);
     try {
       if (isEffect) {
         const t = await getTemplateDetail(id);
@@ -108,16 +108,14 @@ export function DetailsScreen() {
         });
       } else {
         const f = await getFeedDetail(id);
-        const { userAvatar, nickname } = parseFeedAttributes(f.attributes);
-        const nick = nickname?.trim();
-        const userLabel = nick ? `@${nick.replace(/^@/, '')}` : `@User${f.userId}`;
+       
         setDetail((prev) => ({
           ...prev,
           title: f.promptText ?? 'Feed',
           videoUrl: f.videoUrl,
           thumbnailUrl: f.thumbnailUrl,
-          userName: userLabel,
-          userAvatarUrl: userAvatar?.trim() || undefined,
+          userName: f.nickname,
+          userAvatarUrl: f.userAvatar,
           likeCount: f.likeCount ?? 0,
           viewCount: f.viewCount ?? 0,
           // 若接口未返回 liked 字段，保留当前状态；返回时以接口为准
@@ -127,8 +125,6 @@ export function DetailsScreen() {
         }));
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '加载失败';
-      setLoadError(msg);
       __DEV__ && console.warn('[DetailsScreen] fetch detail failed', e);
     } finally {
       setLoadingDetail(false);
@@ -141,7 +137,7 @@ export function DetailsScreen() {
     }
 
     run();
-  }, [fetchDetail, isEffect ? 0 : authSessionEpoch]);
+  }, [fetchDetail, isLoggedIn]);
 
   const handleToggleLike = useCallback(async () => {
     if (isEffect) return;
@@ -157,10 +153,23 @@ export function DetailsScreen() {
         await likeFeed(id);
       }
       await fetchDetail();
+      notifyFeedRefresh();
     } catch (e) {
       __DEV__ && console.warn('[DetailsScreen] like toggle failed', e);
     }
-  }, [detail.liked, fetchDetail, id, isEffect, isLoggedIn, openLoginModal]);
+  }, [detail.liked, fetchDetail, id, isEffect, isLoggedIn, notifyFeedRefresh, openLoginModal]);
+
+  const handleChooseVideo = useCallback(() => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    if (remainingQuota <= 0) {
+      openPremiumModal();
+      return;
+    }
+    setChooseVideoVisible(true);
+  }, [isLoggedIn, openLoginModal, openPremiumModal, remainingQuota]);
 
   return (
     <View style={styles.container}>
@@ -217,22 +226,25 @@ export function DetailsScreen() {
         <View style={[styles.bottomOverlayWrap, { paddingBottom: insets.bottom }]}>
         
           <View style={styles.bottomOverlay}>
-            {loadError ? (
-              <Text style={styles.errorText}>{loadError}</Text>
-            ) : null}
             {isEffect ? (
               <>
                 <Text style={styles.effectTitle}>{displayTitle}</Text>
                 <View style={[styles.pillsRow, styles.pillsRowCenter]}>
                   <View style={styles.pill}>
+                  <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                  <View style={styles.pillOverlay} />
                     <Image source={timeIcon} style={styles.pillIcon} resizeMode="contain" />
                     <Text style={styles.pillText}>5s</Text>
                   </View>
                   <View style={styles.pill}>
+                  <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                  <View style={styles.pillOverlay} />
                     <Image source={resolutionIcon} style={styles.pillIcon} resizeMode="contain" />
                     <Text style={styles.pillText}>720p</Text>
                   </View>
                   <View style={styles.pill}>
+                  <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={5} />
+                  <View style={styles.pillOverlay} />
                     <Image source={seeIcon} style={styles.pillIcon} resizeMode="contain" />
                     <Text style={styles.pillText}>{formatPreviewCount(detail.viewCount)}</Text>
                   </View>
@@ -240,10 +252,7 @@ export function DetailsScreen() {
                 <TouchableOpacity
                   style={styles.tryButton}
                   activeOpacity={0.8}
-                  onPress={() => {
-                    if (!canChooseVideo) return;
-                    setChooseVideoVisible(true);
-                  }}
+                  onPress={handleChooseVideo}
                 >
                   <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
                   <Text style={styles.tryButtonText}>TRY IT</Text>
@@ -264,7 +273,7 @@ export function DetailsScreen() {
                         resizeMode="cover"
                       />
                       <Text style={styles.feedUsername}>
-                        {detail.userName ?? '@User'}
+                        {detail.userName}
                       </Text>
                     </View>
                     <View style={[styles.pillsRow, styles.pillsRowStart]}>
@@ -301,11 +310,11 @@ export function DetailsScreen() {
                       blurAmount={5}
                     />
                     <View style={styles.feedLikeBadgeOverlay} />
-                    <LikeBigIcon
-                      width={23}
-                      height={22}
-                      style={detail.liked ? styles.likeIconLiked : styles.likeIconUnliked}
-                    />
+                    {detail.liked ? (
+                      <LikedIcon width={23} height={22} style={styles.likeIconLiked} />
+                    ) : (
+                      <LikeBigIcon width={23} height={22} style={styles.likeIconUnliked} />
+                    )}
                     <Text style={styles.feedLikeCount}>
                       {formatPreviewCount(detail.likeCount)}
                     </Text>
@@ -314,10 +323,7 @@ export function DetailsScreen() {
                 <TouchableOpacity
                   style={styles.tryButton}
                   activeOpacity={0.8}
-                  onPress={() => {
-                    if (!canChooseVideo) return;
-                    setChooseVideoVisible(true);
-                  }}
+                  onPress={handleChooseVideo}
                 >
                   <Image source={generateIcon} style={styles.tryButtonIcon} resizeMode="contain" />
                   <Text style={styles.tryButtonText}>CREATE NOW</Text>
@@ -326,7 +332,7 @@ export function DetailsScreen() {
             )}
             <View style={styles.footerRow}>
               <View style={styles.footerDot} />
-              <Text style={styles.footerText}>3 Free Chances Remaining</Text>
+              <Text style={styles.footerText}>{remainingQuota} Free Chances Remaining</Text>
             </View>
           </View>
         </View>
@@ -438,7 +444,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.accent,
     textAlign: 'center',
-    marginBottom: hp(16),
+    marginBottom: hp(8),
     letterSpacing: 1,
   },
   feedUserRow: {
@@ -491,7 +497,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   likeIconUnliked: {
-    opacity: 0.4,
+    opacity: 1,
   },
   feedLikeCount: {
     fontSize: dp(12),
@@ -501,10 +507,11 @@ const styles = StyleSheet.create({
   pillsRow: {
     flexDirection: 'row',
     gap: dp(12),
-    marginBottom: hp(20),
+    // marginBottom: hp(20),
   },
   pillsRowCenter: {
     justifyContent: 'center',
+    marginBottom: hp(16),
   },
   pillsRowStart: {
     justifyContent: 'flex-start',

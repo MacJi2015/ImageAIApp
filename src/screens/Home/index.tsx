@@ -13,19 +13,30 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import { EffectsTab } from './components/EffectsTab';
 import { FeedTab, type FeedTabRef } from './components/FeedTab';
 import logoIcon from '../../assets/logoIcon.png';
 import homeTips from '../../assets/home-tips.png';
 import { dp, hp } from '../../utils/scale';
 import { useAppStore, useUserStore } from '../../store';
+import { getProfile, profileToUserInfo } from '../../api/services/user';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
-export function HomeScreen() {
+type HomeScreenProps = {
+  onTabBarOverlayChange?: (translucent: boolean) => void;
+};
+
+export function HomeScreen(_props?: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const user = useUserStore((s) => s.user);
+  const setUser = useUserStore((s) => s.setUser);
+  const token = useUserStore((s) => s.token);
   const authSessionEpoch = useAppStore((s) => s.authSessionEpoch);
+  const authHydrated = useAppStore((s) => s.authHydrated);
+  const feedRefreshEpoch = useAppStore((s) => s.feedRefreshEpoch);
+  const setTabBarTranslucent = useAppStore((s) => s.setTabBarTranslucent);
   const isPro = user?.userType === 'Pro' || user?.isPremium === true;
   const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -34,10 +45,11 @@ export function HomeScreen() {
   const [tabStickyThreshold, setTabStickyThreshold] = useState(0);
   const [showStickyLogo, setShowStickyLogo] = useState(false);
   const [showStickyTabs, setShowStickyTabs] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const feedTabRef = useRef<FeedTabRef>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
-  const hasFocusedRef = useRef(false);
+  const tabBarHeight = 56 + Math.max(insets.bottom, 8);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -50,9 +62,17 @@ export function HomeScreen() {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       const y = contentOffset.y;
       scrollYRef.current = y;
-      const TAB_OFFSET = 20; // 提前少量吸顶，视觉上刚接触就固定
+      const maxOffsetY = Math.max(0, contentSize.height - layoutMeasurement.height);
+      const clampedY = Math.min(Math.max(y, 0), maxOffsetY);
+      const bottomRegionTop = clampedY + layoutMeasurement.height - tabBarHeight;
+      const effectiveContentHeight = Math.max(0, contentSize.height - tabBarHeight);
+      const intersectsTabArea = bottomRegionTop < effectiveContentHeight;
+      setTabBarTranslucent(intersectsTabArea);
+      setHasScrolled(y > 0);
+      const LOGO_OFFSET = 8;
+      const TAB_OFFSET = 62; // 刚接触到 tab 即吸顶
 
-      setShowStickyLogo(logoStickyThreshold > 0 && y >= logoStickyThreshold);
+      setShowStickyLogo(logoStickyThreshold > 0 && y + LOGO_OFFSET >= logoStickyThreshold);
       setShowStickyTabs(tabStickyThreshold > 0 && y + TAB_OFFSET >= tabStickyThreshold);
 
       if (activeTab === 'feed') {
@@ -64,7 +84,7 @@ export function HomeScreen() {
         }
       }
     },
-    [activeTab, logoStickyThreshold, tabStickyThreshold]
+    [activeTab, logoStickyThreshold, setTabBarTranslucent, tabBarHeight, tabStickyThreshold]
   );
 
   const onHeroLayout = useCallback((e: LayoutChangeEvent) => {
@@ -77,23 +97,29 @@ export function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!hasFocusedRef.current) {
-        hasFocusedRef.current = true;
+      // 首页聚焦时不强制刷新 Feed/Effects，仅在已登录时同步用户信息用于右上角 FREE/PRO。
+      if (!authHydrated || !token) {
         return undefined;
       }
-      // 切回 Home 时刷新数据，同时保持用户当前浏览位置。
-      const prevY = scrollYRef.current;
-      setRefreshKey((k) => k + 1);
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ y: prevY, animated: false });
-      });
+      (async () => {
+        try {
+          const profile = await getProfile();
+          const base = profileToUserInfo(profile);
+          setUser({
+            ...base,
+            isPremium: base.isPremium ?? false,
+            premiumExpireAt: base.premiumExpireAt ?? user?.premiumExpireAt,
+          });
+        } catch {
+          // 静默失败，保留本地用户信息
+        }
+      })();
       return undefined;
-    }, [])
+    }, [authHydrated, setUser, token, user?.premiumExpireAt])
   );
 
   const renderHeroBlock = () => (
     <View style={styles.heroBlock} onLayout={onHeroLayout}>
-      {/* <View style={styles.heroGradient} /> */}
       <View style={styles.heroLogoRow} onLayout={onHeroLogoLayout}>
         <Image source={logoIcon} style={styles.heroLogo} resizeMode="contain" />
         <View style={[styles.proBadge, isPro && styles.proBadgePro]}>
@@ -151,7 +177,7 @@ export function HomeScreen() {
         style={[styles.stickyOverlay, { top: insets.top }]}
         pointerEvents="box-none"
       >
-        <View style={styles.stickyHeader}>
+        <View style={[styles.stickyHeader, !showStickyLogo && styles.stickyHeaderTabsOnly]}>
           {showStickyLogo && (
             <View style={styles.stickyHeaderRow}>
               <Image source={logoIcon} style={styles.stickyLogo} resizeMode="contain" />
@@ -204,7 +230,21 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.statusBarBg, { height: insets.top }]} />
+      <View
+        style={[
+          styles.statusBarBg,
+          { height: insets.top },
+          hasScrolled && styles.statusBarBgFilled,
+        ]}
+      />
+      <LinearGradient
+        colors={['#05202A', '#050A14']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topGradient]}
+        pointerEvents="none"
+      />
+     
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
@@ -217,13 +257,19 @@ export function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={COLORS.accent}
+            progressViewOffset={insets.top + hp(16)}
           />
         }
       >
         {renderHeroBlock()}
         {renderTabBar()}
         {activeTab === 'feed' ? (
-          <FeedTab ref={feedTabRef} refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
+          <FeedTab
+            ref={feedTabRef}
+            refreshKey={refreshKey}
+            authSessionEpoch={authSessionEpoch}
+            feedRefreshEpoch={feedRefreshEpoch}
+          />
         ) : (
           <EffectsTab refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
         )}
@@ -239,8 +285,11 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.bg,
+    // backgroundColor: COLORS.bg,
     zIndex: 10,
+  },
+  statusBarBgFilled: {
+    backgroundColor: COLORS.bg,
   },
   container: {
     backgroundColor: COLORS.bg,
@@ -249,6 +298,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
+  },
+  topGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: hp(210),
+    // zIndex:11
   },
   heroBlock: {
     width: '100%',
@@ -303,6 +360,10 @@ const styles = StyleSheet.create({
     paddingTop: hp(12),
     paddingBottom: hp(12),
   },
+  stickyHeaderTabsOnly: {
+    paddingTop: hp(6),
+    paddingBottom: hp(8),
+  },
   stickyHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -346,7 +407,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderStyle: 'solid',
     borderColor: '#00ffff33',
-    borderRadius: 22,
+    borderRadius: dp(22),
   },
   tabBackground: {
     position: 'absolute',
@@ -355,7 +416,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'transparent',
-    borderRadius: 22,
+    borderRadius: dp(22),
   },
   tabActiveBackground: {
     position: 'absolute',

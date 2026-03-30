@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -38,7 +40,7 @@ const MODAL_BG = '#0f1419';
 const CARD_BG = 'rgba(26, 35, 50, 0.95)';
 
 const AVATAR_MODAL_COLORS = {
-  card: '#09111f',
+  card: '#050A14',
   accent: '#00ffff',
   muted: '#3a4a65',
 };
@@ -53,10 +55,33 @@ export function EditProfileScreen() {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const avatarPanelTranslateY = useState(() => new Animated.Value(48))[0];
 
   useEffect(() => {
     setUsername(user?.name ?? 'SpacePup');
   }, [user?.name]);
+
+  useEffect(() => {
+    if (!showAvatarModal) return;
+    avatarPanelTranslateY.setValue(48);
+    Animated.timing(avatarPanelTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [avatarPanelTranslateY, showAvatarModal]);
+
+  const closeAvatarModal = () => {
+    Animated.timing(avatarPanelTranslateY, {
+      toValue: 48,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowAvatarModal(false);
+    });
+  };
 
   const avatarUri = user?.avatar;
 
@@ -134,8 +159,8 @@ export function EditProfileScreen() {
       <Modal
         visible={showAvatarModal}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowAvatarModal(false)}
+        animationType="none"
+        onRequestClose={closeAvatarModal}
       >
         <View style={styles.avatarModalBackdrop}>
           <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
@@ -143,17 +168,23 @@ export function EditProfileScreen() {
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
-            onPress={() => setShowAvatarModal(false)}
+            onPress={closeAvatarModal}
           />
-          <View
-            style={[styles.avatarModalPanel, { paddingBottom: insets.bottom + 24 }]}
+          <Animated.View
+            style={[
+              styles.avatarModalPanel,
+              {
+                paddingBottom: insets.bottom + 24,
+                transform: [{ translateY: avatarPanelTranslateY }],
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View pointerEvents="none" style={styles.avatarModalTopRim} />
             <View style={styles.avatarModalHeader}>
               <TouchableOpacity
                 style={styles.avatarModalCloseBtn}
-                onPress={() => setShowAvatarModal(false)}
+                onPress={closeAvatarModal}
                 activeOpacity={0.8}
               >
                 <PromptCloseIcon />
@@ -188,7 +219,7 @@ export function EditProfileScreen() {
                 <Text style={styles.avatarModalOptionSub}>Use Camera</Text>
               </View>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
 

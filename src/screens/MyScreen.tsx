@@ -23,7 +23,7 @@ const editIcon = require('../assets/my/edit.png');
 const defaultAvatar = require('../assets/my/topimage.png');
 const vipIcon = require('../assets/my/vip.png');
 
-const HEADER_BG = '#0f1419';
+const HEADER_BG = '#050A14';
 const CARD_BG = '#1a2332';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
@@ -49,10 +49,11 @@ export function MyScreen() {
   const setUser = useUserStore(state => state.setUser);
   /** 通过是否有 token 判断是否登录 */
   const isLoggedIn = useUserStore(state => !!state.token);
-  const authSessionEpoch = useAppStore(state => state.authSessionEpoch);
   const authHydrated = useAppStore(state => state.authHydrated);
   const openLoginModal = useAppStore(state => state.openLoginModal);
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
+  const setTabBarTranslucent = useAppStore(state => state.setTabBarTranslucent);
+  const tabBarHeight = 56 + Math.max(insets.bottom, 8);
   const gap = 8;
   const colCount = 3;
   const cellSize = (width - 24 - gap * (colCount - 1)) / colCount;
@@ -134,12 +135,12 @@ export function MyScreen() {
             isPremium: base.isPremium ?? false,
             premiumExpireAt: base.premiumExpireAt ?? current?.premiumExpireAt,
           });
-        } catch (_) {
+        } catch {
           // 静默失败，继续用 store 内已有信息
         }
       })();
       loadMyVideos(1, false);
-    }, [loadMyVideos, setUser, authSessionEpoch, openLoginModal, authHydrated])
+    }, [loadMyVideos, setUser, openLoginModal, authHydrated])
   );
 
   const loadMore = useCallback(() => {
@@ -175,10 +176,17 @@ export function MyScreen() {
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const y = contentOffset.y;
+      const maxOffsetY = Math.max(0, contentSize.height - layoutMeasurement.height);
+      const clampedY = Math.min(Math.max(y, 0), maxOffsetY);
+      const bottomRegionTop = clampedY + layoutMeasurement.height - tabBarHeight;
+      const effectiveContentHeight = Math.max(0, contentSize.height - tabBarHeight);
+      const intersectsTabArea = bottomRegionTop < effectiveContentHeight;
+      setTabBarTranslucent(intersectsTabArea);
       setShowCompactHeader(y > SCROLL_THRESHOLD);
     },
-    []
+    [setTabBarTranslucent, tabBarHeight]
   );
 
   /** GET PREMIUM / RENEW NOW：未登录先弹登录，已登录再打开会员购买弹窗 */
@@ -355,7 +363,6 @@ export function MyScreen() {
           (!myVideosFetched || videoLoading) ? (
             <View style={styles.gridLoadingWrap}>
               <ActivityIndicator size="large" color={ACCENT} />
-              <Text style={styles.gridEmptyText}>加载中...</Text>
             </View>
           ) : isLoggedIn && videoError ? (
             <View style={styles.gridEmptyWrap}>
@@ -752,9 +759,11 @@ const styles = StyleSheet.create({
   },
   gridLoadingWrap: {
     alignSelf: 'stretch',
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 32,
+    minHeight: 220,
+    paddingVertical: 40,
     gap: 12,
   },
   gridStatusBadge: {

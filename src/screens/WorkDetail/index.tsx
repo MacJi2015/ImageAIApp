@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
+  Easing,
   Image,
   Modal,
   Pressable,
@@ -31,7 +33,7 @@ const COLORS = {
   bg: '#050a14',
   accent: '#00ffff',
   card: '#09111f',
-  deleteModalSurface: '#121a28',
+  deleteModalSurface: '#050A14',
   deleteModalCancelBg: '#0c131f',
 };
 
@@ -47,6 +49,71 @@ export function WorkDetailScreen() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const promptSheetTranslateY = useRef(new Animated.Value(48)).current;
+  const deleteCardScale = useRef(new Animated.Value(0.95)).current;
+  const deleteCardOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!promptVisible) return;
+    promptSheetTranslateY.setValue(48);
+    Animated.timing(promptSheetTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [promptSheetTranslateY, promptVisible]);
+
+  useEffect(() => {
+    if (!deleteConfirmVisible) return;
+    deleteCardScale.setValue(0.95);
+    deleteCardOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(deleteCardScale, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(deleteCardOpacity, {
+        toValue: 1,
+        duration: 160,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [deleteCardOpacity, deleteCardScale, deleteConfirmVisible]);
+
+  const closePromptModal = useCallback(() => {
+    Animated.timing(promptSheetTranslateY, {
+      toValue: 48,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setPromptVisible(false);
+    });
+  }, [promptSheetTranslateY]);
+
+  const closeDeleteModal = useCallback(() => {
+    if (deleting) return;
+    Animated.parallel([
+      Animated.timing(deleteCardScale, {
+        toValue: 0.95,
+        duration: 140,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(deleteCardOpacity, {
+        toValue: 0,
+        duration: 120,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setDeleteConfirmVisible(false);
+    });
+  }, [deleteCardOpacity, deleteCardScale, deleting]);
 
   const displayDate = useMemo(() => {
     if (item.createdTime) return item.createdTime.slice(0, 10);
@@ -194,23 +261,28 @@ export function WorkDetailScreen() {
       <Modal
         visible={deleteConfirmVisible}
         transparent
-        animationType="fade"
-        onRequestClose={() => !deleting && setDeleteConfirmVisible(false)}
+        animationType="none"
+        onRequestClose={closeDeleteModal}
       >
         <View style={styles.deleteModalRoot}>
           <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={12} />
           <View style={styles.deleteModalDim} />
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => !deleting && setDeleteConfirmVisible(false)}
+            onPress={closeDeleteModal}
           />
           <View style={styles.deleteModalCenter} pointerEvents="box-none">
-            <View style={styles.deleteModalCard}>
+            <Animated.View
+              style={[
+                styles.deleteModalCard,
+                { opacity: deleteCardOpacity, transform: [{ scale: deleteCardScale }] },
+              ]}
+            >
               <Text style={styles.deleteModalTitle}>Delete Video?</Text>
               <View style={styles.deleteModalRow}>
                 <TouchableOpacity
                   style={[styles.deleteModalCancelBtn, deleting && styles.deleteModalBtnDisabled]}
-                  onPress={() => !deleting && setDeleteConfirmVisible(false)}
+                  onPress={closeDeleteModal}
                   activeOpacity={0.85}
                   disabled={deleting}
                 >
@@ -229,7 +301,7 @@ export function WorkDetailScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           </View>
         </View>
       </Modal>
@@ -237,8 +309,8 @@ export function WorkDetailScreen() {
       <Modal
         visible={promptVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setPromptVisible(false)}
+        animationType="none"
+        onRequestClose={closePromptModal}
       >
         <View style={styles.promptModalMask}>
           <BlurView
@@ -250,14 +322,22 @@ export function WorkDetailScreen() {
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
-            onPress={() => setPromptVisible(false)}
+            onPress={closePromptModal}
           />
-          <View style={[styles.promptSheet, { paddingBottom: insets.bottom + hp(20) }]}>
+          <Animated.View
+            style={[
+              styles.promptSheet,
+              {
+                paddingBottom: insets.bottom + hp(20),
+                transform: [{ translateY: promptSheetTranslateY }],
+              },
+            ]}
+          >
             <View pointerEvents="none" style={styles.promptSheetTopRim} />
             <View style={styles.promptSheetHeader}>
               <TouchableOpacity
                 style={styles.promptCloseBtn}
-                onPress={() => setPromptVisible(false)}
+                onPress={closePromptModal}
                 activeOpacity={0.8}
               >
                 <PromptCloseIcon />
@@ -274,7 +354,7 @@ export function WorkDetailScreen() {
                 {item.promptText || 'No prompt text available.'}
               </Text>
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>

@@ -1,4 +1,5 @@
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
 
 type LoginSubmittingOverlayProps = {
   visible: boolean;
@@ -7,13 +8,36 @@ type LoginSubmittingOverlayProps = {
 };
 
 export function LoginSubmittingOverlay({ visible, message = '登录中…' }: LoginSubmittingOverlayProps) {
+  const cardScale = useRef(new Animated.Value(0.95)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    cardScale.setValue(0.95);
+    cardOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(cardScale, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 160,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [cardOpacity, cardScale, visible]);
+
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        <Animated.View style={[styles.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}>
           <ActivityIndicator size="large" color="#58a6ff" />
           <Text style={styles.text}>{message}</Text>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -31,7 +55,7 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     paddingHorizontal: 32,
     borderRadius: 16,
-    backgroundColor: '#1a2332',
+    backgroundColor: '#050A14',
     alignItems: 'center',
     gap: 16,
   },

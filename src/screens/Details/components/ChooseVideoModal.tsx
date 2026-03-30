@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
+  Easing,
   InteractionManager,
   Modal,
   StyleSheet,
@@ -23,12 +25,13 @@ import CameraIcon from '../../../assets/details/camera.svg';
 import PhotoIcon from '../../../assets/details/photo.svg';
 import { PromptCloseIcon } from '../../../utils';
 import { dp, hp } from '../../../utils/scale';
+import { useAppStore, useUserStore } from '../../../store';
 
 const COLORS = {
   /** 接近纯黑的深底 */
-  panel: '#020308',
+  panel: '#050A14',
   /** 比面板略亮一档的选项区 */
-  optionCard: '#0b121c',
+  optionCard: '#09111F',
   accent: '#00ffff',
   subtitle: '#4a5d7a',
   closeBg: 'rgba(255,255,255,0.05)',
@@ -52,6 +55,36 @@ export function ChooseVideoModal({
 }: ChooseVideoModalProps) {
   const insets = useSafeAreaInsets();
   const [uploading, setUploading] = useState(false);
+  const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const panelTranslateY = useRef(new Animated.Value(48)).current;
+  const closingRef = useRef(false);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    Animated.timing(panelTranslateY, {
+      toValue: 314,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      closingRef.current = false;
+      onClose();
+    });
+  }, [onClose, panelTranslateY]);
+
+  useEffect(() => {
+    if (!visible) return;
+    closingRef.current = false;
+    panelTranslateY.setValue(48);
+    Animated.timing(panelTranslateY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [panelTranslateY, visible]);
 
   const handleUploadAndCallback = async (asset: Asset, callback?: (a: Asset, url?: string) => void) => {
     if (!asset.uri || !callback) return;
@@ -60,7 +93,7 @@ export function ChooseVideoModal({
       const result = await uploadImage(asset.uri, 'pet');
       callback(asset, result.url);
       // callback(asset, 'https://tiantaiapp.oss-cn-hangzhou.aliyuncs.com/static/image.png');
-      onClose();
+      requestClose();
     } catch (e) {
       __DEV__ && console.warn('[ChooseVideoModal] upload failed', e);
       Alert.alert('上传失败', '请确认已登录后重试');
@@ -70,6 +103,13 @@ export function ChooseVideoModal({
   };
 
   const handleChooseGallery = () => {
+    if (!isLoggedIn) {
+      requestClose();
+      setTimeout(() => {
+        openLoginModal();
+      }, 200);
+      return;
+    }
     const options: ImageLibraryOptions = { mediaType: 'photo', selectionLimit: 1 };
     launchImageLibrary(options, (res) => {
       if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
@@ -78,6 +118,13 @@ export function ChooseVideoModal({
   };
 
   const handleTakePhoto = () => {
+    if (!isLoggedIn) {
+      requestClose();
+      setTimeout(() => {
+        openLoginModal();
+      }, 200);
+      return;
+    }
     const options: CameraOptions = {
       mediaType: 'photo',
       cameraType: 'back',
@@ -100,8 +147,8 @@ export function ChooseVideoModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={requestClose}
     >
       {uploading && (
         <View style={styles.uploadingOverlay}>
@@ -115,13 +162,14 @@ export function ChooseVideoModal({
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
-          onPress={onClose}
+          onPress={requestClose}
         />
-        <View
+        <Animated.View
           style={[
             styles.panel,
             {
               paddingBottom: insets.bottom + 24,
+              transform: [{ translateY: panelTranslateY }],
             },
           ]}
           onStartShouldSetResponder={() => true}
@@ -131,7 +179,7 @@ export function ChooseVideoModal({
             <View style={styles.headerLeading}>
               <TouchableOpacity
                 style={styles.closeBtn}
-                onPress={onClose}
+                onPress={requestClose}
                 activeOpacity={0.8}
               >
                 <PromptCloseIcon />
@@ -172,7 +220,7 @@ export function ChooseVideoModal({
               <Text style={styles.optionSub}>Use Camera</Text>
             </View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -275,7 +323,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     backgroundColor: COLORS.optionCard,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: COLORS.optionBorder,
     marginBottom: 12,
   },
@@ -284,8 +332,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     backgroundColor: 'rgba(0, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 255, 255, 0.28)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
