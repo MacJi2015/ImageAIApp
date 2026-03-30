@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   Modal,
   StyleSheet,
   Text,
@@ -77,10 +78,21 @@ export function ChooseVideoModal({
   };
 
   const handleTakePhoto = () => {
-    const options: CameraOptions = { mediaType: 'photo', cameraType: 'back', saveToPhotos: true };
-    launchCamera(options, (res) => {
-      if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
-      handleUploadAndCallback(res.assets[0], onTakePhoto);
+    const options: CameraOptions = {
+      mediaType: 'photo',
+      cameraType: 'back',
+      saveToPhotos: true,
+      // iOS: 强制全屏，避免 pageSheet/当前 modal 栈导致的预览偏下
+      presentationStyle: 'fullScreen',
+    };
+    // iOS 下若在当前 Modal 仍可见时直接 present 相机，预览层可能出现整体下移
+    // 先收起弹窗，再拉起系统相机可避免布局异常
+    // onClose();
+    InteractionManager.runAfterInteractions(() => {
+      launchCamera(options, (res) => {
+        if (res.didCancel || res.errorCode || !res.assets?.[0]) return;
+        handleUploadAndCallback(res.assets[0], onTakePhoto);
+      });
     });
   };
 

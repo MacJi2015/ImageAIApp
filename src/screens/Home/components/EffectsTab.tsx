@@ -57,6 +57,16 @@ function EffectCard({
         navigation.navigate('Detail', {
           id: template.templateId,
           source: 'effect',
+          initialData: {
+            title: template.templateName,
+            videoUrl: template.previewVideoUrl,
+            thumbnailUrl: template.coverImageUrl,
+            likeCount: 0,
+            viewCount: template.viewCount ?? 0,
+            liked: false,
+            templateIdForPrompt: template.templateId,
+            templateThumbnailUrlForPrompt: template.coverImageUrl,
+          },
         })
       }
     >

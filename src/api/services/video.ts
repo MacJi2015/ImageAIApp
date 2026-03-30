@@ -1,5 +1,4 @@
 import { get, post } from '../request';
-import { useUserStore } from '../../store/useUserStore';
 
 /** 视频状态：PENDING-待处理, PROCESSING-生成中, SUCCESS-成功, FAILED-失败 */
 export type VideoTaskStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
@@ -23,6 +22,8 @@ export interface AppVideoTask {
   templateId?: string;
   thumbnailUrl?: string;
   videoUrl?: string;
+  /** 发布到 Feed 后可能返回，用于删除社区作品等 */
+  feedId?: string;
 }
 
 export interface MyVideosResponse {

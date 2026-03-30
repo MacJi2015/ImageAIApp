@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { EffectsTab } from './components/EffectsTab';
 import { FeedTab, type FeedTabRef } from './components/FeedTab';
 import logoIcon from '../../assets/logoIcon.png';
@@ -34,6 +35,9 @@ export function HomeScreen() {
   const [showStickyLogo, setShowStickyLogo] = useState(false);
   const [showStickyTabs, setShowStickyTabs] = useState(false);
   const feedTabRef = useRef<FeedTabRef>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
+  const hasFocusedRef = useRef(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -45,6 +49,7 @@ export function HomeScreen() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       const y = contentOffset.y;
+      scrollYRef.current = y;
       const TAB_OFFSET = 20; // 提前少量吸顶，视觉上刚接触就固定
 
       setShowStickyLogo(logoStickyThreshold > 0 && y >= logoStickyThreshold);
@@ -69,6 +74,22 @@ export function HomeScreen() {
   const onHeroLogoLayout = useCallback((e: LayoutChangeEvent) => {
     setLogoStickyThreshold(e.nativeEvent.layout.y);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return undefined;
+      }
+      // 切回 Home 时刷新数据，同时保持用户当前浏览位置。
+      const prevY = scrollYRef.current;
+      setRefreshKey((k) => k + 1);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: prevY, animated: false });
+      });
+      return undefined;
+    }, [])
+  );
 
   const renderHeroBlock = () => (
     <View style={styles.heroBlock} onLayout={onHeroLayout}>
@@ -185,6 +206,7 @@ export function HomeScreen() {
     <View style={styles.container}>
       <View style={[styles.statusBarBg, { height: insets.top }]} />
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}

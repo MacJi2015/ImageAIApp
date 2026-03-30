@@ -44,6 +44,8 @@ export function DetailVideoPlayer({
             source={{ uri: videoUri! }}
             style={styles.video}
             resizeMode="cover"
+            poster={posterUri ?? undefined}
+            posterResizeMode="cover"
             paused={!playing}
             repeat
             onError={(e) => {

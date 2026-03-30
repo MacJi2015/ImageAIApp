@@ -162,8 +162,17 @@ export function WorkDetailScreen() {
       </TouchableOpacity>
 
       <View style={styles.bottomRow}>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-          <Text style={styles.deleteBtnText}>DELETE</Text>
+        <TouchableOpacity
+          style={[styles.deleteBtn, deleting && styles.deleteBtnDisabled]}
+          onPress={handleDelete}
+          activeOpacity={0.8}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator size="small" color="#3a4a65" />
+          ) : (
+            <Text style={styles.deleteBtnText}>DELETE</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.secondaryBtn, saving && styles.secondaryBtnDisabled]}
@@ -514,6 +523,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  deleteBtnDisabled: {
+    opacity: 0.7,
   },
   deleteBtnText: {
     fontSize: dp(16),
