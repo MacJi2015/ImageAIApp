@@ -1,4 +1,6 @@
 import { Alert, Linking, Platform } from 'react-native';
+import RNFS from 'react-native-fs';
+import CameraRoll from '@react-native-camera-roll/camera-roll';
 // @ts-expect-error react-native-share default export
 import RNShare from 'react-native-share';
 import type { SharePayload } from '../store/useAppStore';
@@ -7,6 +9,69 @@ function buildMessage(payload: SharePayload): string {
   const message = payload.message ?? payload.title ?? payload.url ?? 'Share';
   const url = payload.url ?? '';
   return url ? `${message}\n${url}` : message;
+}
+
+function isRemoteHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+function inferMediaTypeFromUrl(url: string): { kind: 'video' | 'image'; mime: string } | null {
+  const clean = url.split('?')[0];
+  const extMatch = clean.match(/\.([a-z0-9]+)$/i);
+  const ext = extMatch?.[1]?.toLowerCase() ?? '';
+  if (['mp4', 'm4v', 'mov'].includes(ext)) return { kind: 'video', mime: 'video/mp4' };
+  if (['jpg', 'jpeg'].includes(ext)) return { kind: 'image', mime: 'image/jpeg' };
+  if (['png'].includes(ext)) return { kind: 'image', mime: 'image/png' };
+  if (['webp'].includes(ext)) return { kind: 'image', mime: 'image/webp' };
+  return null;
+}
+
+async function ensureLocalFileUri(url: string): Promise<string> {
+  // Instagram 等 App 通常不接受远程链接直接作为媒体附件，需要本地文件
+  if (!isRemoteHttpUrl(url)) {
+    // normalize missing file:// prefix (best-effort)
+    return url.startsWith('file://') ? url : `file://${url}`;
+  }
+
+  const type = inferMediaTypeFromUrl(url);
+  const ext = url.split('?')[0].split('.').pop() || (type?.kind === 'video' ? 'mp4' : 'jpg');
+  const fileName = `share_${Date.now()}.${ext}`;
+  const localPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+  const localFileUri = `file://${localPath}`;
+
+  // 如果下载已存在，直接复用
+  try {
+    const exists = await RNFS.exists(localPath);
+    if (exists) return localFileUri;
+  } catch {
+    // ignore
+  }
+
+  const res = RNFS.downloadFile({
+    fromUrl: url,
+    toFile: localPath,
+  });
+  await res.promise;
+  return localFileUri;
+}
+
+async function ensureIosPhAssetUriForVideo(localFileUri: string): Promise<string> {
+  // iOS 的 react-native-share Instagram 实现只接受 ph://（PHAsset local identifier）
+  if (Platform.OS !== 'ios') return localFileUri;
+  if (localFileUri.startsWith('ph://')) return localFileUri;
+
+  try {
+    const saved = await CameraRoll.save(localFileUri, { type: 'video' });
+    // CameraRoll.save on iOS returns "ph://<localIdentifier>"
+    return saved;
+  } catch (e) {
+    // 如果无相册权限，给出更明确提示
+    const msg = (e as { message?: string })?.message ?? '';
+    if (/permission|denied|not authorized/i.test(msg)) {
+      Alert.alert('分享失败', 'Instagram 分享需要相册权限（用于临时保存视频），请在系统设置中开启后重试。');
+    }
+    throw e;
+  }
 }
 
 /** iOS：检测是否已安装（需在 Info.plist 配置 LSApplicationQueriesSchemes） */
@@ -115,24 +180,48 @@ export async function shareToFacebook(payload: SharePayload): Promise<void> {
 }
 
 export async function shareToInstagram(payload: SharePayload): Promise<void> {
-  const installed = await isAppInstalled('instagram://app', 'com.instagram.android');
-  if (!installed) {
-    showShareFailure('Instagram');
-    return;
-  }
-
   const message = buildMessage(payload);
   try {
+    const mediaUrl = payload.url ?? '';
+    const localUri = mediaUrl ? await ensureLocalFileUri(mediaUrl) : '';
+    const inferred = localUri ? inferMediaTypeFromUrl(localUri) : null;
+    const isVideo = inferred?.kind === 'video' || /\.mp4($|\?)/i.test(mediaUrl);
+
+    // iOS：react-native-share 的 Instagram shareSingle 内部会走 instagram:// canOpenURL，
+    // 在部分系统/配置下会误报“未安装”。这里改走系统分享面板，已安装的 Instagram 会出现在列表里。
+    if (Platform.OS === 'ios') {
+      await RNShare.open({
+        title: payload.title ?? 'Share',
+        message,
+        url: localUri || undefined,
+        type: isVideo ? 'video/mp4' : 'image/*',
+        showAppsToView: true,
+        failOnCancel: false,
+      });
+      return;
+    }
+
+    // Android：使用直达 Instagram（需要 type + 本地可访问的 uri）
     await RNShare.shareSingle({
       title: payload.title ?? 'Share',
       message,
-      url: payload.url || undefined,
+      url: localUri || undefined,
+      type: isVideo ? 'video/mp4' : 'image/*',
       social: RNShare.Social.INSTAGRAM,
     });
   } catch (e) {
     if (isUserCancel(e)) return;
     if (isSdkNotSupportedError(e)) {
       showSdkNotSupported('Instagram');
+      return;
+    }
+    const msg = String((e as { message?: string })?.message ?? e ?? '');
+    if (/not installed|未安装|cannot open|no activity found/i.test(msg)) {
+      showShareFailure('Instagram', 'not_installed');
+      return;
+    }
+    if (isLoginRequiredError(e)) {
+      showShareFailure('Instagram', 'not_logged_in');
       return;
     }
     showShareFailure('Instagram');
@@ -185,21 +274,15 @@ export async function shareToTikTok(payload: SharePayload): Promise<void> {
     return;
   }
 
-  // iOS：TikTok Share SDK scheme；Android：OpenSDK scheme
-  const scheme = Platform.OS === 'ios' ? 'tiktoksharesdk://' : 'snssdk1233://';
-  const installed = await isAppInstalled(scheme, 'com.zhiliaoapp.musically');
-  if (!installed) {
-    showShareFailure('TikTok');
-    return;
-  }
-
   const message = buildMessage(payload);
   try {
-    const isVideo = /\.mp4($|\?)/i.test(url);
+    const shareUri = await ensureLocalFileUri(url);
+    const inferred = inferMediaTypeFromUrl(shareUri);
+    const isVideo = inferred?.kind === 'video' || /\.mp4($|\?)/i.test(url);
     await RNShare.open({
       title: payload.title ?? 'Share',
       message,
-      url,
+      url: shareUri,
       // Hint for share sheet (mostly helps iOS / some Android implementations)
       type: isVideo ? 'video/mp4' : undefined,
       showAppsToView: true,
