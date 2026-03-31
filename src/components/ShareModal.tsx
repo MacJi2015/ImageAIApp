@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Alert,
   Easing,
@@ -16,6 +17,7 @@ import { BlurView } from '@react-native-community/blur';
 import RNShare from 'react-native-share';
 import Clipboard from '@react-native-clipboard/clipboard';
 import type { SharePayload } from '../store/useAppStore';
+import { useAppStore } from '../store';
 import { useUserStore } from '../store/useUserStore';
 import { shareVideoToCommunity } from '../api/services/video';
 import { shareToX as shareToXService } from '../services/shareToSocial';
@@ -57,32 +59,39 @@ type ShareOption = {
   renderIcon: () => React.ReactNode;
 };
 
-const SHARE_OPTIONS: ShareOption[] = [
-  {
-    key: 'x',
-    renderIcon: () => (
-      <Image source={shareIcons.x} style={styles.shareIconImage} resizeMode="contain" />
-    ),
-  },
-  {
-    key: 'system',
-    renderIcon: () => (
-      <Image source={shareIcons.system} style={styles.shareIconImage} resizeMode="contain" />
-    ),
-  },
-  {
-    key: 'download',
-    renderIcon: () => (
-      <Image source={shareIcons.download} style={styles.shareIconImage} resizeMode="contain" />
-    ),
-  },
-  {
-    key: 'copy_link',
-    renderIcon: () => (
-      <Image source={shareIcons.copy} style={styles.shareIconImage} resizeMode="contain" />
-    ),
-  },
-];
+function buildShareOptions(downloading: boolean): ShareOption[] {
+  return [
+    {
+      key: 'x',
+      renderIcon: () => (
+        <Image source={shareIcons.x} style={styles.shareIconImage} resizeMode="contain" />
+      ),
+    },
+    {
+      key: 'system',
+      renderIcon: () => (
+        <Image source={shareIcons.system} style={styles.shareIconImage} resizeMode="contain" />
+      ),
+    },
+    {
+      key: 'download',
+      renderIcon: () =>
+        downloading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color="#fff" />
+          </View>
+        ) : (
+          <Image source={shareIcons.download} style={styles.shareIconImage} resizeMode="contain" />
+        ),
+    },
+    {
+      key: 'copy_link',
+      renderIcon: () => (
+        <Image source={shareIcons.copy} style={styles.shareIconImage} resizeMode="contain" />
+      ),
+    },
+  ];
+}
 
 /** 无 payload 时随机使用的默认分享文案 */
 const DEFAULT_SHARE_MESSAGES = [
@@ -112,6 +121,8 @@ export function ShareModal({
   payload = null,
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
+  const showToast = useAppStore(s => s.showToast);
+  const [downloading, setDownloading] = React.useState(false);
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
@@ -129,6 +140,7 @@ export function ShareModal({
   useEffect(() => {
     if (!visible) return;
     closingRef.current = false;
+    setDownloading(false);
     panelTranslateY.setValue(48);
     Animated.timing(panelTranslateY, {
       toValue: 0,
@@ -187,8 +199,14 @@ export function ShareModal({
   }, [buildMessage]);
 
   const downloadVideo = useCallback(async (p: SharePayload) => {
+    if (downloading) return;
     const uri = p.url ?? '';
-    const result = await saveMediaToGallery(uri, 'video');
+    setDownloading(true);
+    const result = await saveMediaToGallery(uri, 'video')
+      .catch((e: unknown) => {
+        return { ok: false, reason: 'error' as const, message: e instanceof Error ? e.message : undefined };
+      });
+    setDownloading(false);
     if (!result.ok) {
       if (result.reason === 'permission') {
         Alert.alert('Permission required', 'Please allow media library access and try again.');
@@ -199,8 +217,8 @@ export function ShareModal({
       }
       return;
     }
-    Alert.alert('Saved', 'Video has been saved to your gallery.');
-  }, []);
+    showToast('Download successful');
+  }, [downloading, showToast]);
 
   const copyLink = useCallback((p: SharePayload) => {
     const url = (p.url ?? '').trim();
@@ -209,8 +227,8 @@ export function ShareModal({
       return;
     }
     Clipboard.setString(url);
-    Alert.alert('Copied', 'Video link has been copied.');
-  }, []);
+    showToast('Link copied successfully');
+  }, [showToast]);
 
   const runAction = useCallback(async (key: ShareActionKey, p: SharePayload) => {
     switch (key) {
@@ -230,6 +248,8 @@ export function ShareModal({
         fallbackShare(p);
     }
   }, [copyLink, downloadVideo, shareSystem]);
+
+  const SHARE_OPTIONS = React.useMemo(() => buildShareOptions(downloading), [downloading]);
 
   return (
     <Modal
@@ -277,21 +297,36 @@ export function ShareModal({
                 key={key}
                 style={styles.iconCircle}
                 activeOpacity={0.8}
+                disabled={downloading && key === 'download'}
                 onPress={() => {
+                  if (downloading && key === 'download') return;
                   const shouldShareToCommunity =
                     showCommunityOption &&
                     alsoShareToCommunity &&
                     !!useUserStore.getState().token &&
                     isCommunityTaskId(communityTaskId);
-                  // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
-                  requestClose();
-                  setTimeout(() => {
-                    const isShareAction = key === 'x' || key === 'system';
-                    if (shouldShareToCommunity && isShareAction) {
-                      shareVideoToCommunity(communityTaskId).catch(() => {});
-                    }
-                    runAction(key, payloadForShare).catch(() => {});
-                  }, 280);
+
+                  const isShareAction = key === 'x' || key === 'system';
+                  const shouldCloseFirst = isShareAction;
+
+                  if (shouldCloseFirst) {
+                    // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
+                    requestClose();
+                    setTimeout(() => {
+                      if (shouldShareToCommunity) {
+                        shareVideoToCommunity(communityTaskId).catch(() => {});
+                      }
+                      runAction(key, payloadForShare).catch(() => {});
+                    }, 280);
+                    return;
+                  }
+
+                  // 下载/复制：先执行动作并展示 Toast，再稍后关闭弹窗，避免“关太快看不见提示”
+                  runAction(key, payloadForShare)
+                    .then(() => {
+                      setTimeout(() => requestClose(), 520);
+                    })
+                    .catch(() => {});
                 }}
               >
                 {renderIcon()}
@@ -461,5 +496,13 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
+  },
+  loadingWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

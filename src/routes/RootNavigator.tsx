@@ -20,7 +20,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, SplashScreen } from '../components';
+import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, SplashScreen, ToastOverlay } from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -477,6 +477,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         }
       }}
     />
+    <ToastOverlay />
     </>
   );
 }

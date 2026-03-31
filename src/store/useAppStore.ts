@@ -54,6 +54,12 @@ export interface AppState {
   /** Feed 数据变更（详情点赞等）后递增，用于触发 Home/FeedTab 刷新 */
   feedRefreshEpoch: number;
   notifyFeedRefresh: () => void;
+
+  /** 全局轻提示（Toast） */
+  toastMessage: string | null;
+  toastEpoch: number;
+  showToast: (message: string) => void;
+  clearToast: () => void;
 }
 
 export const useAppStore = create<AppState>(set => ({
@@ -85,4 +91,10 @@ export const useAppStore = create<AppState>(set => ({
   setTabBarTranslucent: value => set({ tabBarTranslucent: value }),
   feedRefreshEpoch: 0,
   notifyFeedRefresh: () => set(state => ({ feedRefreshEpoch: state.feedRefreshEpoch + 1 })),
+
+  toastMessage: null,
+  toastEpoch: 0,
+  showToast: (message: string) =>
+    set(state => ({ toastMessage: message, toastEpoch: state.toastEpoch + 1 })),
+  clearToast: () => set({ toastMessage: null }),
 }));

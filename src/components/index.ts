@@ -3,6 +3,8 @@ export type { LoginModalProps } from './LoginModal';
 export { LoginSubmittingOverlay } from './LoginSubmittingOverlay';
 export { ShareModal } from './ShareModal';
 export type { ShareModalProps } from './ShareModal';
+export { ToastOverlay } from './ToastOverlay';
+export type { ToastOverlayProps } from './ToastOverlay';
 export { PremiumModal } from './PremiumModal';
 export type { PremiumModalProps } from './PremiumModal';
 export { SplashScreen } from './SplashScreen';
