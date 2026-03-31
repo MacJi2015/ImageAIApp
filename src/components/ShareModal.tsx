@@ -5,7 +5,6 @@ import {
   Easing,
   Image,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,17 +12,22 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
+// @ts-expect-error react-native-share default export
+import RNShare from 'react-native-share';
+import Clipboard from '@react-native-clipboard/clipboard';
 import type { SharePayload } from '../store/useAppStore';
 import { useUserStore } from '../store/useUserStore';
 import { shareVideoToCommunity } from '../api/services/video';
-import { PromptCloseIcon } from '../utils';
+import { shareToX as shareToXService } from '../services/shareToSocial';
+import { saveMediaToGallery } from '../utils/media';
 import { dp, hp } from '../utils/scale';
 
 const shareIcons = {
-  facebook: require('../assets/share/facebookIcon.png'),
-  instagram: require('../assets/share/instagramIcon.png'),
-  x: require('../assets/share/xicon.png'),
-  tiktok: require('../assets/share/TikTokicon.png'),
+  x: require('../assets/share/xshare.png'),
+  system: require('../assets/share/syshare.png'),
+  download: require('../assets/share/downvideo.png'),
+  copy: require('../assets/share/copyvideo.png'),
+  close: require('../assets/share/close.png'),
 } as const;
 
 // 与 Create Video 底栏一致：深底、大圆角、标题独立一行（分享弹窗无顶边描边，避免色偏）
@@ -45,19 +49,40 @@ export type ShareModalProps = {
   onClose: () => void;
   /** 分享内容，不传则用默认 message */
   payload?: SharePayload | null;
-  /** 各平台点击回调，不传则提示未配置 */
-  onFacebook?: (payload: SharePayload) => void;
-  onInstagram?: (payload: SharePayload) => void;
-  onX?: (payload: SharePayload) => void;
-  onTikTok?: (payload: SharePayload) => void;
 };
 
-const SHARE_OPTIONS = [
-  { key: 'facebook' as const, source: shareIcons.facebook },
-  { key: 'instagram' as const, source: shareIcons.instagram },
-  { key: 'x' as const, source: shareIcons.x },
-  { key: 'tiktok' as const, source: shareIcons.tiktok },
-] as const;
+type ShareActionKey = 'x' | 'system' | 'download' | 'copy_link';
+type ShareOption = {
+  key: ShareActionKey;
+  renderIcon: () => React.ReactNode;
+};
+
+const SHARE_OPTIONS: ShareOption[] = [
+  {
+    key: 'x',
+    renderIcon: () => (
+      <Image source={shareIcons.x} style={styles.shareIconImage} resizeMode="contain" />
+    ),
+  },
+  {
+    key: 'system',
+    renderIcon: () => (
+      <Image source={shareIcons.system} style={styles.shareIconImage} resizeMode="contain" />
+    ),
+  },
+  {
+    key: 'download',
+    renderIcon: () => (
+      <Image source={shareIcons.download} style={styles.shareIconImage} resizeMode="contain" />
+    ),
+  },
+  {
+    key: 'copy_link',
+    renderIcon: () => (
+      <Image source={shareIcons.copy} style={styles.shareIconImage} resizeMode="contain" />
+    ),
+  },
+];
 
 /** 无 payload 时随机使用的默认分享文案 */
 const DEFAULT_SHARE_MESSAGES = [
@@ -85,10 +110,6 @@ export function ShareModal({
   visible,
   onClose,
   payload = null,
-  onFacebook,
-  onInstagram,
-  onX,
-  onTikTok,
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
@@ -149,12 +170,66 @@ export function ShareModal({
     return rest;
   }, [sharePayload, alsoShareToCommunity, showCommunityOption]);
 
-  const handlers = {
-    facebook: onFacebook ?? fallbackShare,
-    instagram: onInstagram ?? fallbackShare,
-    x: onX ?? fallbackShare,
-    tiktok: onTikTok ?? fallbackShare,
-  };
+  const buildMessage = useCallback((p: SharePayload): string => {
+    const message = p.message ?? p.title ?? p.url ?? 'Share';
+    const url = p.url ?? '';
+    return url ? `${message}\n${url}` : message;
+  }, []);
+
+  const shareSystem = useCallback(async (p: SharePayload) => {
+    await RNShare.open({
+      title: p.title ?? 'Share',
+      message: buildMessage(p),
+      url: p.url || undefined,
+      showAppsToView: true,
+      failOnCancel: false,
+    });
+  }, [buildMessage]);
+
+  const downloadVideo = useCallback(async (p: SharePayload) => {
+    const uri = p.url ?? '';
+    const result = await saveMediaToGallery(uri, 'video');
+    if (!result.ok) {
+      if (result.reason === 'permission') {
+        Alert.alert('Permission required', 'Please allow media library access and try again.');
+      } else if (result.reason === 'empty') {
+        Alert.alert('Notice', 'There is no media to save.');
+      } else {
+        Alert.alert('Save failed', result.message || 'Please try again later.');
+      }
+      return;
+    }
+    Alert.alert('Saved', 'Video has been saved to your gallery.');
+  }, []);
+
+  const copyLink = useCallback((p: SharePayload) => {
+    const url = (p.url ?? '').trim();
+    if (!url) {
+      Alert.alert('Notice', 'There is no link to copy.');
+      return;
+    }
+    Clipboard.setString(url);
+    Alert.alert('Copied', 'Video link has been copied.');
+  }, []);
+
+  const runAction = useCallback(async (key: ShareActionKey, p: SharePayload) => {
+    switch (key) {
+      case 'x':
+        await shareToXService(p);
+        return;
+      case 'system':
+        await shareSystem(p);
+        return;
+      case 'download':
+        await downloadVideo(p);
+        return;
+      case 'copy_link':
+        copyLink(p);
+        return;
+      default:
+        fallbackShare(p);
+    }
+  }, [copyLink, downloadVideo, shareSystem]);
 
   return (
     <Modal
@@ -185,7 +260,7 @@ export function ShareModal({
                 onPress={requestClose}
                 activeOpacity={0.8}
               >
-                <PromptCloseIcon />
+                <Image source={shareIcons.close} style={styles.closeIcon} resizeMode="contain" />
               </TouchableOpacity>
             </View>
             <View style={styles.headerTitleWrap}>
@@ -197,7 +272,7 @@ export function ShareModal({
           </View>
 
           <View style={styles.iconsRow}>
-            {SHARE_OPTIONS.map(({ key, source }) => (
+            {SHARE_OPTIONS.map(({ key, renderIcon }) => (
               <TouchableOpacity
                 key={key}
                 style={styles.iconCircle}
@@ -211,21 +286,23 @@ export function ShareModal({
                   // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
                   requestClose();
                   setTimeout(() => {
-                    if (shouldShareToCommunity) {
+                    const isShareAction = key === 'x' || key === 'system';
+                    if (shouldShareToCommunity && isShareAction) {
                       shareVideoToCommunity(communityTaskId).catch(() => {});
                     }
-                    handlers[key](payloadForShare);
+                    runAction(key, payloadForShare).catch(() => {});
                   }, 280);
                 }}
               >
-                <Image source={source} style={styles.shareIconImage} resizeMode="contain" />
+                {renderIcon()}
               </TouchableOpacity>
             ))}
           </View>
 
           {showCommunityOption ? (
-            <Pressable
-              style={({ pressed }) => [styles.communityRow, pressed && styles.communityRowPressed]}
+            <TouchableOpacity
+              style={styles.communityRow}
+              activeOpacity={0.85}
               onPress={() => setAlsoShareToCommunity(v => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: alsoShareToCommunity }}
@@ -237,12 +314,10 @@ export function ShareModal({
                   alsoShareToCommunity ? styles.checkboxOuterOn : styles.checkboxOuterOff,
                 ]}
               >
-                {alsoShareToCommunity ? (
-                  <Text style={styles.checkboxMark}>✓</Text>
-                ) : null}
+                {alsoShareToCommunity ? <Text style={styles.checkboxMark}>✓</Text> : null}
               </View>
               <Text style={styles.communityLabel}>Also share to the PetsGO community</Text>
-            </Pressable>
+            </TouchableOpacity>
           ) : null}
         </Animated.View>
       </View>
@@ -308,10 +383,15 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: COLORS.closeBtnBg,
-    borderWidth: 0.5,
-    borderColor: COLORS.closeBtnBorder,
+    borderWidth: 0,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  closeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   title: {
     fontSize: 19,
@@ -337,9 +417,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     alignSelf: 'center',
     maxWidth: '100%',
-  },
-  communityRowPressed: {
-    opacity: 0.85,
   },
   checkboxOuter: {
     width: 22,
@@ -376,14 +453,13 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: COLORS.iconCircle,
-    borderWidth: 1,
-    borderColor: COLORS.iconCircleBorder,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   shareIconImage: {
-    width: 28,
-    height: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
   },
 });

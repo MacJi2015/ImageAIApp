@@ -36,12 +36,7 @@ import {
   exchangeXCodeFromDeepLink,
 } from '../services/thirdPartyAuth';
 import { AUTH_DEEP_LINK_PREFIX, parseAuthCallbackUrl } from '../utils/authDeepLink';
-import {
-  shareToFacebook,
-  shareToInstagram,
-  shareToX,
-  shareToTikTok,
-} from '../services/shareToSocial';
+// 分享弹窗内置：X / 系统分享 / 下载 / 复制链接
 import { getIAPErrorMessage } from '../services/iap';
 import { setOn401 } from '../api';
 import { refreshTokenAndApply, getProfile, profileToUserInfo } from '../api/services/user';
@@ -458,10 +453,6 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       visible={showShareModal}
       onClose={closeShareModal}
       payload={sharePayload}
-      onFacebook={shareToFacebook}
-      onInstagram={shareToInstagram}
-      onX={shareToX}
-      onTikTok={shareToTikTok}
     />
     <PremiumModal
       visible={showPremiumModal}
