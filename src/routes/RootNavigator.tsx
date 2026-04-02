@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NavigationContainerRefWithCurrent } from '@react-navigation/native';
 import { Alert, Linking, Platform, Pressable, Text, useWindowDimensions } from 'react-native';
 import { dpAtWidth } from '../utils/scale';
 import {
@@ -10,8 +11,6 @@ import {
 } from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { WorkDetailScreen } from '../screens/WorkDetail';
 import { CustomPromptScreen } from '../screens/CustomPrompt';
@@ -20,7 +19,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, SplashScreen, ToastOverlay } from '../components';
+import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, ToastOverlay } from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -46,37 +45,8 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const SPLASH_AUTO_ENTER_MS = 2500;
-
-/** 启动页：中间图见 src/assets/unusualimage.png。作为首屏时无按钮，几秒后自动 replace 到 MainTabs；带 message/buttonText 时可用于异常态，按钮返回 */
-function SplashRouteScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Splash'>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'Splash'>>();
-  const params = route.params ?? {};
-  const isLaunchScreen = params === undefined || (Object.keys(params).length === 0);
-
-  useEffect(() => {
-    if (!isLaunchScreen) return;
-    const t = setTimeout(() => navigation.replace('MainTabs'), SPLASH_AUTO_ENTER_MS);
-    return () => clearTimeout(t);
-  }, [isLaunchScreen, navigation]);
-
-  return (
-    <SplashScreen
-      message={params?.message}
-      buttonText={isLaunchScreen ? undefined : (params?.buttonText ?? '返回')}
-      onPress={isLaunchScreen ? undefined : () => navigation.goBack()}
-    />
-  );
-}
-
 type RootNavigatorProps = {
-  navigationRef: React.RefObject<{
-    navigate: (name: keyof RootStackParamList, params?: RootStackParamList[keyof RootStackParamList]) => void;
-    goBack: () => void;
-    isReady: () => boolean;
-    getRootState: () => { index: number; routes: { name: keyof RootStackParamList }[] };
-  } | null>;
+  navigationRef: NavigationContainerRefWithCurrent<RootStackParamList>;
 };
 
 const SUBSCRIPTION_SKUS = ['com.imageaiapp.premium.7d', 'com.imageaiapp.premium.30d'];
@@ -152,7 +122,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
             await new Promise<void>(resolve => setTimeout(resolve, 1500));
             try {
               receiptData = await getReceiptIOS();
-            } catch (_) {
+            } catch {
               __DEV__ && console.warn('[IAP] getReceiptIOS failed, still updating local state');
             }
           }
@@ -173,7 +143,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
                   isPremium: base.isPremium ?? true,
                   premiumExpireAt: base.premiumExpireAt ?? expireStr,
                 });
-              } catch (_) {
+              } catch {
                 if (currentUser) {
                   const expireAt = new Date();
                   expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
@@ -215,7 +185,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           });
         }
         closePremiumModalRef.current();
-      } catch (e) {
+      } catch {
         closePremiumModalRef.current();
       }
     });
@@ -430,11 +400,6 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           headerStyle: { backgroundColor: '#0f1419' },
           headerTintColor: '#fff',
         })}
-      />
-      <Stack.Screen
-        name="Splash"
-        component={SplashRouteScreen}
-        options={{ headerShown: false }}
       />
     </Stack.Navigator>
     <LoginModal

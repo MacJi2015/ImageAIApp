@@ -2,6 +2,7 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import RNBootSplash
 import FirebaseCore
 import FBSDKCoreKit
 import TikTokOpenSDKCore
@@ -19,6 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   ) -> Bool {
     ApplicationDelegate.shared.initializeSDK()
     FirebaseApp.configure()
+    let bootSplashColor = UIColor(named: "BootSplashBackground-ccc875") ?? UIColor(red: 10.0 / 255.0, green: 14.0 / 255.0, blue: 20.0 / 255.0, alpha: 1.0)
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -27,12 +29,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
+    window?.backgroundColor = bootSplashColor
+    if let bootSplashViewController = UIStoryboard(name: "BootSplash", bundle: nil).instantiateInitialViewController() {
+      bootSplashViewController.view.backgroundColor = bootSplashColor
+      window?.rootViewController = bootSplashViewController
+      window?.makeKeyAndVisible()
+    }
 
     factory.startReactNative(
       withModuleName: "ImageAIApp",
       in: window,
       launchOptions: launchOptions
     )
+    window?.rootViewController?.view.backgroundColor = bootSplashColor
 
     return true
   }
@@ -79,6 +88,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+  override func customize(_ rootView: RCTRootView) {
+    super.customize(rootView)
+    rootView.backgroundColor = UIColor(named: "BootSplashBackground-ccc875") ?? UIColor(red: 10.0 / 255.0, green: 14.0 / 255.0, blue: 20.0 / 255.0, alpha: 1.0)
+    if let loadingView = UIStoryboard(name: "BootSplash", bundle: nil).instantiateInitialViewController()?.view {
+      loadingView.frame = rootView.bounds
+      loadingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      rootView.loadingView = loadingView
+    }
+    RNBootSplash.initWithStoryboard("BootSplash", rootView: rootView)
+  }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }
