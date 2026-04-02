@@ -8,7 +8,7 @@ import { HomeScreen } from '../screens/Home';
 import { MyScreen } from '../screens/MyScreen';
 import { ChooseVideoModal } from '../screens/Details/components/ChooseVideoModal';
 import type { MainTabParamList } from './types';
-import { useAppStore } from '../store';
+import { useAppStore, useUserStore } from '../store';
 
 import homeDefaultIcon from '../assets/home-default-icon.png';
 import homeSelectedIcon from '../assets/home-selected-icon.png';
@@ -25,7 +25,6 @@ const TAB_BAR_SOLID = '#050A14';
 
 function TabBarBackground() {
   const translucent = useAppStore((s) => s.tabBarTranslucent);
-  console.log('translucent', translucent);
   return (
     <>
       {translucent ? (
@@ -178,6 +177,14 @@ export function MainTabs() {
       <Tab.Screen
         name="My"
         component={MyScreen}
+        listeners={{
+          tabPress: (e) => {
+            if (!useUserStore.getState().isLoggedIn) {
+              e.preventDefault();
+              useAppStore.getState().openLoginModal();
+            }
+          },
+        }}
         options={{
           title: 'My',
           headerShown: false,
