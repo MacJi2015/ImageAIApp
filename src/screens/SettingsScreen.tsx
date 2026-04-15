@@ -33,9 +33,9 @@ const LOGOUT_BORDER = 'rgba(0, 255, 255, 0.2)';
 /** 设计稿单行高度 56.5，使用 dp 适配不同屏幕 */
 const ROW_HEIGHT = 56.5;
 
-/** 替换为你的 App Store 应用 ID */
-const APP_STORE_ID = 'YOUR_APP_STORE_ID';
-const APP_STORE_SUBSCRIPTION_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
+/** App Store 的数字 ID（App Store Connect 里显示的 Apple ID） */
+const APP_STORE_ID = '6762184453';
+const APP_STORE_SUBSCRIPTION_URL = 'https://apps.apple.com/account/subscriptions';
 const APP_STORE_REVIEW_URL = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
 const CONTACT_EMAIL = 'xx@qq.com';
 const PRIVACY_POLICY_URL = 'https://example.com/privacy';

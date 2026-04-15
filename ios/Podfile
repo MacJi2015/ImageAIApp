@@ -1,3 +1,7 @@
+# Use git Specs repo (mirror) to avoid CDN connectivity issues in some networks.
+# If one mirror is slow/unreachable, switch to another mirror URL.
+source 'https://gitee.com/mirrors/CocoaPods-Specs.git'
+
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -26,6 +30,10 @@ use_modular_headers!
 
 # glog configure fails for device SDK ("C compiler cannot create executables"); use simulator SDK during pod install
 pre_install do |installer|
+  %w[
+    HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
+    http_proxy https_proxy all_proxy no_proxy
+  ].each { |k| ENV.delete(k) }
   ENV['PLATFORM_NAME'] = 'iphonesimulator'
 end
 
@@ -39,6 +47,9 @@ target 'ImageAIApp' do
 
   # 国内网络：用 GitHub 镜像拉取 Facebook SDK，避免直接从 GitHub 下载时 Connection reset by peer
   pod 'FBAEMKit', :podspec => File.join(__dir__, 'OverridePods', 'FBAEMKit.podspec')
+  # Some setups (notably with use_frameworks!/modular_headers) can cause Bootsplash to be skipped by autolinking.
+  # Add it explicitly so the `RNBootSplash` Swift module is always available to `AppDelegate.swift`.
+  pod 'RNBootSplash', :path => '../node_modules/react-native-bootsplash'
 
   use_react_native!(
     :path => config[:reactNativePath],

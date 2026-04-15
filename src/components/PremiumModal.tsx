@@ -19,6 +19,7 @@ import { BlurView } from '@react-native-community/blur';
 import { getSubscriptionList, type AppSubscriptionConfig } from '../api/services/subscription';
 import { PromptCloseIcon } from '../utils';
 import { dp, hp } from '../utils/scale';
+import { IAP_SUBSCRIPTION_IDS } from '../services/iap';
 
 const headerDiamondImage = require('../assets/buy/Container.png');
 const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
@@ -54,6 +55,7 @@ export type PremiumModalProps = {
 };
 
 const platform: 1 | 2 = Platform.OS === 'ios' ? 1 : 2;
+const IOS_ALLOWED_PRODUCT_IDS = new Set<string>(Object.values(IAP_SUBSCRIPTION_IDS));
 
 function formatPrice(price: number, currency: string): string {
   if (currency === 'USD' || currency === 'usd') return `$${price.toFixed(2)}`;
@@ -76,10 +78,10 @@ function formatCycleDuration(item: AppSubscriptionConfig): string {
 const FALLBACK_PLANS: AppSubscriptionConfig[] = [
   {
     id: 0,
-    name: '30 Days',
+    name: 'Premium Monthly',
     price: 9.9,
     currency: 'USD',
-    productId: 'com.imageaiapp.premium.30d',
+    productId: 'com.petsgo.ai.premium.monthly',
     durationDays: 30,
     durationMonths: 1,
     subscriptionType: 1,
@@ -89,10 +91,10 @@ const FALLBACK_PLANS: AppSubscriptionConfig[] = [
   },
   {
     id: 1,
-    name: '7 Days',
+    name: 'Premium Weekly',
     price: 1.9,
     currency: 'USD',
-    productId: 'com.imageaiapp.premium.7d',
+    productId: 'com.petsgo.ai.premium.weekly',
     durationDays: 7,
     durationMonths: 0,
     subscriptionType: 1,
@@ -102,10 +104,10 @@ const FALLBACK_PLANS: AppSubscriptionConfig[] = [
   },
   {
     id: 2,
-    name: '30 Days',
+    name: 'Premium Monthly',
     price: 9.9,
     currency: 'USD',
-    productId: 'com.imageaiapp.premium.30d',
+    productId: 'com.petsgo.ai.premium.monthly',
     durationDays: 30,
     durationMonths: 1,
     subscriptionType: 1,
@@ -115,10 +117,10 @@ const FALLBACK_PLANS: AppSubscriptionConfig[] = [
   },
   {
     id: 3,
-    name: '7 Days',
+    name: 'Premium Weekly',
     price: 1.9,
     currency: 'USD',
-    productId: 'com.imageaiapp.premium.7d',
+    productId: 'com.petsgo.ai.premium.weekly',
     durationDays: 7,
     durationMonths: 0,
     subscriptionType: 1,
@@ -156,9 +158,13 @@ export function PremiumModal({
     setLoading(true);
     getSubscriptionList(platform)
       .then((list) => {
-        if (list.length > 0) {
-          setPlans(list);
-          setSelectedProductId(list[0].productId);
+        const cleaned =
+          Platform.OS === 'ios'
+            ? list.filter((p) => IOS_ALLOWED_PRODUCT_IDS.has(p.productId))
+            : list;
+        if (cleaned.length > 0) {
+          setPlans(cleaned);
+          setSelectedProductId(cleaned[0].productId);
         } else {
           setPlans(FALLBACK_PLANS.filter((p) => p.platform === platform));
           setSelectedProductId(FALLBACK_PLANS[0]?.productId ?? null);

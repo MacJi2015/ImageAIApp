@@ -49,7 +49,15 @@ type RootNavigatorProps = {
   navigationRef: NavigationContainerRefWithCurrent<RootStackParamList>;
 };
 
-const SUBSCRIPTION_SKUS = ['com.imageaiapp.premium.7d', 'com.imageaiapp.premium.30d'];
+const SUBSCRIPTION_SKUS = ['com.petsgo.ai.premium.weekly', 'com.petsgo.ai.premium.monthly'];
+const IOS_BUNDLE_PREFIX = 'com.petsgo.ai.';
+
+function getFallbackDurationDays(productId?: string | null): number {
+  if (!productId) return 7;
+  if (productId.includes('monthly') || productId.includes('30d')) return 30;
+  if (productId.includes('weekly') || productId.includes('7d')) return 7;
+  return 7;
+}
 
 export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const { width: windowWidth } = useWindowDimensions();
@@ -77,10 +85,15 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
 
   const {
     connected,
-    requestPurchase,
+    subscriptions,
     finishTransaction,
+    requestPurchase,
     fetchProducts,
-  } = useIAP();
+  } = useIAP({
+    onError: (error) => {
+      __DEV__ && console.warn('[IAP] non-purchase error', error);
+    },
+  });
 
   const closePremiumModalRef = useRef(closePremiumModal);
   closePremiumModalRef.current = closePremiumModal;
@@ -95,17 +108,38 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   useEffect(() => {
     if (!connected || Platform.OS !== 'ios') return;
     const platform = Platform.OS === 'ios' ? 1 : 2;
-    getSubscriptionList(platform)
-      .then((list) => {
-        const skus = list.map((i) => i.productId).filter(Boolean);
-        if (skus.length > 0) {
-          return fetchProducts({ skus, type: 'subs' });
+    (async () => {
+      try {
+        const list = await getSubscriptionList(platform);
+        const skusFromServer = list
+          .map((i) => i.productId)
+          .filter(Boolean)
+          .filter((id) => id.startsWith(IOS_BUNDLE_PREFIX));
+        const skus = skusFromServer.length > 0 ? skusFromServer : SUBSCRIPTION_SKUS;
+        __DEV__ && console.warn('[IAP] fetching subs skus:', skus);
+        await fetchProducts({ skus, type: 'subs' });
+      } catch (e) {
+        __DEV__ && console.warn('[IAP] fetchProducts subs failed, fallback to local skus', e);
+        try {
+          await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' });
+        } catch (e2) {
+          __DEV__ && console.warn('[IAP] fetchProducts subs fallback failed', e2);
         }
-        return fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' });
-      })
-      .catch(() => fetchProducts({ skus: SUBSCRIPTION_SKUS, type: 'subs' }))
-      .catch(() => {});
+      }
+    })();
   }, [connected, fetchProducts]);
+
+  // 调试：打印订阅商品拉取结果（用于定位 sku-not-found / item-unavailable）
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    if (!connected) return;
+    __DEV__ &&
+      console.warn(
+        '[IAP] subscriptions fetched:',
+        subscriptions?.length ?? 0,
+        (subscriptions ?? []).map((s) => s.id)
+      );
+  }, [connected, subscriptions]);
 
   // 监听购买成功：完成交易、上报后端购买/续费、更新会员状态、关闭弹窗
   useEffect(() => {
@@ -133,7 +167,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
                 const profile = await getProfile();
                 const base = profileToUserInfo(profile);
                 const fallbackExpire = new Date();
-                fallbackExpire.setDate(fallbackExpire.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                fallbackExpire.setDate(fallbackExpire.getDate() + getFallbackDurationDays(purchase.productId));
                 const expireStr = fallbackExpire.toISOString().slice(0, 10);
                 setUser({
                   ...currentUser,
@@ -146,7 +180,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
               } catch {
                 if (currentUser) {
                   const expireAt = new Date();
-                  expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                  expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
                   setUser({
                     ...currentUser,
                     isPremium: true,
@@ -158,7 +192,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
               __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
               if (currentUser) {
                 const expireAt = new Date();
-                expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+                expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
                 setUser({
                   ...currentUser,
                   isPremium: true,
@@ -168,7 +202,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
             }
           } else if (currentUser) {
             const expireAt = new Date();
-            expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+            expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
             setUser({
               ...currentUser,
               isPremium: true,
@@ -177,7 +211,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           }
         } else if (currentUser) {
           const expireAt = new Date();
-          expireAt.setDate(expireAt.getDate() + (purchase.productId?.includes('30d') ? 30 : 7));
+          expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
           setUser({
             ...currentUser,
             isPremium: true,
@@ -425,6 +459,20 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       onSubscribe={async (productId: string) => {
         if (Platform.OS !== 'ios') {
           Alert.alert('提示', '当前仅支持在 iOS 设备上使用苹果支付。', [{ text: '知道了' }]);
+          return;
+        }
+        // 如果订阅商品列表里都没有这个 productId，基本可以断定是 App Store Connect/沙盒/Bundle ID 问题
+        if (!subscriptions?.some((s) => s.id === productId)) {
+          __DEV__ &&
+            console.warn(
+              '[IAP] sku not found in subscriptions list:',
+              productId,
+              'connected:',
+              connected,
+              'subscriptions:',
+              (subscriptions ?? []).map((s) => s.id)
+            );
+          Alert.alert('订阅失败', getIAPErrorMessage('sku-not-found'), [{ text: '知道了' }]);
           return;
         }
         try {
