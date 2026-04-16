@@ -6724,6 +6724,11 @@ react-native-bootsplash@^7.2.0:
     ts-dedent "^2.2.0"
     xml-formatter "^3.7.0"
 
+react-native-device-info@^15.0.2:
+  version "15.0.2"
+  resolved "https://registry.npmmirror.com/react-native-device-info/-/react-native-device-info-15.0.2.tgz#c7de1bb6baeb07e1bab70159ad540c5705cb8dc0"
+  integrity sha512-dd71eXG2l3Cwp66IvKNadMTB8fhU3PEjyVddI97sYan+D4bgIAUmgGDhbSOFvHcGavksb2U17kiQYaDiK2WK2g==
+
 react-native-fbsdk-next@^13.4.3:
   version "13.4.3"
   resolved "https://registry.npmjs.org/react-native-fbsdk-next/-/react-native-fbsdk-next-13.4.3.tgz#efdbe47690c7addf5b14970e565814149b00a2d5"

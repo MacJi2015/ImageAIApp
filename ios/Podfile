@@ -1,5 +1,6 @@
-# Use git Specs repo (mirror) to avoid CDN connectivity issues in some networks.
-# If one mirror is slow/unreachable, switch to another mirror URL.
+# Official trunk CDN has up-to-date podspecs (GoogleSignIn 9.x, AppAuth, etc.).
+# gitee mirror is often stale; keep it as a fallback when CDN is slow.
+source 'https://cdn.cocoapods.org/'
 source 'https://gitee.com/mirrors/CocoaPods-Specs.git'
 
 # Resolve react_native_pods.rb with node to allow for hoisting
@@ -50,6 +51,14 @@ target 'ImageAIApp' do
   # Some setups (notably with use_frameworks!/modular_headers) can cause Bootsplash to be skipped by autolinking.
   # Add it explicitly so the `RNBootSplash` Swift module is always available to `AppDelegate.swift`.
   pod 'RNBootSplash', :path => '../node_modules/react-native-bootsplash'
+  # Bypass stale mirror indexes by pinning TikTok iOS SDK pods from upstream git.
+  pod 'TikTokOpenSDKCore', :git => 'https://github.com/tiktok/tiktok-opensdk-ios.git', :tag => 'v2.5.0'
+  pod 'TikTokOpenAuthSDK', :git => 'https://github.com/tiktok/tiktok-opensdk-ios.git', :tag => 'v2.5.0'
+  pod 'TikTokOpenShareSDK', :git => 'https://github.com/tiktok/tiktok-opensdk-ios.git', :tag => 'v2.5.0'
+  # NitroIap (react-native-iap) pins openiap; gitee Specs mirror often lags behind trunk.
+  pod 'openiap', :git => 'https://github.com/hyodotdev/openiap.git', :tag => '1.3.15'
+  # RNGoogleSignin requires GoogleSignIn ~> 9.0; mirror may not list it — pin from upstream.
+  pod 'GoogleSignIn', :git => 'https://github.com/google/GoogleSignIn-iOS.git', :tag => '9.1.0'
 
   use_react_native!(
     :path => config[:reactNativePath],

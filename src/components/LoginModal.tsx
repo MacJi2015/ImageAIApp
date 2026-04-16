@@ -8,14 +8,15 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Linking,
 } from 'react-native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { useNavigation } from '@react-navigation/native';
+import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
 import { PromptCloseIcon } from '../utils';
 import { dp, hp } from '../utils/scale';
 import { useAppStore } from '../store';
+import type { RootStackParamList } from '../routes/types';
 
 // 设计稿配色：深色主题、青绿链接色
 const COLORS = {
@@ -28,8 +29,7 @@ const COLORS = {
   title: '#ffffff',
   // 副标题与条款引导文案（与设计稿一致）
   subtitle: '#3A4A65',
-  buttonBg: '#161b22',
-  buttonBorder: 'transparent',
+  buttonBg: '#09111F',
   buttonText: '#ffffff',
   footerMuted: '#3A4A65',
   // 底部隐私/条款链接文字：比主按钮蓝色更偏青灰
@@ -83,43 +83,10 @@ function GoogleIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M22 12a10 10 0 1 0-11.56 9.88V14.9H7.9V12h2.54V9.79c0-2.5 1.49-3.88 3.77-3.88 1.09 0 2.24.19 2.24.19v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.9h-2.34v6.98A10 10 0 0 0 22 12z"
-        fill="#1877F2"
-      />
-      <Path d="M15.9 14.9l.44-2.9h-2.78v-1.88c0-.79.39-1.56 1.63-1.56h1.26V6.1s-1.15-.19-2.24-.19c-2.28 0-3.77 1.38-3.77 3.88V12H7.9v2.9h2.54v6.98a10.07 10.07 0 0 0 3.12 0V14.9h2.34z" fill="#fff" />
-    </Svg>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={1.8}>
-      <Rect x={2} y={2} width={20} height={20} rx={5} ry={5} />
-      <Circle cx={12} cy={12} r={4} stroke="#ffffff" fill="none" strokeWidth={1.8} />
-      <Circle cx={18} cy={6} r={1.5} fill="#ffffff" />
-    </Svg>
-  );
-}
-
 function XIcon() {
   return (
     <Svg width={28} height={28} viewBox="0 0 24 24" fill="#ffffff">
       <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </Svg>
-  );
-}
-
-function TikTokIcon() {
-  return (
-    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M14.5 4.2c.36 1.03 1.05 1.89 1.96 2.45.87.54 1.88.8 2.9.76v2.8c-1.28.04-2.54-.25-3.67-.85-.43-.23-.84-.5-1.2-.81v5.45c0 3.08-2.5 5.58-5.58 5.58a5.58 5.58 0 0 1-5.58-5.58 5.58 5.58 0 0 1 5.58-5.58c.3 0 .6.03.89.08v2.93a2.74 2.74 0 0 0-.89-.15 2.72 2.72 0 0 0-2.72 2.72 2.72 2.72 0 0 0 2.72 2.72 2.72 2.72 0 0 0 2.72-2.72V4.2h2.87z"
-        fill="#ffffff"
-      />
     </Svg>
   );
 }
@@ -129,14 +96,12 @@ export function LoginModal({
   onClose,
   onApple,
   onGoogle,
-  onFacebook,
-  onInstagram,
   onX,
-  onTikTok,
-  privacyUrl = 'https://example.com/privacy',
-  termsUrl = 'https://example.com/terms',
+  privacyUrl = 'https://www.petsgo.ai/privacyPolicy.html',
+  termsUrl = 'https://www.petsgo.ai/termsService.html',
 }: LoginModalProps) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
@@ -167,8 +132,23 @@ export function LoginModal({
     }).start();
   }, [panelTranslateY, visible]);
 
-  const handlePrivacy = () => Linking.openURL(privacyUrl).catch(() => {});
-  const handleTerms = () => Linking.openURL(termsUrl).catch(() => {});
+  const openInnerWebView = useCallback(
+    (url: string, title: RootStackParamList['WebView']['title']) => {
+      requestClose();
+      setTimeout(() => {
+        navigation.navigate('WebView', { url, title });
+      }, 200);
+    },
+    [navigation, requestClose]
+  );
+
+  const handlePrivacy = useCallback(() => {
+    openInnerWebView(privacyUrl, 'Privacy Policy');
+  }, [openInnerWebView, privacyUrl]);
+
+  const handleTerms = useCallback(() => {
+    openInnerWebView(termsUrl, 'Terms of Service');
+  }, [openInnerWebView, termsUrl]);
 
   const buttons = [
     { key: 'apple', label: 'Apple', Icon: AppleIcon, onPress: onApple },
@@ -214,7 +194,6 @@ export function LoginModal({
               <Text style={styles.title}>Log In</Text>
               <Text style={styles.subtitle}>Turn Your Pets Into Superstar</Text>
             </View>
-            <View style={styles.closeBtnPlaceholder} />
           </View>
 
           <View style={styles.buttons}>
@@ -250,11 +229,11 @@ export function LoginModal({
           <View
             style={[StyleSheet.absoluteFillObject, styles.submittingLayer]}
             pointerEvents="auto"
-            accessibilityLabel="登录中"
+            accessibilityLabel="Logging in..."
           >
             <View style={styles.submittingCard}>
               <ActivityIndicator size="large" color="#58a6ff" />
-              <Text style={styles.submittingText}>登录中…</Text>
+              <Text style={styles.submittingText}>Logging in...</Text>
             </View>
           </View>
         ) : null}
@@ -310,7 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: hp(24),
   },
   closeBtn: {
     width: 32,
@@ -322,10 +301,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeBtnPlaceholder: {
-    width: 32,
-    height: 32,
-  },
   titleWrap: {
     flex: 1,
     alignItems: 'center',
@@ -333,43 +308,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: dp(24),
+    fontWeight: 700,
     color: COLORS.title,
-    marginBottom: 4,
+    marginBottom: hp(8),
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: dp(14),
+    fontWeight: 400,
     color: COLORS.subtitle,
   },
   buttons: {
-    gap: 12,
-    marginBottom: 24,
+    gap: dp(8),
+    marginBottom: hp(40),
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
+    height: hp(48),
     backgroundColor: COLORS.buttonBg,
-    borderRadius: 12,
+    borderRadius: dp(12),
     borderWidth: 0.5,
-    borderColor: 'rgba(110, 118, 129, 0.35)',
-    paddingHorizontal: 16,
+    borderColor: 'rgba(0, 255, 255, 0.20)',
+    paddingHorizontal: dp(12),
     overflow: 'hidden',
   },
   buttonIcon: {
     position: 'absolute',
-    left: 16,
-    width: 28,
-    height: 28,
+    left: dp(12),
+    width: dp(28),
+    height: hp(28),
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: dp(16),
+    fontWeight: 400,
     color: COLORS.buttonText,
   },
   footer: {

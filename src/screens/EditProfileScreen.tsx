@@ -30,14 +30,11 @@ import { dp, hp } from '../utils/scale';
 const defaultAvatar = require('../assets/my/topimage.png');
 const imgselectedIcon = require('../assets/my/imgselected.png');
 
-const BG = '#0f1419';
+const BG = '#050A14';
 const INPUT_BG = 'rgba(48, 62, 87, 0.4)';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
 const SAVE_BG = '#22c4c4';
-const ACCENT_CYAN = '#00d4ff';
-const MODAL_BG = '#0f1419';
-const CARD_BG = 'rgba(26, 35, 50, 0.95)';
 
 const AVATAR_MODAL_COLORS = {
   card: '#050A14',

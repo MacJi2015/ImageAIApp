@@ -403,7 +403,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
               <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
-          headerStyle: { backgroundColor: '#0f1419' },
+          headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
         })}
       />
@@ -417,7 +417,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
               <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
-          headerStyle: { backgroundColor: '#0f1419' },
+          headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
         })}
       />
@@ -431,7 +431,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
               <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
             </Pressable>
           ),
-          headerStyle: { backgroundColor: '#0f1419' },
+          headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
         })}
       />

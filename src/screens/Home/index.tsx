@@ -70,7 +70,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
       setTabBarTranslucent(intersectsTabArea);
       setHasScrolled(y > 0);
       const LOGO_OFFSET = 8;
-      const TAB_OFFSET = 62; // 刚接触到 tab 即吸顶
+      const TAB_OFFSET = 60; // 刚接触到 tab 即吸顶
 
       setShowStickyLogo(logoStickyThreshold > 0 && y + LOGO_OFFSET >= logoStickyThreshold);
       setShowStickyTabs(tabStickyThreshold > 0 && y + TAB_OFFSET >= tabStickyThreshold);

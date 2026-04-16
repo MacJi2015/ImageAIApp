@@ -36,7 +36,7 @@ const COLORS = {
   subtitle: '#4a5d7a',
   closeBg: 'rgba(255,255,255,0.05)',
   closeBorder: 'rgba(255,255,255,0.1)',
-  optionBorder: 'rgba(0, 255, 255, 0.2)',
+  optionBorder: 'rgba(0, 255, 255, 0.1)',
 };
 
 export type ChooseVideoModalProps = {
@@ -182,7 +182,7 @@ export function ChooseVideoModal({
                 onPress={requestClose}
                 activeOpacity={0.8}
               >
-                <PromptCloseIcon />
+                <PromptCloseIcon  />
               </TouchableOpacity>
             </View>
             <View style={styles.headerTitleWrap}>
@@ -299,9 +299,9 @@ const styles = StyleSheet.create({
     width: 34,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: dp(32),
+    height: dp(32),
+    borderRadius: dp(16),
     backgroundColor: COLORS.closeBg,
     borderWidth: 0.5,
     borderColor: COLORS.closeBorder,

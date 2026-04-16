@@ -2,21 +2,24 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '../store/useUserStore';
 import { submitFeedback } from '../api/services/feedback';
+import { dp, hp } from '../utils/scale';
 
-const BG = '#0f1419';
-const INPUT_BG = '#1a2332';
+const BG = '#050A14';
+const INPUT_BG = '#0A101F';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
 /** 说明文案（与设置页副文案同色） */
@@ -65,30 +68,33 @@ export function FeedbackScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <View style={styles.content}>
-        <TextInput
-          style={[styles.input, styles.inputIssue]}
-          placeholder={PLACEHOLDER}
-          placeholderTextColor={TEXT_MUTED}
-          value={issue}
-          onChangeText={setIssue}
-          multiline
-          textAlignVertical="top"
-          editable={!submitting}
-        />
-        <Text style={styles.hint}>We will reply to your email within 1-2 business days.</Text>
-        <Pressable
-          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={SUBMIT_TEXT} />
-          ) : (
-            <Text style={styles.submitBtnText}>SUBMIT</Text>
-          )}
-        </Pressable>
-      </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.content}>
+          <TextInput
+            style={[styles.input, styles.inputIssue]}
+            placeholder={PLACEHOLDER}
+            placeholderTextColor={TEXT_MUTED}
+            value={issue}
+            onChangeText={setIssue}
+            multiline
+            scrollEnabled
+            textAlignVertical="top"
+            editable={!submitting}
+          />
+          <Text style={styles.hint}>We will reply to your email within 1-2 business days.</Text>
+          <Pressable
+            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={SUBMIT_TEXT} />
+            ) : (
+              <Text style={styles.submitBtnText}>SUBMIT</Text>
+            )}
+          </Pressable>
+        </View>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -105,34 +111,40 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: INPUT_BG,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: dp(12),
+    paddingHorizontal: dp(16),
+    paddingVertical: dp(12),
     fontFamily: 'Space Grotesk',
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: dp(12),
+    lineHeight: hp(18),
+    fontWeight: 400,
     color: TEXT_MAIN,
+    borderWidth: 0.5,
+    
+    borderColor: 'rgba(58, 74, 101, 0.80)',
   },
   inputIssue: {
-    minHeight: 160,
-  },
-  hint: {
-    marginTop: 10,
+    height: hp(180),
+   },
+   hint: {
+    marginTop: hp(8),
     fontFamily: 'Space Grotesk',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: dp(12),
+    lineHeight: hp(18),
+    fontWeight: 400,
     color: HINT_COLOR,
   },
   submitBtn: {
-    marginTop: 20,
+    marginTop: hp(24),
     backgroundColor: SUBMIT_BG,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: hp(14),
+    borderRadius: dp(12),
     alignItems: 'center',
   },
   submitBtnText: {
     fontFamily: 'Space Grotesk',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: dp(16),
+    fontWeight: 700,
     color: SUBMIT_TEXT,
     letterSpacing: 0.5,
   },

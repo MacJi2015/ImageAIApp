@@ -11,15 +11,21 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import RNFS from 'react-native-fs';
 import { useUserStore } from '../store';
 import { setAuthToken } from '../api/request';
 import { logoutApi } from '../api/services/user';
 import { clearAuth } from '../services/authStorage';
+import { dp, hp } from '../utils/scale';
+import ArrowRightIcon from '../assets/my/arrow-right.svg';
+import DeviceInfo from 'react-native-device-info';
+
+const APP_VERSION = DeviceInfo.getVersion();
 
 /** 设计稿背景蓝 */
 const BG = '#050A14';
 /** 设计稿列表背景： #303E57 20% 透明度 */
-const LIST_BG = 'rgba(48, 62, 87, 0.2)';
+const LIST_BG = '#0A101F';
 const TEXT_MAIN = '#ffffff';
 /** 缓存数值、箭头、版本号、列表分割线 */
 const TEXT_SECONDARY = '#3A4A65';
@@ -30,22 +36,19 @@ const FEEDBACK_TEXT = '#020410';
 const LOGOUT_BG = '#09111F';
 /** #00FFFF 20%（设计稿 #00FFFF33） */
 const LOGOUT_BORDER = 'rgba(0, 255, 255, 0.2)';
-/** 设计稿单行高度 56.5，使用 dp 适配不同屏幕 */
-const ROW_HEIGHT = 56.5;
-
 /** App Store 的数字 ID（App Store Connect 里显示的 Apple ID） */
 const APP_STORE_ID = '6762184453';
 const APP_STORE_SUBSCRIPTION_URL = 'https://apps.apple.com/account/subscriptions';
 const APP_STORE_REVIEW_URL = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
 const CONTACT_EMAIL = 'xx@qq.com';
-const PRIVACY_POLICY_URL = 'https://example.com/privacy';
-const TERMS_OF_SERVICE_URL = 'https://example.com/terms';
-const ABOUT_URL = 'https://example.com/about';
+const PRIVACY_POLICY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
+const TERMS_OF_SERVICE_URL = 'https://www.petsgo.ai/termsService.html';
+const ABOUT_URL = 'https://www.petsgo.ai/about.html';
 
 const SETTINGS_ITEMS = [
   { id: 'subscription', label: 'Manage Subscription' },
   { id: 'rate', label: 'Rate Us' },
-  { id: 'contact', label: 'Contact Us' },
+  // { id: 'contact', label: 'Contact Us' },
   { id: 'privacy', label: 'Privacy Policy' },
   { id: 'terms', label: 'Terms of Service' },
   { id: 'cache', label: 'Clear Cache' },
@@ -58,9 +61,56 @@ export function SettingsScreen() {
   const logout = useUserStore(state => state.logout);
   const [cacheSize, setCacheSize] = useState('0M');
 
+  const formatBytes = useCallback((bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
+    if (bytes < 1024) return `${Math.round(bytes)}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}M`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}G`;
+  }, []);
+
+  const getPathSize = useCallback(async (path: string): Promise<number> => {
+    try {
+      const exists = await RNFS.exists(path);
+      if (!exists) return 0;
+      const stat = await RNFS.stat(path);
+      if (stat.isFile()) return Number(stat.size) || 0;
+      const items = await RNFS.readDir(path);
+      const sizes = await Promise.all(items.map(item => getPathSize(item.path)));
+      return sizes.reduce((sum, size) => sum + size, 0);
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const loadCacheSize = useCallback(async () => {
-    // 可接入 react-native-fs 等获取真实缓存大小，此处为占位
-    setCacheSize('324M');
+    const paths = [RNFS.CachesDirectoryPath];
+    if (RNFS.TemporaryDirectoryPath) paths.push(RNFS.TemporaryDirectoryPath);
+    const sizes = await Promise.all(paths.map(path => getPathSize(path)));
+    setCacheSize(formatBytes(sizes.reduce((sum, size) => sum + size, 0)));
+  }, [formatBytes, getPathSize]);
+
+  const clearCacheFiles = useCallback(async () => {
+    const paths = [RNFS.CachesDirectoryPath];
+    if (RNFS.TemporaryDirectoryPath) paths.push(RNFS.TemporaryDirectoryPath);
+    for (const path of paths) {
+      try {
+        const exists = await RNFS.exists(path);
+        if (!exists) continue;
+        const items = await RNFS.readDir(path);
+        await Promise.all(
+          items.map(async item => {
+            try {
+              await RNFS.unlink(item.path);
+            } catch {
+              // ignore individual file cleanup failures
+            }
+          })
+        );
+      } catch {
+        // ignore per-directory failures
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -110,8 +160,9 @@ export function SettingsScreen() {
             { text: '取消', style: 'cancel' },
             {
               text: '确定',
-              onPress: () => {
-                setCacheSize('0M');
+              onPress: async () => {
+                await clearCacheFiles();
+                await loadCacheSize();
                 Alert.alert('已清除', '缓存已清理完成');
               },
             },
@@ -127,7 +178,7 @@ export function SettingsScreen() {
           break;
       }
     },
-    [navigation, openUrl]
+    [clearCacheFiles, loadCacheSize, navigation, openUrl]
   );
 
   const handleLogout = async () => {
@@ -136,7 +187,10 @@ export function SettingsScreen() {
       await clearAuth();
       setAuthToken(null);
       logout();
-      navigation.goBack();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '退出失败，请重试';
       Alert.alert('退出失败', msg, [{ text: '知道了' }]);
@@ -156,7 +210,6 @@ export function SettingsScreen() {
               key={item.id}
               style={[
                 styles.row,
-                { minHeight: ROW_HEIGHT },
                 index === SETTINGS_ITEMS.length - 1 && styles.rowLast,
               ]}
               onPress={() => handleItemPress(item.id)}
@@ -165,12 +218,12 @@ export function SettingsScreen() {
               {item.id === 'cache' ? (
                 <Text style={styles.rowRight}>{cacheSize}</Text>
               ) : null}
-              <Text style={styles.chevron}>›</Text>
+              <ArrowRightIcon width={dp(7)} height={hp(10)} />
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.version}>V 1.0.0</Text>
+        <Text style={styles.version}>{`V  ${APP_VERSION}`}</Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -194,20 +247,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(8),
   },
   listBox: {
     backgroundColor: LIST_BG,
-    borderRadius: 12,
+    borderRadius: dp(12),
     overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(58, 74, 101, 0.20)',
+    paddingHorizontal: dp(16),
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: TEXT_SECONDARY,
+    height: hp(56),
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(58, 74, 101, 0.20)',
   },
   rowLast: {
     borderBottomWidth: 0,
@@ -223,12 +279,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TEXT_SECONDARY,
     marginRight: 8,
-  },
-  chevron: {
-    fontFamily: 'Space Grotesk',
-    fontSize: 18,
-    color: TEXT_SECONDARY,
-    fontWeight: '300',
   },
   version: {
     fontFamily: 'Space Grotesk',

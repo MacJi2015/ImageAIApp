@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import ChaIcon from '../assets/cha-icon.svg';
 
 function trimOneDecimal(x: number): string {
   const s = x.toFixed(1);
@@ -27,16 +27,15 @@ export function PromptCloseIcon({
   size?: number;
   color?: string;
 }) {
-  return React.createElement(
-    Svg,
-    { width: size, height: size, viewBox: '0 0 14 14', fill: 'none' },
-    React.createElement(Path, {
-      d: 'M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5',
-      stroke: color,
-      strokeWidth: 1.15,
-      strokeLinecap: 'round',
-    })
-  );
+  return React.createElement(ChaIcon, {
+    width: size,
+    height: size,
+    fill: color,
+  });
 }
 
-export { saveMediaToGallery, type SaveMediaResult, type SaveMediaType } from './media';
+export {
+  saveMediaToGallery,
+  type SaveMediaResult,
+  type SaveMediaType,
+} from './media';

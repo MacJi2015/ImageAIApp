@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import LinearGradient from 'react-native-linear-gradient';
 import {
   ActivityIndicator,
   Image,
@@ -9,19 +10,23 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Asset } from 'react-native-image-picker';
 import { useUserStore, useAppStore } from '../store';
 import { isLoginSessionError } from '../api/request';
-import { getMyVideos, type AppVideoTask } from '../api/services/video';
+import { getMyVideos, type AppVideoTask, type VideoTaskStatus } from '../api/services/video';
 import { getProfile, profileToUserInfo } from '../api/services/user';
+import { ChooseVideoModal } from './Details/components/ChooseVideoModal';
+import { dp, hp } from '../utils/scale';
 
 const settingsIcon = require('../assets/my/settings.png');
 const editIcon = require('../assets/my/edit.png');
 const defaultAvatar = require('../assets/my/topimage.png');
 const vipIcon = require('../assets/my/vip.png');
+const emptyIllustration = require('../assets/details/empty.png');
+const preGoodsImg = require('../assets/details/pre-goods-img.png');
 
 const HEADER_BG = '#050A14';
 const CARD_BG = '#1a2332';
@@ -41,8 +46,57 @@ function formatStatInt(n: unknown): string {
   return Number.isFinite(x) ? String(Math.max(0, Math.trunc(x))) : '0';
 }
 
+/** 开发预览多状态列表 UI；联调真实 myVideos 时改为 false */
+// const USE_DEV_MOCK_MY_VIDEOS = __DEV__;
+
+// const MOCK_PET = (n: number) => `https://picsum.photos/seed/petsgo-mock-${n}/300/300`;
+// const MOCK_THUMB = (n: number) => `https://picsum.photos/seed/petsgo-thumb-${n}/200/200`;
+// /** 短测试片，供 SUCCESS 态点击进入 WorkDetail */
+// const MOCK_VIDEO_MP4 =
+//   'https://storage.googleapis.com/exoplayer-test-media-1/mp4/android-screens-10s.mp4';
+
+// function mockTask(
+//   i: number,
+//   status: VideoTaskStatus,
+//   extra: Partial<AppVideoTask> = {}
+// ): AppVideoTask {
+//   const base: AppVideoTask = {
+//     id: 100000 + i,
+//     taskId: `550e8400-e29b-41d4-a716-44665544${String(i).padStart(4, '0')}`,
+//     userId: 10001,
+//     status,
+//     actionType: i % 2 === 0 ? 'DANCE' : 'WAVE',
+//     createdTime: `2026-04-${String((i % 28) + 1).padStart(2, '0')}T${10 + (i % 5)}:00:00.000Z`,
+//     modifiedTime: `2026-04-${String((i % 28) + 1).padStart(2, '0')}T11:00:00.000Z`,
+//     duration: status === 'SUCCESS' ? 12 + i : 0,
+//     errorMessage: status === 'FAILED' ? 'Mock: generation failed' : '',
+//     petImageUrl: MOCK_PET(i),
+//     promptText: `Mock prompt #${i} (${status})`,
+//     removeWatermark: i % 2 === 0,
+//     shareToCommunity: i % 3 !== 0,
+//     templateId: `tpl-${(i % 4) + 1}`,
+//     thumbnailUrl: MOCK_THUMB(i),
+//     videoUrl: status === 'SUCCESS' ? MOCK_VIDEO_MP4 : '',
+//     ...extra,
+//   };
+//   return base;
+// }
+
+// /** 10 条本地数据，字段与 `my.md` / AppVideoTask 一致；覆盖四种 status */
+// const DEV_MOCK_MY_VIDEOS: AppVideoTask[] = [
+//   mockTask(1, 'PENDING'),
+//   mockTask(2, 'PROCESSING'),
+//   mockTask(3, 'SUCCESS'),
+//   mockTask(4, 'FAILED'),
+//   mockTask(5, 'PENDING'),
+//   mockTask(6, 'PROCESSING'),
+//   mockTask(7, 'SUCCESS'),
+//   mockTask(8, 'FAILED'),
+//   mockTask(9, 'SUCCESS'),
+//   mockTask(10, 'PROCESSING'),
+// ];
+
 export function MyScreen() {
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const user = useUserStore(state => state.user);
@@ -54,9 +108,6 @@ export function MyScreen() {
   const openPremiumModal = useAppStore(state => state.openPremiumModal);
   const setTabBarTranslucent = useAppStore(state => state.setTabBarTranslucent);
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
-  const gap = 8;
-  const colCount = 3;
-  const cellSize = (width - 24 - gap * (colCount - 1)) / colCount;
 
   /** 未登录时不使用假名假邮箱，避免看起来像已登录 */
   const displayName = isLoggedIn
@@ -82,6 +133,8 @@ export function MyScreen() {
   const [totalPage, setTotalPage] = useState(0);
   /** 避免首帧在「未请求 / 请求中」时误显示「暂无数据」 */
   const [myVideosFetched, setMyVideosFetched] = useState(false);
+  const [chooseImageModalVisible, setChooseImageModalVisible] = useState(false);
+  const [loadedImageKeys, setLoadedImageKeys] = useState<Record<string, boolean>>({});
   const PAGE_SIZE = 20;
 
   const loadMyVideos = useCallback(async (page: number = 1, append = false) => {
@@ -90,11 +143,24 @@ export function MyScreen() {
     setVideoLoading(true);
     setVideoError(null);
     try {
-      const res = await getMyVideos({ pageNum: page, pageSize: PAGE_SIZE });
-      setTotalPage(res.totalPage ?? 0);
-      setVideoTotal(res.totalRecord ?? 0);
-      setPageNum(page);
-      setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
+      // if (USE_DEV_MOCK_MY_VIDEOS) {
+      //   setTotalPage(1);
+      //   setVideoTotal(DEV_MOCK_MY_VIDEOS.length);
+      //   setPageNum(page);
+      //   setLoadedImageKeys({});
+      //   if (append && page > 1) {
+      //     setVideoList(prev => [...prev]);
+      //   } else {
+      //     setVideoList([...DEV_MOCK_MY_VIDEOS]);
+      //   }
+      // } else {
+        const res = await getMyVideos({ pageNum: page, pageSize: PAGE_SIZE });
+        setTotalPage(res.totalPage ?? 0);
+        setVideoTotal(res.totalRecord ?? 0);
+        setPageNum(page);
+        if (page === 1 && !append) setLoadedImageKeys({});
+        setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
+      // }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '加载失败，请重试';
       // 登录态类错误由 request 层统一 openLoginModal；此处只清错误文案避免与弹窗叠字
@@ -207,6 +273,20 @@ export function MyScreen() {
     navigation.navigate('EditProfile');
   }, [navigation, openLoginModal]);
 
+  /** 空状态 / 与底部 Add 一致：选图后进入自定义提示页 */
+  const handleEmptyStateImageChosen = useCallback(
+    (asset: Asset, uploadedUrl?: string) => {
+      setChooseImageModalVisible(false);
+      if (asset?.uri) {
+        navigation.navigate('CustomPrompt', {
+          imageUri: asset.uri,
+          petImageUrl: uploadedUrl,
+        });
+      }
+    },
+    [navigation]
+  );
+
   /** 与 MainTabs 绝对定位 Tab 同高：56 + safe bottom，避免最后一行视频被底栏挡住 */
   const scrollBottomPadding = 56 + Math.max(insets.bottom, 8) + 16;
 
@@ -283,6 +363,7 @@ export function MyScreen() {
           </View>
         ) : null}
 
+        <View style={styles.statsSectionWrap}>
         {/* 统计栏：仅会员第三项 PRO MEMBER 可点（续费）；FREE PLAN 仅展示 */}
         <View style={styles.statsBar}>
           {statsItems.map((item, index) => {
@@ -354,9 +435,9 @@ export function MyScreen() {
             </>
           )}
         </Pressable>
-
+        </View>
         {/* 用户创作的视频列表：仅展示接口数据；未登录不展示提示文案（由登录弹窗引导） */}
-        <View style={[styles.grid, { marginTop: 24 }]}>
+        <View style={[styles.grid, styles.gridTopSpacing]}>
           {isLoggedIn &&
           !videoError &&
           videoList.length === 0 &&
@@ -371,28 +452,17 @@ export function MyScreen() {
           ) : !isLoggedIn ? null : videoList.length > 0 ? (
             <>
               {videoList.map((item, index) => {
+                const itemKey = String(item.id ?? item.taskId ?? index);
                 const dateStr = item.createdTime
                   ? new Date(item.createdTime).toLocaleDateString('en-CA')
                   : '';
-                const statusText =
-                  item.status === 'PROCESSING'
-                    ? '生成中'
-                    : item.status === 'PENDING'
-                      ? '待处理'
-                      : item.status === 'FAILED'
-                        ? '失败'
-                        : '';
+               
                 return (
                   <Pressable
-                    key={item.id ?? item.taskId ?? index}
+                    key={itemKey}
                     style={[
                       styles.gridItem,
-                      {
-                        width: cellSize,
-                        height: cellSize,
-                        marginRight: index % colCount === colCount - 1 ? 0 : gap,
-                        marginBottom: gap,
-                      },
+                      styles.gridItemSized,
                     ]}
                     onPress={() =>
                       item.videoUrl &&
@@ -402,52 +472,83 @@ export function MyScreen() {
                       })
                     }
                   >
-                    {item.petImageUrl || item.videoUrl ? (
-                      <Image
-                        source={{ uri: item.petImageUrl ?? item.videoUrl }}
-                        style={StyleSheet.absoluteFill}
-                        resizeMode="cover"
-                      />
+                    {item.status === 'SUCCESS' && (item.petImageUrl || item.videoUrl) ? (
+                      <>
+                        {!loadedImageKeys[itemKey] ? (
+                          <View style={styles.gridImagePlaceholder}>
+                            <Image
+                              source={preGoodsImg}
+                              style={styles.gridPendingImage}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        ) : null}
+                        <Image
+                          source={{ uri: item.petImageUrl ?? item.videoUrl }}
+                          style={StyleSheet.absoluteFill}
+                          resizeMode="cover"
+                          onLoad={() =>
+                            setLoadedImageKeys(prev =>
+                              prev[itemKey] ? prev : { ...prev, [itemKey]: true }
+                            )
+                          }
+                          onError={() =>
+                            setLoadedImageKeys(prev => {
+                              if (!prev[itemKey]) return prev;
+                              const next = { ...prev };
+                              delete next[itemKey];
+                              return next;
+                            })
+                          }
+                        />
+                      </>
                     ) : (
-                      <View style={styles.gridImagePlaceholder} />
-                    )}
-                    {statusText ? (
-                      <View style={styles.gridStatusBadge}>
-                        <Text style={styles.gridStatusText}>{statusText}</Text>
+                      <View style={styles.gridImagePlaceholder}>
+                        <Image source={preGoodsImg} style={styles.gridPendingImage} resizeMode="contain" />
                       </View>
+                    )}
+              
+                    {dateStr ? (
+                      <LinearGradient
+                        colors={['rgba(5, 10, 20, 0)', 'rgba(5, 10, 20, 0.8)']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={styles.gridDateOverlay}
+                      >
+                        <Text style={styles.gridDate}>{dateStr}</Text>
+                      </LinearGradient>
                     ) : null}
-                    {dateStr ? <Text style={styles.gridDate}>{dateStr}</Text> : null}
                   </Pressable>
                 );
               })}
-              {videoLoading && videoList.length > 0 && (
-                <View
-                  style={[
-                    styles.gridItem,
-                    {
-                      width: cellSize,
-                      height: cellSize,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    },
-                  ]}
-                >
-                  <ActivityIndicator size="small" color={ACCENT} />
-                </View>
-              )}
+             
             </>
           ) : isLoggedIn && myVideosFetched && !videoLoading ? (
-            <View style={styles.gridEmptyWrap}>
-              {/* <Text style={styles.gridEmptyText}>暂无数据</Text> */}
+            <View style={styles.gridEmptyState}>
+              <Image source={emptyIllustration} style={styles.gridEmptyImage} resizeMode="contain" />
+              <Text style={styles.gridEmptyTitle}>Your gallery is empty.</Text>
+              <Text style={styles.gridEmptyHint}>Tap to create your first video.</Text>
+              <Pressable
+                style={({ pressed }) => [styles.gridEmptyPetsGoBtn, pressed && styles.gridEmptyPetsGoBtnPressed]}
+                onPress={() => setChooseImageModalVisible(true)}
+              >
+                <Text style={styles.gridEmptyPetsGoBtnText}>PetsGO</Text>
+              </Pressable>
             </View>
           ) : null}
         </View>
         {isLoggedIn && videoList.length > 0 && pageNum < totalPage && !videoLoading && (
           <Pressable style={styles.loadMoreBtn} onPress={loadMore}>
-            <Text style={styles.gridLoadMoreText}>加载更多</Text>
+            <Text style={styles.gridLoadMoreText}>Load more</Text>
           </Pressable>
         )}
       </ScrollView>
+      <ChooseVideoModal
+        visible={chooseImageModalVisible}
+        onClose={() => setChooseImageModalVisible(false)}
+        onChooseGallery={handleEmptyStateImageChosen}
+        onTakePhoto={handleEmptyStateImageChosen}
+      />
     </View>
   );
 }
@@ -461,9 +562,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingHorizontal: dp(16),
+    paddingTop: hp(8),
+    paddingBottom: hp(10),
     backgroundColor: HEADER_BG,
   },
   headerCenterSpacer: {
@@ -473,9 +574,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 8,
+    gap: dp(4),
     minWidth: 0,
-    paddingHorizontal: 4,
+    // paddingHorizontal: 4,
   },
   headerAvatarSmall: {
     width: 32,
@@ -504,32 +605,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   headerBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 40,
   },
   headerSettingsIcon: {
-    width: 34,
-    height: 34,
+    width: dp(38),
+    height: dp(38),
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: dp(4),
     alignItems: 'center',
   },
   avatarWrap: {
-    marginBottom: 10,
+    marginBottom: hp(12),
     position: 'relative',
   },
   avatarCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: ACCENT,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -554,16 +651,14 @@ const styles = StyleSheet.create({
   profileTextBlock: {
     alignSelf: 'stretch',
     alignItems: 'center',
-    marginBottom: 18,
-    paddingHorizontal: 16,
+    marginBottom: hp(12),
   },
   userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
+    gap: dp(4),
   },
   userName: {
     fontFamily: 'Space Grotesk',
@@ -592,7 +687,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Space Grotesk',
     fontSize: 14,
     fontWeight: '500',
-    color: TEXT_MUTED,
+    color: '#3A4A65',
     textAlign: 'center',
     letterSpacing: 0.15,
     lineHeight: 20,
@@ -601,9 +696,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     alignSelf: 'stretch',
-    paddingVertical: 10,
+    paddingVertical: hp(8),
     paddingHorizontal: 4,
-    marginBottom: 18,
+    marginBottom: hp(12),
+  },
+  statsSectionWrap: {
+    width: '100%',
+    paddingHorizontal: dp(8),
+    marginBottom: hp(20),
   },
   statItem: {
     flex: 1,
@@ -646,52 +746,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'stretch',
     backgroundColor: PREMIUM_BG,
-    paddingVertical: 15,
-    minHeight: 50,
-    borderRadius: 9999,
+    // paddingVertical: 15,
+    height: hp(44),
+    borderRadius: dp(12),
     overflow: 'hidden',
   },
   /** 设计稿：钻石标 + 文案作为一组水平居中 */
   premiumBtnFree: {
     justifyContent: 'center',
-    paddingHorizontal: 28,
     gap: 10,
   },
   /** 会员续费：钻石标 + 主副文案成组水平居中 */
   premiumBtnMember: {
     justifyContent: 'center',
-    paddingHorizontal: 28,
   },
   premiumIconImage: {
-    width: 22,
-    height: 22,
+    width: dp(24),
+    height: dp(24),
   },
   premiumMemberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     maxWidth: '100%',
-    gap: 10,
+    gap: dp(4),
   },
   premiumMemberTitles: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: dp(4),
     minWidth: 0,
     flexShrink: 1,
   },
   premiumTextFree: {
     fontFamily: 'Space Grotesk',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: dp(16),
+    fontWeight: 700,
     color: PREMIUM_TEXT,
     letterSpacing: 1.25,
     textTransform: 'uppercase',
   },
   premiumTextMember: {
     fontFamily: 'Space Grotesk',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: dp(16),
+    fontWeight: 700,
     color: PREMIUM_TEXT,
     letterSpacing: 0.6,
     flexShrink: 1,
@@ -699,8 +797,8 @@ const styles = StyleSheet.create({
   /** 副文案：较轻字重、略浅色，与主标题间距由 premiumMemberTitles.gap 控制 */
   premiumSubtextMember: {
     fontFamily: 'Space Grotesk',
-    fontSize: 12,
-    fontWeight: '400',
+    fontSize: dp(12),
+    fontWeight: 400,
     color: '#5F5B57',
     letterSpacing: 0.2,
     flexShrink: 1,
@@ -709,39 +807,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignSelf: 'stretch',
+    columnGap: dp(3),
+    rowGap: hp(4),
+  },
+  gridTopSpacing: {
+    marginTop: hp(4),
   },
   gridItem: {
     backgroundColor: CARD_BG,
-    borderRadius: 8,
+    // borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
   },
+  gridItemSized: {
+    width: dp(120),
+    height: hp(160),
+  },
   gridImagePlaceholder: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(88, 166, 255, 0.2)',
+    backgroundColor: '#1A2432',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  gridPlaceholderText: {
-    fontFamily: 'Space Grotesk',
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginLeft: -30,
-    marginTop: -10,
-    fontSize: 14,
-    color: TEXT_MUTED,
+  gridPendingImage: {
+    width: dp(84),
+    height: hp(27),
   },
   gridDate: {
-    position: 'absolute',
-    left: 8,
-    bottom: 8,
     fontFamily: 'Space Grotesk',
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.92)',
-    letterSpacing: 0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.65)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontSize: dp(10),
+    lineHeight: hp(12),
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 1)',
+    paddingLeft: dp(8),
+  },
+  gridDateOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: hp(18),
+    // paddingLeft: dp(8),
+    justifyContent: 'center',
   },
   gridEmptyWrap: {
     alignSelf: 'stretch',
@@ -749,6 +856,61 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 40,
     paddingHorizontal: 24,
+  },
+  gridEmptyState: {
+    width: '100%',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: hp(35),
+
+    // paddingVertical: hp(24),
+    // paddingHorizontal: dp(24),
+    // minHeight: hp(220),
+  },
+  gridEmptyImage: {
+    width: dp(85),
+    height: hp(85),
+    marginBottom: hp(8),
+  },
+  gridEmptyTitle: {
+    fontFamily: 'Space Grotesk',
+    fontSize: dp(14),
+    fontWeight: 400,
+    color: '#3A4A65',
+    textAlign: 'center',
+    // marginBottom: hp(4),
+    lineHeight: hp(22),
+  },
+  gridEmptyHint: {
+    fontFamily: 'Space Grotesk',
+    fontSize: dp(14),
+    fontWeight: 400,
+    color: '#3A4A65',
+    textAlign: 'center',
+    lineHeight: hp(22),
+    marginBottom: hp(18),
+  },
+  gridEmptyPetsGoBtn: {
+   paddingVertical: dp(10),
+    borderRadius: dp(12),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.2)',
+    backgroundColor: 'transparent',
+    minWidth: dp(84),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridEmptyPetsGoBtnPressed: {
+    opacity: 0.85,
+    backgroundColor: 'rgba(0, 255, 255, 0.06)',
+  },
+  gridEmptyPetsGoBtnText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: dp(16),
+    fontWeight: '700',
+    color: TEXT_MAIN,
+    letterSpacing: 0.3,
   },
   gridEmptyText: {
     fontFamily: 'Space Grotesk',
@@ -766,20 +928,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     gap: 12,
   },
-  gridStatusBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  gridStatusText: {
-    fontFamily: 'Space Grotesk',
-    fontSize: 10,
-    color: '#fff',
-  },
+ 
   loadMoreBtn: {
     alignSelf: 'center',
     paddingVertical: 12,
