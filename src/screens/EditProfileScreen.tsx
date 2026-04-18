@@ -27,7 +27,7 @@ const BG = '#050A14';
 const INPUT_BG = 'rgba(48, 62, 87, 0.4)';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
-const SAVE_BG = '#22c4c4';
+const SAVE_BG = '#00FFFF';
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
@@ -45,28 +45,7 @@ export function EditProfileScreen() {
     setUsername(user?.name ?? 'SpacePup');
   }, [user?.name]);
 
-  const scrollSaveIntoView = useCallback(() => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-  }, []);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const onShow = (e: KeyboardEvent) => {
-      setKeyboardPad(e.endCoordinates.height);
-      scrollSaveIntoView();
-      setTimeout(scrollSaveIntoView, 120);
-    };
-    const onHide = () => setKeyboardPad(0);
-    const subShow = Keyboard.addListener(showEvent, onShow);
-    const subHide = Keyboard.addListener(hideEvent, onHide);
-    return () => {
-      subShow.remove();
-      subHide.remove();
-    };
-  }, [scrollSaveIntoView]);
+ 
 
   const avatarUri = user?.avatar;
 

@@ -14,7 +14,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { dpAtWidth } from '../utils/scale';
+import { dp, dpAtWidth } from '../utils/scale';
 import {
   useIAP,
   purchaseUpdatedListener,
@@ -23,6 +23,10 @@ import {
 } from 'react-native-iap';
 import { MainTabs } from './MainTabs';
 import { DetailsScreen } from '../screens/Details';
+import {
+  DetailNavGlassIconButton,
+} from '../screens/Details/components/DetailNavGlassIconButton';
+import { DETAIL_NAV_LIQUID_GLASS } from '../screens/Details/detailNavChrome';
 import { GenerateVideoScreen } from '../screens/GenerateVideo';
 import { WorkDetailScreen } from '../screens/WorkDetail';
 import { CustomPromptScreen } from '../screens/CustomPrompt';
@@ -70,8 +74,27 @@ function StackHeaderBack() {
   );
 }
 
+
+
+/** 非液体玻璃机型：毛玻璃圆底 + arrow-left.png */
+function DetailHeaderGlassBack() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <DetailNavGlassIconButton
+      onPress={() => navigation.goBack()}
+    >
+      <Image source={HEADER_BACK_ICON} style={stackHeaderBackStyles.icon} resizeMode="contain" />
+    </DetailNavGlassIconButton>
+  );
+}
+
 const stackHeaderBackStyles = StyleSheet.create({
-  // pressable: { marginLeft: 4 },
+  pressable: {
+    width: dp(36),
+    height: dp(36),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   icon: { width: 16, height: 16 },
 });
 
@@ -430,7 +453,21 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         component={MainTabs}
         options={{ headerShown: false, title: '' }}
       />
-      <Stack.Screen name="Detail" component={DetailsScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Detail"
+        component={DetailsScreen}
+        options={{
+          headerShown: true,
+          title: '',
+            /** 液体玻璃 iOS：仅图标；否则毛玻璃圆底 + 同资源箭头 */
+          headerLeft: DETAIL_NAV_LIQUID_GLASS ? StackHeaderBack : DetailHeaderGlassBack,
+          headerTintColor: '#fff',
+          headerTitleStyle: { color: '#fff' },
+          headerTransparent: true,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: 'transparent' },
+        }}
+      />
       <Stack.Screen name="GenerateVideo" component={GenerateVideoScreen} options={{ headerShown: false }} />
       <Stack.Screen name="WorkDetail" component={WorkDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CustomPrompt" component={CustomPromptScreen} options={{ headerShown: false }} />

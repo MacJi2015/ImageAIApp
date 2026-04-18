@@ -137,7 +137,7 @@ export function CustomPromptScreen() {
           }}
           activeOpacity={0.8}
         >
-          <CloseIcon width={20} height={20} style={styles.backBtnIcon} />
+          <CloseIcon width={22} height={22} style={styles.backBtnIcon} />
         </TouchableOpacity>
       </View>
 
@@ -399,8 +399,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   backBtnIcon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
   },
   imageWrap: {
     alignSelf: 'center',

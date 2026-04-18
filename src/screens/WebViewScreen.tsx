@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     backgroundColor: WEBVIEW_LOADING_BG,
   },
   loadingWrap: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: WEBVIEW_LOADING_BG,
     alignItems: 'center',
     justifyContent: 'center',

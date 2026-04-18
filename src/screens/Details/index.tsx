@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   ImageSourcePropType,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,9 +12,9 @@ import {
 // LinearGradient moved into DetailVideoPlayer
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
-import arrowLeft from '../../assets/details/arrow-left.png';
 import generateIcon from '../../assets/details/generate-icon.png';
 import resolutionIcon from '../../assets/details/resolution-icon.png';
 import seeIcon from '../../assets/details/see-icon.png';
@@ -34,6 +35,8 @@ import {
   viewFeed,
 } from '../../api/services/feed';
 import { getTemplateDetail } from '../../api/services/template';
+import { DetailNavGlassIconButton } from './components/DetailNavGlassIconButton';
+import { DETAIL_NAV_LIQUID_GLASS } from './detailNavChrome';
 
 type DetailRoute = RouteProp<RootStackParamList, 'Detail'>;
 
@@ -58,8 +61,41 @@ const emptyDetail = (): DetailData => ({
   liked: false,
 });
 
+function DetailHeaderShareButton({
+  onPress,
+  liquidGlass,
+}: {
+  onPress: () => void;
+  liquidGlass: boolean;
+}) {
+  if (liquidGlass) {
+    return (
+      <Pressable onPress={onPress} style={detailHeaderShareStyles.liquidGlassHit}>
+        <Image source={shareIcon} style={detailHeaderShareStyles.icon} resizeMode="contain" />
+      </Pressable>
+    );
+  }
+  return (
+    <DetailNavGlassIconButton onPress={onPress}>
+      <Image source={shareIcon} style={detailHeaderShareStyles.icon} resizeMode="contain" />
+    </DetailNavGlassIconButton>
+  );
+}
+
+const detailHeaderShareStyles = StyleSheet.create({
+  /** 液体玻璃路径：固定点击区域（与常见导航控件约 36pt 一致，随 dp 缩放） */
+  liquidGlassHit: {
+    width: dp(36),
+    height: dp(36),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  icon: { width: 16, height: 16, tintColor: '#fff' },
+});
+
 export function DetailsScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'Detail'>>();
   const route = useRoute<DetailRoute>();
   const insets = useSafeAreaInsets();
   const openShareModal = useAppStore((s) => s.openShareModal);
@@ -171,56 +207,42 @@ export function DetailsScreen() {
     setChooseVideoVisible(true);
   }, [isLoggedIn, openLoginModal, openPremiumModal, remainingQuota]);
 
+  const handleShareFromHeader = useCallback(() => {
+    openShareModal({
+      url: detail.videoUrl ?? '',
+      title: detail.title,
+      message: detail.title ?? '',
+    });
+  }, [openShareModal, detail.videoUrl, detail.title]);
+
+  const renderHeaderShare = useCallback(
+    () => (
+      <DetailHeaderShareButton
+        onPress={handleShareFromHeader}
+        liquidGlass={DETAIL_NAV_LIQUID_GLASS}
+      />
+    ),
+    [handleShareFromHeader],
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerRight: renderHeaderShare });
+  }, [navigation, renderHeaderShare]);
+
   return (
     <View style={styles.container}>
-      <View style={[styles.backgroundWrap, { paddingTop: insets.top }]}>
+      <View style={styles.backgroundWrap}>
         <DetailVideoPlayer
           videoUri={detail.videoUrl}
           posterUri={detail.thumbnailUrl}
           bottomGradientHeight={hp(100)}
-          style={{ ...StyleSheet.absoluteFillObject, height: hp(667) }}
+          style={{...StyleSheet.absoluteFillObject,height:hp(667)}}
         />
         {loadingDetail && (
           <View style={styles.loadingOverlay} pointerEvents="none">
             <ActivityIndicator size="large" color="#00ffff" />
           </View>
         )}
-        {/* Header */}
-        <View style={[styles.header]}>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-          <BlurView
-            style={styles.headerBtnBg}
-            blurType="dark"
-            blurAmount={3}
-          />
-          <View style={styles.headerBtnOverlay} />
-            <Image source={arrowLeft} style={styles.headerBtnIcon} resizeMode="contain" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            activeOpacity={0.8}
-            onPress={() =>
-              openShareModal({
-                url: detail.videoUrl ?? '',
-                title: detail.title,
-                message: detail.title ?? '',
-              })
-            }
-          >
-              <BlurView
-            style={styles.headerBtnBg}
-            blurType="dark"
-            blurAmount={3}
-          />
-          <View style={styles.headerBtnOverlay} />
-            <Image source={shareIcon} style={styles.headerBtnIcon} resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
-        
 
         {/* 底部：深色内容区（渐变在 DetailVideoPlayer 内） */}
         <View style={[styles.bottomOverlayWrap, { paddingBottom: insets.bottom }]}>
@@ -398,35 +420,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     // backgroundColor: COLORS.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: dp(16),
-    paddingTop: hp(8),
-    paddingBottom: hp(8),
-  },
-  headerBtn: {
-    width: dp(38),
-    height: dp(38),
-    borderRadius: dp(19),
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerBtnBg: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: dp(19),
-  },
-  headerBtnOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: dp(19),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  headerBtnIcon: {
-    width: dp(20),
-    height: hp(20),
   },
   bottomOverlay: {
     paddingHorizontal: dp(16),
