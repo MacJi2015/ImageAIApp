@@ -13,7 +13,7 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 
 # 与 node_modules 里 RNFB 声明的 ios firebase 版本严格一致；勿手写版本号，避免与锁文件/升级不同步。
-# 若出现 “In snapshot (Podfile.lock): Firebase/CoreOnly (= x) … RNFBApp … (= y)”：删除 ios/Podfile.lock 后重新 pod install，
+# 若出现 "In snapshot (Podfile.lock): Firebase/CoreOnly (= x) … RNFBApp … (= y)"：删除 ios/Podfile.lock 后重新 pod install，
 # 或执行：bundle exec pod update Firebase/CoreOnly Firebase/Auth
 begin
   require 'json'
@@ -25,6 +25,11 @@ begin
 end
 
 prepare_react_native_project!
+
+# Autolinking runs `use_native_modules!` before `use_react_native!`, but many podspecs
+# (e.g. RNGoogleSignin) only add New-Arch header paths when ENV['RCT_NEW_ARCH_ENABLED'] == '1'.
+# RN sets that env inside `use_react_native!`, so set it early to match RN 0.82+ default.
+ENV['RCT_NEW_ARCH_ENABLED'] = ENV['RCT_NEW_ARCH_ENABLED'].nil? ? '1' : ENV['RCT_NEW_ARCH_ENABLED']
 
 # Firebase 等 Swift pods 依赖的库需要生成 module map（静态库时）
 use_modular_headers!
@@ -40,6 +45,11 @@ end
 
 # React Native Firebase 需要 use_frameworks! 才能正确生成 FirebaseAuth-Swift.h
 linkage = ENV['USE_FRAMEWORKS'] || 'static'
+# use_native_modules! 在 use_react_native! 之前执行；后者才会调用 detect_use_frameworks 写入
+# ENV['USE_FRAMEWORKS']。若此处不设，第三方 podspec（如 RNGoogleSignin）里 install_modules_dependencies
+# 会跳过 use_frameworks 专用的 HEADER_SEARCH_PATHS，新架构下出现
+# 'react/renderer/core/EventListener.h' file not found 等错误。
+ENV['USE_FRAMEWORKS'] = linkage
 Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
 use_frameworks! :linkage => linkage.to_sym
 
