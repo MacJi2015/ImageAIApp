@@ -39,7 +39,11 @@ import { AUTH_DEEP_LINK_PREFIX, parseAuthCallbackUrl } from '../utils/authDeepLi
 import { getIAPErrorMessage } from '../services/iap';
 import { setOn401 } from '../api';
 import { refreshTokenAndApply, getProfile, profileToUserInfo } from '../api/services/user';
-import { purchaseSubscription } from '../api/services/appleSubscription';
+import {
+  isVerifyReceiptSuccess,
+  purchaseSubscription,
+  verifyReceipt,
+} from '../api/services/appleSubscription';
 import { getSubscriptionList } from '../api/services/subscription';
 import type { RootStackParamList } from './types';
 
@@ -162,43 +166,68 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           }
           if (receiptData) {
             try {
-              await purchaseSubscription(appleId, receiptData);
-              try {
-                const profile = await getProfile();
-                const base = profileToUserInfo(profile);
-                const fallbackExpire = new Date();
-                fallbackExpire.setDate(fallbackExpire.getDate() + getFallbackDurationDays(purchase.productId));
-                const expireStr = fallbackExpire.toISOString().slice(0, 10);
-                setUser({
-                  ...currentUser,
-                  ...base,
-                  id: (base.id || currentUser?.id) ?? '',
-                  name: (base.name || currentUser?.name) ?? 'User',
-                  isPremium: base.isPremium ?? true,
-                  premiumExpireAt: base.premiumExpireAt ?? expireStr,
-                });
-              } catch {
-                if (currentUser) {
-                  const expireAt = new Date();
-                  expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
-                  setUser({
-                    ...currentUser,
-                    isPremium: true,
-                    premiumExpireAt: expireAt.toISOString().slice(0, 10),
-                  });
+              const verifyResult = await verifyReceipt(receiptData);
+              if (!isVerifyReceiptSuccess(verifyResult)) {
+                __DEV__ && console.warn('[IAP] verifyReceipt rejected', verifyResult);
+                Alert.alert(
+                  '订阅验证失败',
+                  verifyResult?.message ?? '收据验证未通过，请稍后重试或联系客服。',
+                  [{ text: '知道了' }],
+                );
+              } else {
+                try {
+                  await purchaseSubscription(appleId, receiptData);
+                  try {
+                    const profile = await getProfile();
+                    const base = profileToUserInfo(profile);
+                    const fallbackExpire = new Date();
+                    fallbackExpire.setDate(
+                      fallbackExpire.getDate() + getFallbackDurationDays(purchase.productId),
+                    );
+                    const expireStr = fallbackExpire.toISOString().slice(0, 10);
+                    setUser({
+                      ...currentUser,
+                      ...base,
+                      id: (base.id || currentUser?.id) ?? '',
+                      name: (base.name || currentUser?.name) ?? 'User',
+                      isPremium: base.isPremium ?? true,
+                      premiumExpireAt: base.premiumExpireAt ?? expireStr,
+                    });
+                  } catch {
+                    if (currentUser) {
+                      const expireAt = new Date();
+                      expireAt.setDate(
+                        expireAt.getDate() + getFallbackDurationDays(purchase.productId),
+                      );
+                      setUser({
+                        ...currentUser,
+                        isPremium: true,
+                        premiumExpireAt: expireAt.toISOString().slice(0, 10),
+                      });
+                    }
+                  }
+                } catch (e) {
+                  __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
+                  if (currentUser) {
+                    const expireAt = new Date();
+                    expireAt.setDate(
+                      expireAt.getDate() + getFallbackDurationDays(purchase.productId),
+                    );
+                    setUser({
+                      ...currentUser,
+                      isPremium: true,
+                      premiumExpireAt: expireAt.toISOString().slice(0, 10),
+                    });
+                  }
                 }
               }
             } catch (e) {
-              __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
-              if (currentUser) {
-                const expireAt = new Date();
-                expireAt.setDate(expireAt.getDate() + getFallbackDurationDays(purchase.productId));
-                setUser({
-                  ...currentUser,
-                  isPremium: true,
-                  premiumExpireAt: expireAt.toISOString().slice(0, 10),
-                });
-              }
+              __DEV__ && console.warn('[IAP] verifyReceipt failed', e);
+              const msg =
+                e && typeof e === 'object' && 'message' in e
+                  ? String((e as { message?: string }).message)
+                  : '收据验证请求失败，请检查网络后重试。';
+              Alert.alert('订阅验证失败', msg, [{ text: '知道了' }]);
             }
           } else if (currentUser) {
             const expireAt = new Date();

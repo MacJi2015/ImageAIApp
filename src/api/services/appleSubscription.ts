@@ -75,3 +75,15 @@ export async function verifyReceipt(receiptData: string): Promise<VerifyReceiptR
   });
   return res as VerifyReceiptResult;
 }
+
+/** 判断 verify 接口是否表示收据有效（兼容 success / code / Apple entry.status） */
+export function isVerifyReceiptSuccess(res: unknown): boolean {
+  if (res == null || typeof res !== 'object') return false;
+  const r = res as VerifyReceiptResult;
+  if (r.success === true) return true;
+  const code = r.code;
+  if (code === 200 || code === 0) return true;
+  if (code !== undefined && (String(code) === '200' || String(code) === '0')) return true;
+  if (r.entry?.status === 0) return true;
+  return false;
+}
