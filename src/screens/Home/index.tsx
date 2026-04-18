@@ -263,16 +263,33 @@ export function HomeScreen(_props?: HomeScreenProps) {
       >
         {renderHeroBlock()}
         {renderTabBar()}
-        {activeTab === 'feed' ? (
-          <FeedTab
-            ref={feedTabRef}
-            refreshKey={refreshKey}
-            authSessionEpoch={authSessionEpoch}
-            feedRefreshEpoch={feedRefreshEpoch}
-          />
-        ) : (
-          <EffectsTab refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
-        )}
+        <View style={styles.tabContentArea}>
+          <View
+            pointerEvents={activeTab === 'effects' ? 'auto' : 'none'}
+            style={[
+              styles.tabPanel,
+              activeTab === 'effects' ? styles.tabPanelActive : styles.tabPanelInactive,
+            ]}
+            collapsable={false}
+          >
+            <EffectsTab refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
+          </View>
+          <View
+            pointerEvents={activeTab === 'feed' ? 'auto' : 'none'}
+            style={[
+              styles.tabPanel,
+              activeTab === 'feed' ? styles.tabPanelActive : styles.tabPanelInactive,
+            ]}
+            collapsable={false}
+          >
+            <FeedTab
+              ref={feedTabRef}
+              refreshKey={refreshKey}
+              authSessionEpoch={authSessionEpoch}
+              feedRefreshEpoch={feedRefreshEpoch}
+            />
+          </View>
+        </View>
       </ScrollView>
       {renderStickyOverlay()}
     </View>
@@ -471,5 +488,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 0,
+  },
+  tabContentArea: {
+    position: 'relative',
+    width: '100%',
+    overflow: 'hidden',
+  },
+  tabPanel: {
+    width: '100%',
+    left: 0,
+    right: 0,
+  },
+  tabPanelActive: {
+    position: 'relative',
+    opacity: 1,
+    zIndex: 2,
+  },
+  tabPanelInactive: {
+    position: 'absolute',
+    top: 0,
+    opacity: 0,
+    zIndex: 1,
   },
 });

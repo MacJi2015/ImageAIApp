@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -121,17 +121,23 @@ interface EffectsTabProps {
 export function EffectsTab({ refreshKey, authSessionEpoch = 0 }: EffectsTabProps) {
   const [list, setList] = useState<AppVideoTemplate[]>([]);
   const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>('idle');
-
+  const listRef = useRef<AppVideoTemplate[]>([]);
+  listRef.current = list;
 
   const loadData = useCallback(async () => {
-    setStatus(LOADING);
+    const silent = listRef.current.length > 0;
+    if (!silent) {
+      setStatus(LOADING);
+    }
     try {
       const entry = await getOfficialTemplates();
       setList(entry);
       setStatus('idle');
     } catch {
-      setList([]);
-      setStatus(EMPTY);
+      if (!silent) {
+        setList([]);
+        setStatus(EMPTY);
+      }
     }
   }, []);
 
@@ -194,6 +200,7 @@ const styles = StyleSheet.create({
     width:dp(168),
     overflow: 'hidden',
     position: 'relative',
+     backgroundColor:'#1A2432'
   },
   effectCardImageWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -207,8 +214,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   effectCardImagePreloadPlaceholder: {
-    width: dp(69),
-    height: hp(28),
+    width: dp(39),
+    height: hp(17),
   },
   effectCardImagePreload: {
     opacity: 0,

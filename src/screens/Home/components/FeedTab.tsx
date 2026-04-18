@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useImperativeHandle, useState, forwardRef } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import {
   Image,
   StyleSheet,
@@ -117,11 +124,17 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const listRef = useRef<FeedItem[]>([]);
+  listRef.current = list;
 
   const loadPage = useCallback(
     async (page: number, append: boolean) => {
-      if (page === 1) setLoading(true);
-      else setLoadingMore(true);
+      const silentRefresh = page === 1 && !append && listRef.current.length > 0;
+      if (page === 1 && !append && !silentRefresh) {
+        setLoading(true);
+      } else if (append) {
+        setLoadingMore(true);
+      }
       try {
         const { list: data, total } = await getFeedList({ pageNum: page, pageSize: PAGE_SIZE });
         if (append) {
@@ -132,7 +145,11 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
         setHasMore(data.length >= PAGE_SIZE && (total == null || page * PAGE_SIZE < total));
         setPageNum(page);
       } catch {
-        setHasMore(false);
+        if (append) {
+          setHasMore(false);
+        } else if (!silentRefresh) {
+          setHasMore(false);
+        }
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -252,6 +269,7 @@ const styles = StyleSheet.create({
     borderRadius: dp(12),
     width: dp(168),
     overflow: 'hidden',
+    backgroundColor:'#1A2432'
   },
   cardImageWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -265,8 +283,8 @@ const styles = StyleSheet.create({
     height: undefined,
   },
   cardImagePreloadPlaceholder: {
-    width: dp(69),
-    height: hp(28),
+    width: dp(39),
+    height: hp(17),
   },
   cardImagePreload: {
     opacity: 0,

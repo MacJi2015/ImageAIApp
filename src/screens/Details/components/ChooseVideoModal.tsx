@@ -42,6 +42,8 @@ const COLORS = {
 export type ChooseVideoModalProps = {
   visible: boolean;
   onClose: () => void;
+  /** 面板标题，默认「Create Video」 */
+  headerTitle?: string;
   /** asset: 选中的图片；uploadedUrl: 上传后的图片 URL，用于图生视频接口 */
   onChooseGallery?: (asset: Asset, uploadedUrl?: string) => void;
   onTakePhoto?: (asset: Asset, uploadedUrl?: string) => void;
@@ -50,6 +52,7 @@ export type ChooseVideoModalProps = {
 export function ChooseVideoModal({
   visible,
   onClose,
+  headerTitle = 'Create Video',
   onChooseGallery,
   onTakePhoto,
 }: ChooseVideoModalProps) {
@@ -187,7 +190,7 @@ export function ChooseVideoModal({
             </View>
             <View style={styles.headerTitleWrap}>
               <Text style={styles.title} numberOfLines={1}>
-                Create Video
+                {headerTitle}
               </Text>
             </View>
             <View style={styles.headerTrailing} />

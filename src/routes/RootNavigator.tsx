@@ -1,7 +1,19 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { NavigationContainerRefWithCurrent } from '@react-navigation/native';
-import { Alert, Linking, Platform, Pressable, Text, useWindowDimensions } from 'react-native';
+import {
+  type NavigationContainerRefWithCurrent,
+  useNavigation,
+} from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { dpAtWidth } from '../utils/scale';
 import {
   useIAP,
@@ -46,6 +58,22 @@ import {
 } from '../api/services/appleSubscription';
 import { getSubscriptionList } from '../api/services/subscription';
 import type { RootStackParamList } from './types';
+
+const HEADER_BACK_ICON = require('../assets/details/arrow-left.png');
+
+function StackHeaderBack() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <Pressable onPress={() => navigation.goBack()} style={stackHeaderBackStyles.pressable}>
+      <Image source={HEADER_BACK_ICON} style={stackHeaderBackStyles.icon} resizeMode="contain" />
+    </Pressable>
+  );
+}
+
+const stackHeaderBackStyles = StyleSheet.create({
+  // pressable: { marginLeft: 4 },
+  icon: { width: 16, height: 16 },
+});
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -410,42 +438,30 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={({ navigation }) => ({
+        options={{
           title: 'Settings',
           headerBackTitle: '',
-          headerLeft: () => (
-            <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
-            </Pressable>
-          ),
+          headerLeft: StackHeaderBack,
           headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
-        })}
+        }}
       />
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={({ navigation }) => ({
+        options={{
           title: 'Edit',
-          headerLeft: () => (
-            <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
-            </Pressable>
-          ),
+          headerLeft: StackHeaderBack,
           headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
-        })}
+        }}
       />
       <Stack.Screen
         name="WebView"
         component={WebViewScreen}
-        options={({ route, navigation }) => ({
+        options={({ route }) => ({
           title: route.params.title,
-          headerLeft: () => (
-            <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
-            </Pressable>
-          ),
+          headerLeft: StackHeaderBack,
           headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
         })}
@@ -453,16 +469,12 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       <Stack.Screen
         name="Feedback"
         component={FeedbackScreen}
-        options={({ navigation }) => ({
+        options={{
           title: 'Feedback',
-          headerLeft: () => (
-            <Pressable onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: 4 }}>
-              <Text style={{ fontFamily: 'Space Grotesk', color: '#fff', fontSize: 22 }}>←</Text>
-            </Pressable>
-          ),
+          headerLeft: StackHeaderBack,
           headerStyle: { backgroundColor: '#050A14' },
           headerTintColor: '#fff',
-        })}
+        }}
       />
     </Stack.Navigator>
     <LoginModal
