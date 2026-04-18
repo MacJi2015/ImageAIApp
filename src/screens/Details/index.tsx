@@ -195,7 +195,7 @@ export function DetailsScreen() {
           <BlurView
             style={styles.headerBtnBg}
             blurType="dark"
-            blurAmount={5}
+            blurAmount={3}
           />
           <View style={styles.headerBtnOverlay} />
             <Image source={arrowLeft} style={styles.headerBtnIcon} resizeMode="contain" />
@@ -214,7 +214,7 @@ export function DetailsScreen() {
               <BlurView
             style={styles.headerBtnBg}
             blurType="dark"
-            blurAmount={5}
+            blurAmount={3}
           />
           <View style={styles.headerBtnOverlay} />
             <Image source={shareIcon} style={styles.headerBtnIcon} resizeMode="contain" />
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   headerBtnOverlay: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: dp(19),
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerBtnIcon: {
     width: dp(20),

@@ -1,31 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Alert,
-  Easing,
   Image,
-  KeyboardAvoidingView,
-  Modal,
+  Keyboard,
+  type KeyboardEvent,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import CameraIcon from '../assets/details/camera.svg';
-import PhotoIcon from '../assets/details/photo.svg';
 import { useNavigation } from '@react-navigation/native';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import type { Asset } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from '@react-native-community/blur';
 import { useUserStore } from '../store';
-import { uploadImage } from '../api/services/upload';
 import { updateProfile } from '../api/services/user';
-import { PromptCloseIcon } from '../utils';
-import { dp, hp } from '../utils/scale';
+import { ChooseVideoModal } from './Details/components/ChooseVideoModal';
 
 const defaultAvatar = require('../assets/my/topimage.png');
 const imgselectedIcon = require('../assets/my/imgselected.png');
@@ -36,53 +29,49 @@ const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
 const SAVE_BG = '#22c4c4';
 
-const AVATAR_MODAL_COLORS = {
-  card: '#050A14',
-  accent: '#00ffff',
-  muted: '#3a4a65',
-};
-
 export function EditProfileScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const user = useUserStore(state => state.user);
   const setUser = useUserStore(state => state.setUser);
+  const scrollRef = useRef<ScrollView>(null);
 
   const [username, setUsername] = useState(user?.name ?? 'SpacePup');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const avatarPanelTranslateY = useState(() => new Animated.Value(48))[0];
+  const [keyboardPad, setKeyboardPad] = useState(0);
 
   useEffect(() => {
     setUsername(user?.name ?? 'SpacePup');
   }, [user?.name]);
 
-  useEffect(() => {
-    if (!showAvatarModal) return;
-    avatarPanelTranslateY.setValue(48);
-    Animated.timing(avatarPanelTranslateY, {
-      toValue: 0,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [avatarPanelTranslateY, showAvatarModal]);
-
-  const closeAvatarModal = () => {
-    Animated.timing(avatarPanelTranslateY, {
-      toValue: 48,
-      duration: 180,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowAvatarModal(false);
+  const scrollSaveIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e: KeyboardEvent) => {
+      setKeyboardPad(e.endCoordinates.height);
+      scrollSaveIntoView();
+      setTimeout(scrollSaveIntoView, 120);
+    };
+    const onHide = () => setKeyboardPad(0);
+    const subShow = Keyboard.addListener(showEvent, onShow);
+    const subHide = Keyboard.addListener(hideEvent, onHide);
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, [scrollSaveIntoView]);
 
   const avatarUri = user?.avatar;
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     const trimmed = username.trim() || 'SpacePup';
     setSaving(true);
     try {
@@ -90,7 +79,12 @@ export function EditProfileScreen() {
         name: trimmed,
         userAvatar: user?.avatar ?? undefined,
       });
-      setUser(user ? { ...user, name: trimmed, avatar: user.avatar } : { id: '1', name: trimmed, avatar: user?.avatar });
+      const savedAvatar = user?.avatar;
+      setUser(
+        user
+          ? { ...user, name: trimmed, avatar: savedAvatar }
+          : { id: '1', name: trimmed, avatar: savedAvatar },
+      );
       navigation.goBack();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '保存失败，请重试';
@@ -104,172 +98,87 @@ export function EditProfileScreen() {
     setUser(user ? { ...user, avatar: uri } : { id: '1', name: 'SpacePup', avatar: uri });
   };
 
-  const uploadAndSetAvatar = async (localUri: string) => {
-    setUploading(true);
-    try {
-      const { url } = await uploadImage(localUri);
-      if (url) setAvatarUri(url);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '上传失败，请重试';
-      Alert.alert('上传失败', msg, [{ text: '知道了' }]);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const openGallery = () => {
-    setShowAvatarModal(false);
-    launchImageLibrary(
-      { mediaType: 'photo', selectionLimit: 1 },
-      res => {
-        if (res.didCancel) return;
-        if (res.errorCode) {
-          Alert.alert('提示', res.errorMessage ?? '无法打开相册');
-          return;
-        }
-        const uri = res.assets?.[0]?.uri;
-        if (uri) uploadAndSetAvatar(uri);
-      }
-    );
-  };
-
-  const openCamera = () => {
-    setShowAvatarModal(false);
-    launchCamera(
-      { mediaType: 'photo', saveToPhotos: false },
-      res => {
-        if (res.didCancel) return;
-        if (res.errorCode) {
-          Alert.alert('提示', res.errorMessage ?? '无法打开相机');
-          return;
-        }
-        const uri = res.assets?.[0]?.uri;
-        if (uri) uploadAndSetAvatar(uri);
-      }
-    );
+  const onAvatarChosen = (_asset: Asset, uploadedUrl?: string) => {
+    if (uploadedUrl) setAvatarUri(uploadedUrl);
   };
 
   const onCameraPress = () => setShowAvatarModal(true);
 
   return (
     <>
-      <Modal
+      <ChooseVideoModal
         visible={showAvatarModal}
-        transparent
-        animationType="none"
-        onRequestClose={closeAvatarModal}
-      >
-        <View style={styles.avatarModalBackdrop}>
-          <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
-          <View style={styles.avatarModalOverlay} />
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={closeAvatarModal}
-          />
-          <Animated.View
-            style={[
-              styles.avatarModalPanel,
-              {
-                paddingBottom: insets.bottom + 24,
-                transform: [{ translateY: avatarPanelTranslateY }],
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            <View pointerEvents="none" style={styles.avatarModalTopRim} />
-            <View style={styles.avatarModalHeader}>
-              <TouchableOpacity
-                style={styles.avatarModalCloseBtn}
-                onPress={closeAvatarModal}
-                activeOpacity={0.8}
-              >
-                <PromptCloseIcon />
-              </TouchableOpacity>
-              <View style={styles.avatarModalClosePlaceholder} />
+        onClose={() => setShowAvatarModal(false)}
+        headerTitle="Change Photo"
+        onChooseGallery={onAvatarChosen}
+        onTakePhoto={onAvatarChosen}
+      />
+
+      <View style={styles.container}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 32 + keyboardPad },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable style={styles.tapDismissArea} onPress={Keyboard.dismiss}>
+            <View>
+              <View style={styles.avatarWrap}>
+                <View style={styles.avatarCircle}>
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                  ) : (
+                    <Image source={defaultAvatar} style={styles.avatarImage} resizeMode="cover" />
+                  )}
+                </View>
+                <Pressable style={styles.cameraBtn} onPress={onCameraPress}>
+                  <Image
+                    source={imgselectedIcon}
+                    style={styles.cameraIconImage}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              </View>
+
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                placeholderTextColor={TEXT_MUTED}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                onFocus={() => {
+                  setTimeout(scrollSaveIntoView, 100);
+                }}
+              />
             </View>
-
-            <TouchableOpacity
-              style={styles.avatarModalOptionRow}
-              activeOpacity={0.8}
-              onPress={openGallery}
-            >
-              <View style={styles.avatarModalOptionIconWrap}>
-                <PhotoIcon width={24} height={24} />
-              </View>
-              <View style={styles.avatarModalOptionTextWrap}>
-                <Text style={styles.avatarModalOptionTitle}>Choose from Gallery</Text>
-                <Text style={styles.avatarModalOptionSub}>Browse files</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.avatarModalOptionRow}
-              activeOpacity={0.8}
-              onPress={openCamera}
-            >
-              <View style={styles.avatarModalOptionIconWrap}>
-                <CameraIcon width={24} height={24} />
-              </View>
-              <View style={styles.avatarModalOptionTextWrap}>
-                <Text style={styles.avatarModalOptionTitle}>Take a Photo</Text>
-                <Text style={styles.avatarModalOptionSub}>Use Camera</Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Modal>
-
-      {uploading && (
-        <View style={styles.uploadingOverlay}>
-          <ActivityIndicator size="large" color={SAVE_BG} />
-          <Text style={styles.uploadingText}>上传中...</Text>
-        </View>
-      )}
-
-      <KeyboardAvoidingView
-        style={[styles.container, { paddingBottom: insets.bottom }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <View style={styles.content}>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatarCircle}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-            ) : (
-              <Image source={defaultAvatar} style={styles.avatarImage} resizeMode="cover" />
-            )}
-          </View>
-          <Pressable style={styles.cameraBtn} onPress={onCameraPress}>
-            <Image source={imgselectedIcon} style={styles.cameraIconImage} resizeMode="contain" />
+            <View style={styles.tapDismissSpacer} />
           </Pressable>
-        </View>
 
-        <Text style={styles.label}>Username</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          placeholderTextColor={TEXT_MUTED}
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+          <Pressable
+            style={styles.saveBtn}
+            onPress={() => {
+              handleSave().catch(() => {});
+            }}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={TEXT_MAIN} />
+            ) : (
+              <Text style={styles.saveBtnText}>SAVE</Text>
+            )}
+          </Pressable>
+        </ScrollView>
       </View>
-
-      <Pressable
-        style={[styles.saveBtn, { marginBottom: insets.bottom + 40 }]}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color={TEXT_MAIN} />
-        ) : (
-          <Text style={styles.saveBtnText}>SAVE</Text>
-        )}
-      </Pressable>
-    </KeyboardAvoidingView>
     </>
   );
 }
@@ -278,11 +187,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
-    paddingHorizontal: 24,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  tapDismissArea: {
+    flexGrow: 1,
+    width: '100%',
+  },
+  tapDismissSpacer: {
+    flexGrow: 1,
+    minHeight: 120,
+    width: '100%',
   },
   avatarWrap: {
     alignSelf: 'center',
@@ -331,6 +249,7 @@ const styles = StyleSheet.create({
     color: TEXT_MAIN,
   },
   saveBtn: {
+    marginTop: 32,
     backgroundColor: SAVE_BG,
     paddingVertical: 14,
     borderRadius: 12,
@@ -340,109 +259,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Space Grotesk',
     fontSize: 16,
     fontWeight: '700',
-    color: TEXT_MAIN,
+    color: '#020410',
     letterSpacing: 0.5,
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    zIndex: 10,
-  },
-  uploadingText: {
-    fontFamily: 'Space Grotesk',
-    fontSize: 14,
-    color: TEXT_MAIN,
-  },
-  avatarModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'flex-end',
-  },
-  avatarModalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-  },
-  avatarModalPanel: {
-    backgroundColor: AVATAR_MODAL_COLORS.card,
-    borderTopLeftRadius: dp(32),
-    borderTopRightRadius: dp(32),
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    borderWidth: 0.5,
-    borderColor: 'transparent',
-    borderBottomWidth: 0,
-    overflow: 'hidden',
-  },
-  avatarModalTopRim: {
-    position: 'absolute',
-    left: 0.5,
-    right: 0.5,
-    top: -0.5,
-    height: hp(32),
-    borderTopLeftRadius: dp(32),
-    borderTopRightRadius: dp(32),
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(0,255,255,0.1)',
-    borderBottomWidth: 0,
-  },
-  avatarModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  avatarModalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarModalClosePlaceholder: {
-    width: 32,
-    height: 32,
-  },
-  avatarModalOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 72,
-    backgroundColor: AVATAR_MODAL_COLORS.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.2)',
-    paddingLeft: 12,
-    marginBottom: 8,
-  },
-  avatarModalOptionIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,255,255,0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarModalOptionTextWrap: {
-    marginLeft: 16,
-  },
-  avatarModalOptionTitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#ffffff',
-    marginBottom: 2,
-  },
-  avatarModalOptionSub: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: AVATAR_MODAL_COLORS.muted,
   },
 });

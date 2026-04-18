@@ -1,7 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import {
-  ActivityIndicator,
   Image,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -16,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Asset } from 'react-native-image-picker';
 import { useUserStore, useAppStore } from '../store';
 import { isLoginSessionError } from '../api/request';
-import { getMyVideos, type AppVideoTask, type VideoTaskStatus } from '../api/services/video';
+import { getMyVideos, type AppVideoTask } from '../api/services/video';
 import { getProfile, profileToUserInfo } from '../api/services/user';
 import { ChooseVideoModal } from './Details/components/ChooseVideoModal';
 import { dp, hp } from '../utils/scale';
@@ -32,7 +31,6 @@ const HEADER_BG = '#050A14';
 const CARD_BG = '#1a2332';
 const TEXT_MAIN = '#ffffff';
 const TEXT_MUTED = '#8b949e';
-const ACCENT = '#58a6ff';
 const STAT_LABEL_CYAN = '#40D3E5';
 
 /** 会员 CTA：浅米色底 + 深棕字（对齐设计稿胶囊按钮） */
@@ -136,11 +134,19 @@ export function MyScreen() {
   const [chooseImageModalVisible, setChooseImageModalVisible] = useState(false);
   const [loadedImageKeys, setLoadedImageKeys] = useState<Record<string, boolean>>({});
   const PAGE_SIZE = 20;
+  const videoListRef = useRef<AppVideoTask[]>([]);
+  videoListRef.current = videoList;
 
   const loadMyVideos = useCallback(async (page: number = 1, append = false) => {
     if (!useUserStore.getState().token) return;
-    if (page === 1 && !append) setMyVideosFetched(false);
-    setVideoLoading(true);
+    const silent =
+      page === 1 && !append && videoListRef.current.length > 0;
+    if (page === 1 && !append && !silent) {
+      setMyVideosFetched(false);
+    }
+    if (append || (page === 1 && !silent)) {
+      setVideoLoading(true);
+    }
     setVideoError(null);
     try {
       // if (USE_DEV_MOCK_MY_VIDEOS) {
@@ -155,11 +161,23 @@ export function MyScreen() {
       //   }
       // } else {
         const res = await getMyVideos({ pageNum: page, pageSize: PAGE_SIZE });
+        const nextList = res.list ?? [];
         setTotalPage(res.totalPage ?? 0);
         setVideoTotal(res.totalRecord ?? 0);
         setPageNum(page);
-        if (page === 1 && !append) setLoadedImageKeys({});
-        setVideoList(prev => (append ? [...prev, ...(res.list ?? [])] : res.list ?? []));
+        if (page === 1 && !append) {
+          setLoadedImageKeys(prev => {
+            const ids = new Set(
+              nextList.map((item, i) => String(item.id ?? item.taskId ?? i)),
+            );
+            const next: Record<string, boolean> = {};
+            for (const k of Object.keys(prev)) {
+              if (ids.has(k)) next[k] = prev[k];
+            }
+            return next;
+          });
+        }
+        setVideoList(prev => (append ? [...prev, ...nextList] : nextList));
       // }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '加载失败，请重试';
@@ -169,7 +187,9 @@ export function MyScreen() {
       } else {
         setVideoError(msg);
       }
-      if (!append) setVideoList([]);
+      if (!append && !silent) {
+        setVideoList([]);
+      }
     } finally {
       setVideoLoading(false);
       setMyVideosFetched(true);
@@ -438,18 +458,7 @@ export function MyScreen() {
         </View>
         {/* 用户创作的视频列表：仅展示接口数据；未登录不展示提示文案（由登录弹窗引导） */}
         <View style={[styles.grid, styles.gridTopSpacing]}>
-          {isLoggedIn &&
-          !videoError &&
-          videoList.length === 0 &&
-          (!myVideosFetched || videoLoading) ? (
-            <View style={styles.gridLoadingWrap}>
-              <ActivityIndicator size="large" color={ACCENT} />
-            </View>
-          ) : isLoggedIn && videoError ? (
-            <View style={styles.gridEmptyWrap}>
-              <Text style={styles.gridEmptyText}>{videoError}</Text>
-            </View>
-          ) : !isLoggedIn ? null : videoList.length > 0 ? (
+          {videoList.length > 0 ? (
             <>
               {videoList.map((item, index) => {
                 const itemKey = String(item.id ?? item.taskId ?? index);
@@ -523,7 +532,7 @@ export function MyScreen() {
               })}
              
             </>
-          ) : isLoggedIn && myVideosFetched && !videoLoading ? (
+          ) : (
             <View style={styles.gridEmptyState}>
               <Image source={emptyIllustration} style={styles.gridEmptyImage} resizeMode="contain" />
               <Text style={styles.gridEmptyTitle}>Your gallery is empty.</Text>
@@ -535,7 +544,7 @@ export function MyScreen() {
                 <Text style={styles.gridEmptyPetsGoBtnText}>PetsGO</Text>
               </Pressable>
             </View>
-          ) : null}
+          )}
         </View>
         {isLoggedIn && videoList.length > 0 && pageNum < totalPage && !videoLoading && (
           <Pressable style={styles.loadMoreBtn} onPress={loadMore}>
@@ -919,16 +928,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  gridLoadingWrap: {
-    alignSelf: 'stretch',
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 220,
-    paddingVertical: 40,
-    gap: 12,
-  },
- 
   loadMoreBtn: {
     alignSelf: 'center',
     paddingVertical: 12,
