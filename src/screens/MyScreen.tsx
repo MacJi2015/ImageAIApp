@@ -241,15 +241,14 @@ export function MyScreen() {
       ? user.videosAmount
       : videoTotal
   );
-  const freeQuotaStat = formatStatInt(user?.remainingQuota);
+  const freeQuotaStat = user?.remainingQuota ?? 0;
   const hasSubEnd = Boolean(premiumExpireAt && !Number.isNaN(new Date(premiumExpireAt).getTime()));
-  const proPlanValue = hasSubEnd ? `${daysRemaining} Left` : '—';
   const statsItems =
     isPremium
       ? [
           { value: videosStat, label: 'VIDEOS' },
           { value: likesStat, label: 'LIKES' },
-          { value: proPlanValue, label: 'PRO MEMBER' },
+          { value: freeQuotaStat, label: 'PRO MEMBER' },
         ]
       : [
           { value: videosStat, label: 'VIDEOS' },

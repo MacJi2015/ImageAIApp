@@ -55,6 +55,16 @@ export interface UserProfile {
   remainingQuota?: number;
 }
 
+function normalizePremiumExpireAt(raw?: string): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  // iOS/Hermes 对 "YYYY-MM-DD HH:mm:ss" 解析不稳定，统一转为 ISO-like 字符串。
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(value)) {
+    return value.replace(/\s+/, 'T');
+  }
+  return value;
+}
+
 /** 登录 */
 export const login = (params: LoginParams) =>
   post<LoginResult>('/auth/login', params);
@@ -102,7 +112,9 @@ export async function updateProfile(params: UpdateUserProfileParam): Promise<boo
 /** 将接口 UserProfile 转为应用内 UserInfo，便于写入 store；isPremium 优先用接口字段，否则由 userType === 'Pro' 推导 */
 export function profileToUserInfo(p: UserProfile): UserInfo {
   const isPremium = p.isPremium ?? p.userType === 'Pro';
-  const premiumExpireAt = p.premiumExpireAt ?? p.subscriptionEndTime;
+  const premiumExpireAt = normalizePremiumExpireAt(
+    p.subscriptionEndTime ?? p.premiumExpireAt,
+  );
   return {
     id: p.id != null ? String(p.id) : '',
     name: p.name ?? p.nickname ?? '',

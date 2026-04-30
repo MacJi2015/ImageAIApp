@@ -21,7 +21,7 @@ import { PromptCloseIcon } from '../utils';
 import { dp, hp } from '../utils/scale';
 import { IAP_SUBSCRIPTION_IDS } from '../services/iap';
 
-const headerDiamondImage = require('../assets/buy/Container.png');
+const headerDiamondImage = require('../assets/buy/bug-zuan.png');
 const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
 
 const MODAL_HEIGHT_RATIO = 0.78;
@@ -32,18 +32,18 @@ const COLORS = {
   panelEnd: '#050A14',
   accent: '#00f0ff',
   titleWhite: '#ffffff',
-  titleAccent: '#00f0ff',
+  titleAccent: '#0FF',
   subtitle: '#3A4A65',
   loadingMuted: 'rgba(186, 198, 224, 0.62)',
-  cardBg: 'rgba(4, 14, 31, 0.88)',
-  cardBorder: '#00f0ff',
+  cardBg: '#09111F',
+  cardBorder: '#0FF',
   cardBorderInactive: 'rgba(75, 103, 145, 0.35)',
   price: '#ffffff',
   discountBg: '#dc2626',
   discountText: '#ffffff',
   radioBorder: 'rgba(0, 240, 255, 0.45)',
   radioFill: '#00f0ff',
-  buttonBg: '#efe4d4',
+  buttonBg: '#FFEFD3',
   buttonText: '#2c241c',
 };
 
@@ -245,9 +245,7 @@ export function PremiumModal({
               >
                 <View style={styles.titleBlock}>
                   <View style={styles.diamondWrap}>
-                    <View style={styles.diamondGlow}>
-                      <Image source={headerDiamondImage} style={styles.diamondImage} resizeMode="contain" />
-                    </View>
+                  <Image source={headerDiamondImage} style={styles.diamondImage} resizeMode="contain" />
                   </View>
                   <View style={styles.titleRow}>
                     <Text style={styles.titlePart}>Get</Text>
@@ -258,14 +256,11 @@ export function PremiumModal({
                   </Text>
                 </View>
 
-                {error ? (
-                  <Text style={styles.errorText}>{error}</Text>
-                ) : null}
                 <View style={styles.plans}>
                 {loading ? (
                   <View style={styles.loadingWrap}>
                     <ActivityIndicator size="large" color={COLORS.accent} />
-                    <Text style={styles.loadingText}>加载套餐中...</Text>
+                    <Text style={styles.loadingText}>loading...</Text>
                   </View>
                 ) : (
                   plans.map((plan) => {
@@ -312,7 +307,7 @@ export function PremiumModal({
               >
                 <Image source={subscribeBtnDiamondIcon} style={styles.subscribeBtnIcon} resizeMode="contain" />
                 <Text style={styles.subscribeBtnText}>
-                  {loading ? '加载中...' : 'SUBSCRIBE NOW'}
+                  {loading ? 'loading...' : 'SUBSCRIBE NOW'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -355,20 +350,24 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: hp(16),
+    paddingTop: hp(16),
+    paddingBottom: hp(40),
   },
   scroll: {
     flexGrow: 1,
     flexShrink: 1,
+    position: 'relative',
+    marginTop: hp(-24),
+    zIndex:10
   },
   scrollContent: {
     paddingBottom: 8,
+    position: 'relative',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
   },
   closeBtn: {
     width: 32,
@@ -382,30 +381,24 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: hp(32),
+    position: 'relative',
   },
   diamondWrap: {
-    marginBottom: 18,
+    marginBottom: hp(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** 设计稿：大钻石无外圈，仅发光 */
-  diamondGlow: {
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.85,
-    shadowRadius: 22,
-    elevation: 12,
-  },
+ 
   diamondImage: {
-    width: 72,
-    height: 72,
+    width: 40,
+    height: 40,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: hp(8),
   },
   titlePart: {
     fontFamily: 'Space Grotesk',
@@ -417,21 +410,21 @@ const styles = StyleSheet.create({
   titlePartAccent: {
     fontFamily: 'Space Grotesk',
     fontSize: 30,
-    fontWeight: '800',
+    fontWeight: 700,
     color: COLORS.titleAccent,
     letterSpacing: -0.5,
   },
   titlePartAccentTight: {
-    marginLeft: 3,
+    marginLeft: hp(10),
   },
   subtitle: {
     fontFamily: 'Space Grotesk',
-    fontSize: 15,
-    fontWeight: '400',
+    fontSize: 14,
+    fontWeight: 400,
     color: COLORS.subtitle,
     textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 24,
+    paddingHorizontal: dp(40),
+    lineHeight: 14,
     alignSelf: 'stretch',
   },
   errorText: {
@@ -451,34 +444,28 @@ const styles = StyleSheet.create({
     color: COLORS.loadingMuted,
   },
   plans: {
-    gap: 18,
-    marginBottom: 28,
+    gap: hp(8),
+    marginBottom: hp(40),
   },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    borderWidth: 2,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    paddingRight: 16,
+    borderRadius: dp(12),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.20)',
+    paddingVertical: hp(18),
+    paddingHorizontal: dp(16),
     position: 'relative',
-    minHeight: 96,
+    minHeight: hp(72),
   },
   planCardSelected: {
     borderColor: COLORS.cardBorder,
-    borderWidth: 3,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
-    elevation: 10,
+    borderWidth: 2,
   },
   planCardInactive: {
-    borderColor: COLORS.cardBorderInactive,
-    borderWidth: 2,
+    borderWidth: 0.5,
   },
   discountTag: {
     position: 'absolute',
@@ -499,15 +486,15 @@ const styles = StyleSheet.create({
   },
   planPrice: {
     fontFamily: 'Space Grotesk',
-    fontSize: 34,
-    fontWeight: '800',
+    fontSize: dp(18),
+    fontWeight: 700,
     color: COLORS.price,
-    marginBottom: 2,
+    marginBottom: hp(2),
     letterSpacing: -0.5,
   },
   planDuration: {
     fontFamily: 'Space Grotesk',
-    fontSize: 11,
+    fontSize: dp(12),
     fontWeight: '500',
     color: COLORS.subtitle,
     letterSpacing: 0.2,
@@ -536,14 +523,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    paddingVertical: 15,
-    paddingHorizontal: 28,
+    minHeight: hp(44),
+    // paddingVertical: 15,
+    // paddingHorizontal: 28,
     backgroundColor: COLORS.buttonBg,
-    borderRadius: 9999,
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 12,
+    borderRadius: dp(12),
+    gap: dp(4),
+    marginTop: hp(8),
+    marginBottom: hp(12),
   },
   subscribeBtnIcon: {
     width: 22,

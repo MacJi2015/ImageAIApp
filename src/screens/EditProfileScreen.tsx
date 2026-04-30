@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
   Keyboard,
-  type KeyboardEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,7 +37,7 @@ export function EditProfileScreen() {
   const [username, setUsername] = useState(user?.name ?? 'SpacePup');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [keyboardPad, setKeyboardPad] = useState(0);
+  const [keyboardPad] = useState(0);
 
   useEffect(() => {
     setUsername(user?.name ?? 'SpacePup');
@@ -135,26 +133,25 @@ export function EditProfileScreen() {
                 returnKeyType="done"
                 blurOnSubmit
                 onSubmitEditing={Keyboard.dismiss}
-                onFocus={() => {
-                  setTimeout(scrollSaveIntoView, 100);
-                }}
+                // onFocus={() => {
+                //   setTimeout(scrollSaveIntoView, 100);
+                // }}
               />
-            </View>
-            <View style={styles.tapDismissSpacer} />
-          </Pressable>
 
-          <Pressable
-            style={styles.saveBtn}
-            onPress={() => {
-              handleSave().catch(() => {});
-            }}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={TEXT_MAIN} />
-            ) : (
-              <Text style={styles.saveBtnText}>SAVE</Text>
-            )}
+              <Pressable
+                style={styles.saveBtn}
+                onPress={() => {
+                  handleSave().catch(() => {});
+                }}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={TEXT_MAIN} />
+                ) : (
+                  <Text style={styles.saveBtnText}>SAVE</Text>
+                )}
+              </Pressable>
+            </View>
           </Pressable>
         </ScrollView>
       </View>
@@ -173,12 +170,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   tapDismissArea: {
-    flexGrow: 1,
-    width: '100%',
-  },
-  tapDismissSpacer: {
-    flexGrow: 1,
-    minHeight: 120,
     width: '100%',
   },
   avatarWrap: {
@@ -228,7 +219,7 @@ const styles = StyleSheet.create({
     color: TEXT_MAIN,
   },
   saveBtn: {
-    marginTop: 32,
+    marginTop: 12,
     backgroundColor: SAVE_BG,
     paddingVertical: 14,
     borderRadius: 12,

@@ -2,11 +2,13 @@
  * 开发调试用：仅在 __DEV__ 且非空时覆盖本地已持久化的 token（会覆盖 AsyncStorage 里的登录态）。
  * 仓库内不设默认 token；需要本地连调时在 .env 配置 DEV_AUTH_TOKEN，勿提交真实值。
  */
-export const DEV_HARDCODED_AUTH_TOKEN = (process.env.DEV_AUTH_TOKEN ?? '').trim();
+export const DEV_HARDCODED_AUTH_TOKEN = (
+  process.env.DEV_AUTH_TOKEN ?? ''
+).trim();
 
 /** API 基础配置 */
 export const apiConfig = {
-  baseURL: process.env.API_BASE_URL || 'https://api.petsai.net/facial',
+  baseURL: process.env.API_BASE_URL || 'https://api.petsgo.ai/facial',
   // baseURL: process.env.API_BASE_URL || 'https://api.ipod.vip:3303/facial',
   defaultTimeout: 15000,
 };

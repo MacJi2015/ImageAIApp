@@ -217,48 +217,25 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           }
           if (receiptData) {
             try {
-              const verifyResult = await verifyReceipt(receiptData);
-              if (!isVerifyReceiptSuccess(verifyResult)) {
-                __DEV__ && console.warn('[IAP] verifyReceipt rejected', verifyResult);
-                Alert.alert(
-                  '订阅验证失败',
-                  verifyResult?.message ?? '收据验证未通过，请稍后重试或联系客服。',
-                  [{ text: '知道了' }],
-                );
-              } else {
+              try {
+                await purchaseSubscription(appleId, receiptData);
                 try {
-                  await purchaseSubscription(appleId, receiptData);
-                  try {
-                    const profile = await getProfile();
-                    const base = profileToUserInfo(profile);
-                    const fallbackExpire = new Date();
-                    fallbackExpire.setDate(
-                      fallbackExpire.getDate() + getFallbackDurationDays(purchase.productId),
-                    );
-                    const expireStr = fallbackExpire.toISOString().slice(0, 10);
-                    setUser({
-                      ...currentUser,
-                      ...base,
-                      id: (base.id || currentUser?.id) ?? '',
-                      name: (base.name || currentUser?.name) ?? 'User',
-                      isPremium: base.isPremium ?? true,
-                      premiumExpireAt: base.premiumExpireAt ?? expireStr,
-                    });
-                  } catch {
-                    if (currentUser) {
-                      const expireAt = new Date();
-                      expireAt.setDate(
-                        expireAt.getDate() + getFallbackDurationDays(purchase.productId),
-                      );
-                      setUser({
-                        ...currentUser,
-                        isPremium: true,
-                        premiumExpireAt: expireAt.toISOString().slice(0, 10),
-                      });
-                    }
-                  }
-                } catch (e) {
-                  __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
+                  const profile = await getProfile();
+                  const base = profileToUserInfo(profile);
+                  const fallbackExpire = new Date();
+                  fallbackExpire.setDate(
+                    fallbackExpire.getDate() + getFallbackDurationDays(purchase.productId),
+                  );
+                  const expireStr = fallbackExpire.toISOString().slice(0, 10);
+                  setUser({
+                    ...currentUser,
+                    ...base,
+                    id: (base.id || currentUser?.id) ?? '',
+                    name: (base.name || currentUser?.name) ?? 'User',
+                    isPremium: base.isPremium ?? true,
+                    premiumExpireAt: base.premiumExpireAt ?? expireStr,
+                  });
+                } catch {
                   if (currentUser) {
                     const expireAt = new Date();
                     expireAt.setDate(
@@ -270,6 +247,19 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
                       premiumExpireAt: expireAt.toISOString().slice(0, 10),
                     });
                   }
+                }
+              } catch (e) {
+                __DEV__ && console.warn('[IAP] purchaseSubscription API failed', e);
+                if (currentUser) {
+                  const expireAt = new Date();
+                  expireAt.setDate(
+                    expireAt.getDate() + getFallbackDurationDays(purchase.productId),
+                  );
+                  setUser({
+                    ...currentUser,
+                    isPremium: true,
+                    premiumExpireAt: expireAt.toISOString().slice(0, 10),
+                  });
                 }
               }
             } catch (e) {
@@ -539,6 +529,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           Alert.alert('提示', '当前仅支持在 iOS 设备上使用苹果支付。', [{ text: '知道了' }]);
           return;
         }
+        
         // 如果订阅商品列表里都没有这个 productId，基本可以断定是 App Store Connect/沙盒/Bundle ID 问题
         if (!subscriptions?.some((s) => s.id === productId)) {
           __DEV__ &&
@@ -554,11 +545,13 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           return;
         }
         try {
-          await requestPurchase({
+        const res = await requestPurchase({
             type: 'subs',
             request: { apple: { sku: productId } },
           });
+          console.log('============> requestPurchase res', res);
         } catch (e: unknown) {
+          console.log('============> requestPurchase error', e);
           const err = e as { code?: string; message?: string };
           Alert.alert(
             '订阅失败',

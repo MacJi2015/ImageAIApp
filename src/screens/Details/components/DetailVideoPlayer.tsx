@@ -17,6 +17,8 @@ export type DetailVideoPlayerProps = {
   showPlayOverlay?: boolean;
   /** 底部渐变高度（默认 100） */
   bottomGradientHeight?: number;
+  /** 页面是否处于激活/聚焦状态（失焦时强制暂停） */
+  isActive?: boolean;
 };
 
 export function DetailVideoPlayer({
@@ -24,6 +26,7 @@ export function DetailVideoPlayer({
   posterUri,
   style,
   bottomGradientHeight = 100,
+  isActive = true,
 }: DetailVideoPlayerProps) {
   const [playing, setPlaying] = useState(true);
   const hasVideo = !!videoUri;
@@ -46,7 +49,7 @@ export function DetailVideoPlayer({
             resizeMode="cover"
             poster={posterUri ?? undefined}
             posterResizeMode="cover"
-            paused={!playing}
+            paused={!playing || !isActive}
             repeat
             onError={(e) => {
               __DEV__ && console.warn('[DetailVideoPlayer] video error', e);

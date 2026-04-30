@@ -30,22 +30,11 @@ export interface UserState {
   logout: () => void;
 }
 
-/** 演示用：设为 true 时初始为会员状态，便于查看 PRO 徽章、PRO MEMBER、RENEW NOW 等 */
-const DEMO_MEMBER = false;
-
-const defaultMemberUser: UserInfo = {
-  id: '1',
-  name: 'SpacePup',
-  email: 'sparky@petsgo.ai',
-  isPremium: true,
-  premiumExpireAt: '2026-04-24',
-};
-
 /** 未恢复本地会话前为未登录；loadAuth / 三方登录成功后写入 token */
 export const useUserStore = create<UserState>(set => ({
   isLoggedIn: false,
   token: null,
-  user: DEMO_MEMBER ? defaultMemberUser : null,
+  user: null,
 
   setToken: token => set({ token, isLoggedIn: !!token }),
   setUser: user => set({ user }),

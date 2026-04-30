@@ -57,6 +57,24 @@ function isBackendBizError(raw: unknown): raw is { status: false; code?: string;
   );
 }
 
+function pickUserProfile(raw: Record<string, unknown>): UserProfile | undefined {
+  const topUserProfile = raw.userProfile as UserProfile | undefined;
+  if (topUserProfile && typeof topUserProfile === 'object') return topUserProfile;
+
+  const topUser = raw.user as UserProfile | undefined;
+  if (topUser && typeof topUser === 'object') return topUser;
+
+  const data = raw.data;
+  if (data && typeof data === 'object') {
+    const dataObj = data as Record<string, unknown>;
+    const dataUserProfile = dataObj.userProfile as UserProfile | undefined;
+    if (dataUserProfile && typeof dataUserProfile === 'object') return dataUserProfile;
+    const dataUser = dataObj.user as UserProfile | undefined;
+    if (dataUser && typeof dataUser === 'object') return dataUser;
+  }
+  return undefined;
+}
+
 /** Firebase 三方登录：统一接口 POST /facial/app/user/snsThreePartyLogin，传 idToken + loginFrom（5 Google / 6 Apple / 7 Meta / 8 X(Twitter) / 9 TikTok），返回 app token 与用户信息 */
 export async function snsThreePartyLogin(params: { idToken: string; loginFrom: number }): Promise<SnsThreePartyLoginResult> {
   if (__DEV__) {
@@ -87,9 +105,10 @@ export async function snsThreePartyLogin(params: { idToken: string; loginFrom: n
     if (__DEV__) console.warn('[snsThreePartyLogin] 成功响应但未解析到 token，raw 键:', raw && typeof raw === 'object' ? Object.keys(raw) : []);
     throw new ApiError('后端未返回登录凭证', -1, undefined, raw);
   }
+  const userProfile = pickUserProfile(raw as Record<string, unknown>) ?? {};
   return {
     token,
-    user: profileToUserInfo((raw as { userProfile?: UserProfile }).userProfile ?? {}),
+    user: profileToUserInfo(userProfile),
   };
 }
 

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 // LinearGradient moved into DetailVideoPlayer
 import { BlurView } from '@react-native-community/blur';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../routes/types';
@@ -96,6 +96,7 @@ const detailHeaderShareStyles = StyleSheet.create({
 export function DetailsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Detail'>>();
+  const isFocused = useIsFocused();
   const route = useRoute<DetailRoute>();
   const insets = useSafeAreaInsets();
   const openShareModal = useAppStore((s) => s.openShareModal);
@@ -235,6 +236,7 @@ export function DetailsScreen() {
         <DetailVideoPlayer
           videoUri={detail.videoUrl}
           posterUri={detail.thumbnailUrl}
+          isActive={isFocused}
           bottomGradientHeight={hp(100)}
           style={{...StyleSheet.absoluteFillObject,height:hp(667)}}
         />

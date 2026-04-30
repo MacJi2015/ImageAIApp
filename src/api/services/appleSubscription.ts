@@ -20,8 +20,11 @@ export interface PurchaseSubscriptionResult {
  * query: appleId（Apple用户ID）, receiptData（Receipt 数据）
  */
 export async function purchaseSubscription(appleId: string, receiptData: string): Promise<PurchaseSubscriptionResult> {
-  const res = await post<PurchaseSubscriptionResult>(`${BASE}/purchase`, undefined, {
-    params: { appleId, receiptData } as Record<string, string>,
+  const formData = new URLSearchParams({ appleId, receiptData }).toString();
+  const res = await post<PurchaseSubscriptionResult>(`${BASE}/purchase`, formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
   });
   return res as PurchaseSubscriptionResult;
 }
