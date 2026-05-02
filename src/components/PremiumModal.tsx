@@ -24,7 +24,7 @@ import { IAP_SUBSCRIPTION_IDS } from '../services/iap';
 const headerDiamondImage = require('../assets/buy/bug-zuan.png');
 const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
 
-const MODAL_HEIGHT_RATIO = 0.78;
+const MODAL_HEIGHT_RATIO = 0.62;
 
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.72)',
@@ -52,6 +52,8 @@ export type PremiumModalProps = {
   onClose: () => void;
   /** 传入选中的 productId（Apple/Google 产品 ID） */
   onSubscribe?: (productId: string) => void;
+  /** 支付发起中（防连点） */
+  subscribing?: boolean;
 };
 
 const platform: 1 | 2 = Platform.OS === 'ios' ? 1 : 2;
@@ -75,71 +77,19 @@ function formatCycleDuration(item: AppSubscriptionConfig): string {
   return item.durationDays === 1 ? '1天' : `${item.durationDays}天`;
 }
 
-const FALLBACK_PLANS: AppSubscriptionConfig[] = [
-  {
-    id: 0,
-    name: 'Premium Monthly',
-    price: 9.9,
-    currency: 'USD',
-    productId: 'com.petsgo.ai.premium.monthly',
-    durationDays: 30,
-    durationMonths: 1,
-    subscriptionType: 1,
-    platform: 1,
-    priority: 10,
-    status: 'ACTIVE',
-  },
-  {
-    id: 1,
-    name: 'Premium Weekly',
-    price: 1.9,
-    currency: 'USD',
-    productId: 'com.petsgo.ai.premium.weekly',
-    durationDays: 7,
-    durationMonths: 0,
-    subscriptionType: 1,
-    platform: 1,
-    priority: 5,
-    status: 'ACTIVE',
-  },
-  {
-    id: 2,
-    name: 'Premium Monthly',
-    price: 9.9,
-    currency: 'USD',
-    productId: 'com.petsgo.ai.premium.monthly',
-    durationDays: 30,
-    durationMonths: 1,
-    subscriptionType: 1,
-    platform: 2,
-    priority: 10,
-    status: 'ACTIVE',
-  },
-  {
-    id: 3,
-    name: 'Premium Weekly',
-    price: 1.9,
-    currency: 'USD',
-    productId: 'com.petsgo.ai.premium.weekly',
-    durationDays: 7,
-    durationMonths: 0,
-    subscriptionType: 1,
-    platform: 2,
-    priority: 5,
-    status: 'ACTIVE',
-  },
-];
+
 
 export function PremiumModal({
   visible,
   onClose,
   onSubscribe,
+  subscribing = false,
 }: PremiumModalProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const [plans, setPlans] = useState<AppSubscriptionConfig[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
@@ -158,25 +108,23 @@ export function PremiumModal({
     setLoading(true);
     getSubscriptionList(platform)
       .then((list) => {
-        const cleaned =
-          Platform.OS === 'ios'
-            ? list.filter((p) => IOS_ALLOWED_PRODUCT_IDS.has(p.productId))
-            : list;
+        const cleaned =list
+         
         if (cleaned.length > 0) {
           setPlans(cleaned);
           setSelectedProductId(cleaned[0].productId);
         } else {
-          setPlans(FALLBACK_PLANS.filter((p) => p.platform === platform));
-          setSelectedProductId(FALLBACK_PLANS[0]?.productId ?? null);
+          setPlans([]);
+          setSelectedProductId(null);
         }
       })
       .catch((e) => {
-        setPlans(FALLBACK_PLANS.filter((p) => p.platform === platform));
-        setSelectedProductId(FALLBACK_PLANS[0]?.productId ?? null);
-        setError(e?.message ?? '加载套餐失败');
+        setPlans([]);
+        setSelectedProductId(null);
+        setError(e?.message ?? 'loading failed');
       })
       .finally(() => setLoading(false));
-  }, [visible]);
+  }, [panelTranslateY, visible]);
 
   const requestClose = useCallback(() => {
     if (closingRef.current) return;
@@ -193,9 +141,8 @@ export function PremiumModal({
   }, [onClose, panelTranslateY]);
 
   const handleSubscribe = () => {
-    if (selectedProductId) {
+    if (selectedProductId && !subscribing) {
       onSubscribe?.(selectedProductId);
-      requestClose();
     }
   };
 
@@ -300,14 +247,14 @@ export function PremiumModal({
               </ScrollView>
 
               <TouchableOpacity
-                style={[styles.subscribeBtn, (loading || !selectedProductId) && styles.subscribeBtnDisabled]}
+                style={[styles.subscribeBtn, (loading || !selectedProductId || subscribing) && styles.subscribeBtnDisabled]}
                 onPress={handleSubscribe}
                 activeOpacity={0.9}
-                disabled={loading || !selectedProductId}
+                disabled={loading || !selectedProductId || subscribing}
               >
                 <Image source={subscribeBtnDiamondIcon} style={styles.subscribeBtnIcon} resizeMode="contain" />
                 <Text style={styles.subscribeBtnText}>
-                  {loading ? 'loading...' : 'SUBSCRIBE NOW'}
+                  {loading ? 'loading...' : subscribing ? 'SUBSCRIBING...' : 'SUBSCRIBE NOW'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -350,16 +297,16 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    paddingHorizontal: hp(16),
+    paddingHorizontal: dp(16),
     paddingTop: hp(16),
     paddingBottom: hp(40),
+   
   },
   scroll: {
     flexGrow: 1,
     flexShrink: 1,
     position: 'relative',
-    marginTop: hp(-24),
-    zIndex:10
+    marginTop: hp(8),
   },
   scrollContent: {
     paddingBottom: 8,
@@ -368,6 +315,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'absolute',
+    left:dp(16),
+    top:hp(16),
+    zIndex:11
   },
   closeBtn: {
     width: 32,

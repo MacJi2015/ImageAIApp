@@ -62,6 +62,13 @@ export function GenerationInProgressScreen() {
     [cleanupTimers, imageUri, navigation],
   );
 
+  const goToMyScreen = useCallback(() => {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+    cleanupTimers();
+    (navigation as any).navigate('MainTabs', { screen: 'My' });
+  }, [cleanupTimers, navigation]);
+
   // 60s 倒计时显示
   useEffect(() => {
     const interval = setInterval(() => {
@@ -91,13 +98,13 @@ export function GenerationInProgressScreen() {
     poll();
 
     oneMinuteTimerRef.current = setTimeout(() => {
-      cleanupTimers();
+      goToMyScreen();
     }, POLL_DURATION_MS);
 
     return () => {
       cleanupTimers();
     };
-  }, [cleanupTimers, resetToGenerateVideo, taskId]);
+  }, [cleanupTimers, goToMyScreen, resetToGenerateVideo, taskId]);
 
   const handleBack = () => {
     cleanupTimers();
@@ -129,8 +136,7 @@ export function GenerationInProgressScreen() {
       <TouchableOpacity
         style={[styles.continueBtn, { bottom: insets.bottom + 24 }]}
         onPress={() => {
-          cleanupTimers();
-          navigation.goBack();
+          goToMyScreen();
         }}
         activeOpacity={0.8}
       >

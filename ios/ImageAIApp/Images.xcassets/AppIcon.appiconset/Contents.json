@@ -49,6 +49,18 @@
       "size" : "60x60"
     },
     {
+      "filename" : "152x152.png",
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "76x76"
+    },
+    {
+      "filename" : "167x167.png",
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "83.5x83.5"
+    },
+    {
       "filename" : "nanobanana-edited-2026-03-07T10-29-05-540Z 1.png",
       "idiom" : "ios-marketing",
       "scale" : "1x",

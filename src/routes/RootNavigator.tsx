@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useCallback, useRef, useMemo, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   type NavigationContainerRefWithCurrent,
@@ -56,9 +56,7 @@ import { getIAPErrorMessage } from '../services/iap';
 import { setOn401 } from '../api';
 import { refreshTokenAndApply, getProfile, profileToUserInfo } from '../api/services/user';
 import {
-  isVerifyReceiptSuccess,
   purchaseSubscription,
-  verifyReceipt,
 } from '../api/services/appleSubscription';
 import { getSubscriptionList } from '../api/services/subscription';
 import type { RootStackParamList } from './types';
@@ -114,6 +112,21 @@ function getFallbackDurationDays(productId?: string | null): number {
   return 7;
 }
 
+function getPurchaseDedupKey(purchase: {
+  transactionId?: string | null;
+  purchaseToken?: string | null;
+  id?: string | null;
+  productId?: string | null;
+  transactionDate?: number | null;
+}): string {
+  return (
+    purchase.transactionId ??
+    purchase.purchaseToken ??
+    purchase.id ??
+    `${purchase.productId ?? 'unknown'}-${purchase.transactionDate ?? Date.now()}`
+  );
+}
+
 export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const { width: windowWidth } = useWindowDimensions();
   /** 设计稿：Space Grotesk Bold 18 / 行高 18 / 字间距 0，标题居中 */
@@ -152,12 +165,51 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
 
   const closePremiumModalRef = useRef(closePremiumModal);
   closePremiumModalRef.current = closePremiumModal;
+  const pendingPurchaseSkusRef = useRef<Set<string>>(new Set());
+  const processingPurchaseKeysRef = useRef<Set<string>>(new Set());
+  const processedPurchaseKeysRef = useRef<Set<string>>(new Set());
+  const purchaseSubmittingRef = useRef(false);
+  const purchaseLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [purchaseSubmitting, setPurchaseSubmitting] = useState(false);
+
+  const clearPurchaseSubmitting = useCallback(() => {
+    purchaseSubmittingRef.current = false;
+    setPurchaseSubmitting(false);
+    if (purchaseLockTimerRef.current) {
+      clearTimeout(purchaseLockTimerRef.current);
+      purchaseLockTimerRef.current = null;
+    }
+  }, []);
+
+  const markPurchaseSubmitting = useCallback(() => {
+    purchaseSubmittingRef.current = true;
+    setPurchaseSubmitting(true);
+    if (purchaseLockTimerRef.current) {
+      clearTimeout(purchaseLockTimerRef.current);
+    }
+    // 兜底解锁：避免极端情况下未收到回调导致按钮长期不可点
+    purchaseLockTimerRef.current = setTimeout(() => {
+      __DEV__ && console.warn('[IAP] purchase lock timeout, auto release');
+      pendingPurchaseSkusRef.current.clear();
+      clearPurchaseSubmitting();
+    }, 30000);
+  }, [clearPurchaseSubmitting]);
 
   // token 失效时尝试刷新并重试请求
   useEffect(() => {
     setOn401(() => refreshTokenAndApply().then(() => true).catch(() => false));
     return () => setOn401(null);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (purchaseLockTimerRef.current) {
+        clearTimeout(purchaseLockTimerRef.current);
+        purchaseLockTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   // 拉取订阅商品：优先用服务端套餐列表的 productId，失败则用本地 SKU 兜底
   useEffect(() => {
@@ -199,10 +251,43 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   // 监听购买成功：完成交易、上报后端购买/续费、更新会员状态、关闭弹窗
   useEffect(() => {
     const subUpdate = purchaseUpdatedListener(async (purchase) => {
+      const dedupKey = getPurchaseDedupKey({
+        transactionId: purchase.transactionId,
+        purchaseToken: purchase.purchaseToken,
+        id: purchase.id,
+        productId: purchase.productId,
+        transactionDate: purchase.transactionDate,
+      });
+      if (processingPurchaseKeysRef.current.has(dedupKey) || processedPurchaseKeysRef.current.has(dedupKey)) {
+        __DEV__ && console.warn('[IAP] skip duplicated purchaseUpdated event', dedupKey);
+        return;
+      }
+      processingPurchaseKeysRef.current.add(dedupKey);
       try {
-        await finishTransaction({ purchase });
+        await finishTransaction({ purchase, isConsumable: false });
+        const isUserInitiated = pendingPurchaseSkusRef.current.has(purchase.productId);
+        pendingPurchaseSkusRef.current.delete(purchase.productId);
         const currentUser = useUserStore.getState().user;
         const appleId = currentUser?.id ?? '';
+        if (!isUserInitiated) {
+          __DEV__ && console.warn('[IAP] startup/restore event detected, skip receipt upload', purchase.productId);
+          try {
+            const profile = await getProfile();
+            const base = profileToUserInfo(profile);
+            setUser({
+              ...currentUser,
+              ...base,
+              id: (base.id || currentUser?.id) ?? '',
+              name: (base.name || currentUser?.name) ?? 'User',
+              isPremium: base.isPremium ?? false,
+              premiumExpireAt: base.premiumExpireAt ?? currentUser?.premiumExpireAt,
+            });
+          } catch {
+            // ignore
+          }
+          processedPurchaseKeysRef.current.add(dedupKey);
+          return;
+        }
         if (Platform.OS === 'ios' && appleId) {
           let receiptData = '';
           try {
@@ -288,13 +373,19 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
             premiumExpireAt: expireAt.toISOString().slice(0, 10),
           });
         }
+        processedPurchaseKeysRef.current.add(dedupKey);
         closePremiumModalRef.current();
       } catch {
         closePremiumModalRef.current();
+      } finally {
+        processingPurchaseKeysRef.current.delete(dedupKey);
+        clearPurchaseSubmitting();
       }
     });
     const subError = purchaseErrorListener((error) => {
       __DEV__ && console.warn('[IAP] purchase error', error?.code, error?.message);
+      pendingPurchaseSkusRef.current.clear();
+      clearPurchaseSubmitting();
       const code = (error as { code?: string })?.code ?? '';
       const msg = getIAPErrorMessage(code, (error as { message?: string })?.message);
       if (code === 'user-cancelled' || code === 'canceled') {
@@ -306,7 +397,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       subUpdate.remove();
       subError.remove();
     };
-  }, [finishTransaction, setUser]);
+  }, [clearPurchaseSubmitting, finishTransaction, setUser]);
 
   const handleApple = useCallback(async () => {
     const ok = await loginWithApple();
@@ -524,7 +615,12 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     <PremiumModal
       visible={showPremiumModal}
       onClose={closePremiumModal}
+      subscribing={purchaseSubmitting}
       onSubscribe={async (productId: string) => {
+        if (purchaseSubmittingRef.current) {
+          __DEV__ && console.warn('[IAP] ignore duplicated subscribe press');
+          return;
+        }
         if (Platform.OS !== 'ios') {
           Alert.alert('提示', '当前仅支持在 iOS 设备上使用苹果支付。', [{ text: '知道了' }]);
           return;
@@ -545,12 +641,16 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           return;
         }
         try {
+        markPurchaseSubmitting();
+        pendingPurchaseSkusRef.current.add(productId);
         const res = await requestPurchase({
             type: 'subs',
             request: { apple: { sku: productId } },
           });
           console.log('============> requestPurchase res', res);
         } catch (e: unknown) {
+          pendingPurchaseSkusRef.current.delete(productId);
+          clearPurchaseSubmitting();
           console.log('============> requestPurchase error', e);
           const err = e as { code?: string; message?: string };
           Alert.alert(
