@@ -7,5 +7,6 @@ export { CustomPromptScreen } from './CustomPrompt';
 export { GenerationInProgressScreen } from './GenerationInProgress';
 export { MyScreen } from './MyScreen';
 export { SettingsScreen } from './SettingsScreen';
+export { AccountPasswordLoginScreen } from './AccountPasswordLoginScreen';
 export { WebViewScreen } from './WebViewScreen';
 export { FeedbackScreen } from './FeedbackScreen';

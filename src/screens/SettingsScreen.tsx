@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { useUserStore } from '../store';
 import { setAuthToken } from '../api/request';
-import { logoutApi } from '../api/services/user';
+import { deleteAccountApi, logoutApi } from '../api/services/user';
 import { clearAuth } from '../services/authStorage';
 import { dp, hp } from '../utils/scale';
 import ArrowRightIcon from '../assets/my/arrow-right.svg';
@@ -51,6 +51,7 @@ const SETTINGS_ITEMS = [
   // { id: 'contact', label: 'Contact Us' },
   { id: 'privacy', label: 'Privacy Policy' },
   { id: 'terms', label: 'Terms of Service' },
+  { id: 'delete-account', label: 'Delete Account' },
   { id: 'cache', label: 'Clear Cache' },
   { id: 'about', label: 'About PetsGO' },
 ];
@@ -117,6 +118,16 @@ export function SettingsScreen() {
     loadCacheSize();
   }, [loadCacheSize]);
 
+  const clearSessionAndBackHome = useCallback(async () => {
+    await clearAuth();
+    setAuthToken(null);
+    logout();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+    });
+  }, [logout, navigation]);
+
   const openUrl = useCallback(async (url: string) => {
     const can = await Linking.canOpenURL(url);
     if (can) Linking.openURL(url);
@@ -155,6 +166,37 @@ export function SettingsScreen() {
             title: 'Terms of Service',
           });
           break;
+        case 'delete-account':
+          Alert.alert(
+            'Delete Account',
+            'Deleting your account is permanent and cannot be undone. Continue?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await deleteAccountApi();
+                    Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+                      {
+                        text: 'OK',
+                        onPress: () => {
+                          clearSessionAndBackHome().catch(() => {
+                            Alert.alert('Sign-out Failed', 'Please restart the app and sign in again.');
+                          });
+                        },
+                      },
+                    ]);
+                  } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : 'Delete account failed, please try again.';
+                    Alert.alert('Delete Failed', msg);
+                  }
+                },
+              },
+            ]
+          );
+          break;
         case 'cache':
           Alert.alert('清除缓存', '确定要清除应用缓存吗？', [
             { text: '取消', style: 'cancel' },
@@ -178,19 +220,13 @@ export function SettingsScreen() {
           break;
       }
     },
-    [clearCacheFiles, loadCacheSize, navigation, openUrl]
+    [clearCacheFiles, clearSessionAndBackHome, loadCacheSize, navigation, openUrl]
   );
 
   const handleLogout = async () => {
     try {
       await logoutApi();
-      await clearAuth();
-      setAuthToken(null);
-      logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
-      });
+      await clearSessionAndBackHome();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '退出失败，请重试';
       Alert.alert('退出失败', msg, [{ text: '知道了' }]);

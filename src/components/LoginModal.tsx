@@ -47,6 +47,7 @@ export type LoginModalProps = {
   onClose: () => void;
   onApple?: () => void;
   onGoogle?: () => void;
+  onAccountPassword?: () => void;
   onFacebook?: () => void;
   onInstagram?: () => void;
   onX?: () => void;
@@ -60,6 +61,7 @@ export function LoginModal({
   onClose,
   onApple,
   onGoogle,
+  onAccountPassword,
   onX,
   privacyUrl = 'https://www.petsgo.ai/privacyPolicy.html',
   termsUrl = 'https://www.petsgo.ai/termsService.html',
@@ -114,12 +116,35 @@ export function LoginModal({
     openInnerWebView(termsUrl, 'Terms of Service');
   }, [openInnerWebView, termsUrl]);
 
+  const handleOpenAccountPassword = useCallback(() => {
+    requestClose();
+    setTimeout(() => {
+      onAccountPassword?.();
+    }, 200);
+  }, [onAccountPassword, requestClose]);
+
   const buttons = [
-    { key: 'apple', label: 'Apple', iconSource: LOGIN_ICON_APPLE, onPress: onApple },
-    { key: 'google', label: 'Google', iconSource: LOGIN_ICON_GOOGLE, onPress: onGoogle },
+    {
+      key: 'apple',
+      cta: 'Continue with Apple',
+      iconSource: LOGIN_ICON_APPLE,
+      onPress: onApple,
+    },
+    {
+      key: 'google',
+      cta: 'Continue with Google',
+      iconSource: LOGIN_ICON_GOOGLE,
+      onPress: onGoogle,
+    },
     // { key: 'facebook', label: 'Facebook', Icon: FacebookIcon, onPress: onFacebook },
     // { key: 'instagram', label: 'Instagram', Icon: InstagramIcon, onPress: onInstagram },
-    { key: 'x', label: 'X', iconSource: LOGIN_ICON_X, onPress: onX },
+    { key: 'x', cta: 'Continue with X', iconSource: LOGIN_ICON_X, onPress: onX },
+    {
+      key: 'account',
+      cta: 'Use account & password',
+      textIcon: '@',
+      onPress: handleOpenAccountPassword,
+    },
     // { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
   ];
 
@@ -161,7 +186,7 @@ export function LoginModal({
           </View>
 
           <View style={styles.buttons}>
-            {buttons.map(({ key, label, iconSource, onPress }) => (
+            {buttons.map(({ key, cta, iconSource, onPress, textIcon }) => (
               <TouchableOpacity
                 key={key}
                 style={styles.button}
@@ -169,13 +194,17 @@ export function LoginModal({
                 onPress={onPress}
               >
                 <View style={styles.buttonIcon}>
-                  <Image
-                    source={iconSource}
-                    style={styles.loginProviderIcon}
-                    resizeMode="contain"
-                  />
+                  {iconSource ? (
+                    <Image
+                      source={iconSource}
+                      style={styles.loginProviderIcon}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={styles.buttonIconText}>{textIcon}</Text>
+                  )}
                 </View>
-                <Text style={styles.buttonText}>Continue with {label}</Text>
+                <Text style={styles.buttonText}>{cta}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -322,6 +351,11 @@ const styles = StyleSheet.create({
   loginProviderIcon: {
     width: LOGIN_ICON_SIZE,
     height: LOGIN_ICON_SIZE,
+  },
+  buttonIconText: {
+    fontSize: dp(16),
+    fontWeight: '600',
+    color: COLORS.buttonText,
   },
   buttonText: {
     fontSize: dp(16),

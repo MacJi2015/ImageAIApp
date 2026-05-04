@@ -33,6 +33,7 @@ import { CustomPromptScreen } from '../screens/CustomPrompt';
 import { GenerationInProgressScreen } from '../screens/GenerationInProgress';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { AccountPasswordLoginScreen } from '../screens/AccountPasswordLoginScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
 import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, ToastOverlay } from '../components';
@@ -104,6 +105,8 @@ type RootNavigatorProps = {
 
 const SUBSCRIPTION_SKUS = ['com.petsgo.ai.premium.weekly', 'com.petsgo.ai.premium.monthly'];
 const IOS_BUNDLE_PREFIX = 'com.petsgo.ai.';
+const PREMIUM_PRIVACY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
+const PREMIUM_TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
 function getFallbackDurationDays(productId?: string | null): number {
   if (!productId) return 7;
@@ -157,6 +160,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     finishTransaction,
     requestPurchase,
     fetchProducts,
+    restorePurchases,
   } = useIAP({
     onError: (error) => {
       __DEV__ && console.warn('[IAP] non-purchase error', error);
@@ -171,6 +175,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const purchaseSubmittingRef = useRef(false);
   const purchaseLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [purchaseSubmitting, setPurchaseSubmitting] = useState(false);
+  const [restoreSubmitting, setRestoreSubmitting] = useState(false);
 
   const clearPurchaseSubmitting = useCallback(() => {
     purchaseSubmittingRef.current = false;
@@ -399,6 +404,57 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     };
   }, [clearPurchaseSubmitting, finishTransaction, setUser]);
 
+  const openPremiumLegalPage = useCallback(
+    (url: string, title: string) => {
+      closePremiumModal();
+      navigationRef.current?.navigate('WebView', { url, title });
+    },
+    [closePremiumModal, navigationRef],
+  );
+
+  const openTermsExternal = useCallback(() => {
+    closePremiumModal();
+    Linking.openURL(PREMIUM_TERMS_URL).catch(() => {
+      Alert.alert('Unable to Open Link', PREMIUM_TERMS_URL, [{ text: 'OK' }]);
+    });
+  }, [closePremiumModal]);
+
+  const handleRestorePurchases = useCallback(async () => {
+    if (restoreSubmitting) return;
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Restore Purchases', 'Restore is currently supported on iOS only.', [{ text: 'OK' }]);
+      return;
+    }
+    setRestoreSubmitting(true);
+    try {
+      await restorePurchases();
+      try {
+        const profile = await getProfile();
+        const currentUser = useUserStore.getState().user;
+        const base = profileToUserInfo(profile);
+        setUser({
+          ...currentUser,
+          ...base,
+          id: (base.id || currentUser?.id) ?? '',
+          name: (base.name || currentUser?.name) ?? 'User',
+          isPremium: base.isPremium ?? false,
+          premiumExpireAt: base.premiumExpireAt ?? currentUser?.premiumExpireAt,
+        });
+      } catch {
+        // ignore profile refresh failure; restore result still returned.
+      }
+      Alert.alert('Restore Completed', 'Restore request finished. If you had an active subscription, it is now synced.', [{ text: 'OK' }]);
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message?: string }).message)
+          : 'Restore failed. Please try again later.';
+      Alert.alert('Restore Failed', msg, [{ text: 'OK' }]);
+    } finally {
+      setRestoreSubmitting(false);
+    }
+  }, [restorePurchases, restoreSubmitting, setUser]);
+
   const handleApple = useCallback(async () => {
     const ok = await loginWithApple();
     if (ok) closeLoginModal();
@@ -408,6 +464,10 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     const ok = await loginWithGoogle();
     if (ok) closeLoginModal();
   }, [closeLoginModal]);
+
+  const handleOpenAccountPassword = useCallback(() => {
+    navigationRef.current?.navigate('AccountPasswordLogin');
+  }, [navigationRef]);
 
   const handleFacebook = useCallback(async () => {
     const ok = await loginWithFacebook();
@@ -575,6 +635,16 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
         }}
       />
       <Stack.Screen
+        name="AccountPasswordLogin"
+        component={AccountPasswordLoginScreen}
+        options={{
+          title: 'Account Login',
+          headerLeft: StackHeaderBack,
+          headerStyle: { backgroundColor: '#050A14' },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Stack.Screen
         name="WebView"
         component={WebViewScreen}
         options={({ route }) => ({
@@ -600,6 +670,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       onClose={closeLoginModal}
       onApple={handleApple}
       onGoogle={handleGoogle}
+      onAccountPassword={handleOpenAccountPassword}
       onFacebook={handleFacebook}
       onInstagram={handleInstagram}
       onX={handleX}
@@ -616,6 +687,10 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
       visible={showPremiumModal}
       onClose={closePremiumModal}
       subscribing={purchaseSubmitting}
+      restoring={restoreSubmitting}
+      onRestorePurchases={handleRestorePurchases}
+      onPressPrivacy={() => openPremiumLegalPage(PREMIUM_PRIVACY_URL, 'Privacy Policy')}
+      onPressTerms={openTermsExternal}
       onSubscribe={async (productId: string) => {
         if (purchaseSubmittingRef.current) {
           __DEV__ && console.warn('[IAP] ignore duplicated subscribe press');

@@ -70,8 +70,7 @@ export const login = (params: LoginParams) =>
   post<LoginResult>('/auth/login', params);
 
 /** 获取当前用户信息（旧接口，若后端已切到 profile 可用 getProfile） */
-export const getCurrentUser = () =>
-  get<UserInfo>('/user/me');
+export const getCurrentUser = () => get<UserInfo>('/user/me');
 
 /**
  * 获取用户基本信息
@@ -101,7 +100,9 @@ export interface UpdateUserProfileParam {
  * POST /app/user/updateProfile，token 放在 header，body 为 UpdateUserProfileParam
  * @returns 成功返回 true
  */
-export async function updateProfile(params: UpdateUserProfileParam): Promise<boolean> {
+export async function updateProfile(
+  params: UpdateUserProfileParam,
+): Promise<boolean> {
   const token = useUserStore.getState().token;
   const res = await post<boolean>('app/user/updateProfile', params, {
     headers: token ? { token } : {},
@@ -138,6 +139,16 @@ export async function logoutApi(): Promise<boolean> {
   const res = await get<boolean>('app/user/logout', {
     headers: token ? { token } : {},
   });
+  return res as boolean;
+}
+
+/**
+ * 注销账号（服务端删除账号）
+ * GET /app/user/logoff，token 放在 header
+ */
+export async function deleteAccountApi(): Promise<boolean> {
+  // const token = useUserStore.getState().token;
+  const res = await get<boolean>('app/user/logoff');
   return res as boolean;
 }
 

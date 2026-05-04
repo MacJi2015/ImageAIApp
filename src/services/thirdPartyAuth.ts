@@ -24,6 +24,11 @@ import {
   exchangeXCode,
   exchangeTikTokSdkCode,
 } from '../api/services/auth';
+import {
+  login as loginWithAccountApi,
+  profileToUserInfo,
+  type UserProfile,
+} from '../api/services/user';
 import { useAppStore, useUserStore, type UserInfo } from '../store';
 import { saveAuth } from './authStorage';
 import { ApiError } from '../api/types';
@@ -47,7 +52,7 @@ async function getFirebaseIdToken(auth: ReturnType<typeof getAuth>, user: unknow
       return await tryNativeGetIdToken();
     } catch {
       // 再试一次：等原生状态同步后用 currentUser 取 token
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
       const currentUser = (authModule as { currentUser?: unknown })?.currentUser;
       if (currentUser) {
         try {
@@ -124,8 +129,8 @@ export async function loginWithApple(): Promise<boolean> {
   }
   try {
     if (__DEV__) console.warn(LOG_TAG, '1. 检查设备是否支持 Apple 登录');
-    const supported = appleAuth.isSupported;
-    const isSupported = typeof supported === 'function' ? await supported() : supported;
+    const supported = appleAuth.isSupported as boolean | (() => Promise<boolean>);
+    const isSupported = typeof supported === 'function' ? await supported() : Boolean(supported);
     if (!isSupported) {
       if (__DEV__) console.warn(LOG_TAG, '1. 设备不支持');
       Alert.alert('提示', '当前设备不支持 Apple 登录');
@@ -213,7 +218,6 @@ export async function loginWithApple(): Promise<boolean> {
     const isFirebaseNetwork =
       err.code === 'auth/network-request-failed' || errMsg.includes('network-request-failed');
     const isFirebaseAudience =
-      err.code === 1170010001 ||
       String(err?.code) === '1170010001' ||
       errMsg.includes('Firebase') ||
       (errMsg.includes('aud') && errMsg.includes('Expected'));
@@ -365,7 +369,7 @@ function generatePKCE(): { code_verifier: string; code_challenge: string; state:
     Array.from({ length: len }, () => PKCE_CHARS[Math.floor(Math.random() * PKCE_CHARS.length)]).join('');
   const code_verifier = randomStr(43);
   const hash = CryptoJS.SHA256(code_verifier).toString(CryptoJS.enc.Base64);
-  const code_challenge = hash.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const code_challenge = hash.replace(/\+/g, '-').replaceAll('/', '_').replaceAll('=', '');
   const state = randomStr(16);
   return { code_verifier, code_challenge, state };
 }
@@ -553,6 +557,100 @@ function applyLoginResult(token: string, user: UserInfo): Promise<void> {
   useUserStore.getState().login(token, user);
   useAppStore.getState().notifyAuthSessionChanged();
   return saveAuth(token, user);
+}
+
+function pickAccountLoginUser(response: {
+  user?: Record<string, unknown>;
+  userProfile?: UserProfile;
+}): UserInfo | null {
+  if (response.userProfile && typeof response.userProfile === 'object') {
+    const profileUser = profileToUserInfo(response.userProfile);
+    if (profileUser.id) {
+      return {
+        ...profileUser,
+        name: profileUser.name?.trim() || 'User',
+      };
+    }
+  }
+  const user = response.user;
+  if (!user || typeof user !== 'object') return null;
+  const idSource = user.id ?? user.tid;
+  const id = idSource != null ? String(idSource).trim() : '';
+  if (!id) return null;
+  const nameCandidate =
+    (typeof user.name === 'string' && user.name.trim()) ||
+    (typeof user.nickname === 'string' && user.nickname.trim()) ||
+    'User';
+  return {
+    id,
+    name: nameCandidate,
+    avatar:
+      typeof user.avatar === 'string'
+        ? user.avatar
+        : typeof user.userAvatar === 'string'
+          ? user.userAvatar
+          : undefined,
+    email: typeof user.email === 'string' ? user.email : undefined,
+    isPremium: typeof user.isPremium === 'boolean' ? user.isPremium : undefined,
+    premiumExpireAt:
+      typeof user.premiumExpireAt === 'string'
+        ? user.premiumExpireAt
+        : typeof user.subscriptionEndTime === 'string'
+          ? user.subscriptionEndTime
+          : undefined,
+    userType:
+      user.userType === 'Free' || user.userType === 'Pro'
+        ? user.userType
+        : undefined,
+    likesAmount:
+      typeof user.likesAmount === 'number'
+        ? user.likesAmount
+        : typeof user.totalLikes === 'number'
+          ? user.totalLikes
+          : undefined,
+    videosAmount:
+      typeof user.videosAmount === 'number'
+        ? user.videosAmount
+        : typeof user.totalVideos === 'number'
+          ? user.totalVideos
+          : undefined,
+    remainingQuota:
+      typeof user.remainingQuota === 'number' ? user.remainingQuota : undefined,
+  };
+}
+
+/** 账号密码登录：/auth/login -> 写入本地登录态 */
+export async function loginWithAccountPassword(
+  username: string,
+  password: string,
+): Promise<boolean> {
+  const trimmedUsername = username.trim();
+  const trimmedPassword = password.trim();
+  if (!trimmedUsername || !trimmedPassword) {
+    Alert.alert('提示', '请输入账号和密码');
+    return false;
+  }
+  try {
+    await withSocialLoginLoading(async () => {
+      const response = await loginWithAccountApi({
+        username: trimmedUsername,
+        password: trimmedPassword,
+      });
+      const token = typeof response?.token === 'string' ? response.token.trim() : '';
+      if (!token) throw new Error('后端未返回登录凭证');
+      const user = pickAccountLoginUser(response as unknown as {
+        user?: Record<string, unknown>;
+        userProfile?: UserProfile;
+      });
+      if (!user) throw new Error('后端未返回用户信息');
+      await applyLoginResult(token, user);
+    });
+    return true;
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    Alert.alert('登录失败', err?.message ?? String(e));
+    return false;
+  }
 }
 
 function isUserCancelledError(e: unknown): boolean {

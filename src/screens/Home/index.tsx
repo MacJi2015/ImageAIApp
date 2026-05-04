@@ -37,6 +37,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
   const authHydrated = useAppStore((s) => s.authHydrated);
   const feedRefreshEpoch = useAppStore((s) => s.feedRefreshEpoch);
   const setTabBarTranslucent = useAppStore((s) => s.setTabBarTranslucent);
+  const openLoginModal = useAppStore((s) => s.openLoginModal);
   const isPro = user?.userType === 'Pro' || user?.isPremium === true;
   const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -95,6 +96,10 @@ export function HomeScreen(_props?: HomeScreenProps) {
     setLogoStickyThreshold(e.nativeEvent.layout.y);
   }, []);
 
+  const handleProBadgePress = useCallback(() => {
+    openLoginModal();
+  }, [openLoginModal]);
+
   useFocusEffect(
     useCallback(() => {
       // 首页聚焦时不强制刷新 Feed/Effects，仅在已登录时同步用户信息用于右上角 FREE/PRO。
@@ -122,11 +127,15 @@ export function HomeScreen(_props?: HomeScreenProps) {
     <View style={styles.heroBlock} onLayout={onHeroLayout}>
       <View style={styles.heroLogoRow} onLayout={onHeroLogoLayout}>
         <Image source={logoIcon} style={styles.heroLogo} resizeMode="contain" />
-        <View style={[styles.proBadge, isPro && styles.proBadgePro]}>
+        <TouchableOpacity
+          style={[styles.proBadge, isPro && styles.proBadgePro]}
+          activeOpacity={0.8}
+          onPress={handleProBadgePress}
+        >
           <Text style={[styles.proText, isPro && styles.proTextPro]}>
             {isPro ? 'PRO' : 'FREE'}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
       <Image source={homeTips} style={styles.homeTipsImage} resizeMode="contain" />
       <Text style={styles.heroSubtitle}>

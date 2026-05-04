@@ -35,6 +35,7 @@ export type RootStackParamList = {
   GenerationInProgress: { taskId: string; imageUri: string; estimatedTime?: number };
   Settings: undefined;
   EditProfile: undefined;
+  AccountPasswordLogin: undefined;
   WebView: { url: string; title: string };
   Feedback: undefined;
   /** 启动页（默认首屏），可选 message / buttonText 时可用于异常态展示（中间图见 assets/unusualimage.png） */

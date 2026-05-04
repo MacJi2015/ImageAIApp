@@ -24,7 +24,7 @@ import { IAP_SUBSCRIPTION_IDS } from '../services/iap';
 const headerDiamondImage = require('../assets/buy/bug-zuan.png');
 const subscribeBtnDiamondIcon = require('../assets/my/vip.png');
 
-const MODAL_HEIGHT_RATIO = 0.62;
+const MODAL_HEIGHT_RATIO = 0.72;
 
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.72)',
@@ -52,8 +52,16 @@ export type PremiumModalProps = {
   onClose: () => void;
   /** 传入选中的 productId（Apple/Google 产品 ID） */
   onSubscribe?: (productId: string) => void;
+  /** 用户手动恢复购买 */
+  onRestorePurchases?: () => void;
+  /** 订阅弹窗内点击隐私政策 */
+  onPressPrivacy?: () => void;
+  /** 订阅弹窗内点击服务条款 */
+  onPressTerms?: () => void;
   /** 支付发起中（防连点） */
   subscribing?: boolean;
+  /** 恢复购买中 */
+  restoring?: boolean;
 };
 
 const platform: 1 | 2 = Platform.OS === 'ios' ? 1 : 2;
@@ -63,6 +71,30 @@ function formatPrice(price: number, currency: string): string {
   if (currency === 'USD' || currency === 'usd') return `$${price.toFixed(2)}`;
   if (currency === 'CNY' || currency === 'cny') return `¥${price.toFixed(2)}`;
   return `${currency} ${price.toFixed(2)}`;
+}
+
+function getSubscriptionUnit(item: AppSubscriptionConfig): string {
+  switch (item.subscriptionType) {
+    case 1:
+      return 'month';
+    case 2:
+      return 'quarter';
+    case 3:
+      return 'year';
+    case 4:
+      return 'week';
+    default:
+      break;
+  }
+  if (item.durationMonths >= 12) return 'year';
+  if (item.durationMonths >= 3) return 'quarter';
+  if (item.durationMonths >= 1) return 'month';
+  if (item.durationDays >= 7) return 'week';
+  return 'day';
+}
+
+function formatPriceWithSubscriptionUnit(item: AppSubscriptionConfig): string {
+  return `${formatPrice(item.price, item.currency)}/${getSubscriptionUnit(item)}`;
 }
 
 /** 周期时间文案，显示在价格下方 */
@@ -83,7 +115,11 @@ export function PremiumModal({
   visible,
   onClose,
   onSubscribe,
+  onRestorePurchases,
+  onPressPrivacy,
+  onPressTerms,
   subscribing = false,
+  restoring = false,
 }: PremiumModalProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
@@ -108,8 +144,11 @@ export function PremiumModal({
     setLoading(true);
     getSubscriptionList(platform)
       .then((list) => {
-        const cleaned =list
-         
+        const cleaned =
+          Platform.OS === 'ios'
+            ? list.filter((p) => IOS_ALLOWED_PRODUCT_IDS.has(p.productId))
+            : list;
+
         if (cleaned.length > 0) {
           setPlans(cleaned);
           setSelectedProductId(cleaned[0].productId);
@@ -144,6 +183,11 @@ export function PremiumModal({
     if (selectedProductId && !subscribing) {
       onSubscribe?.(selectedProductId);
     }
+  };
+
+  const handleRestorePurchases = () => {
+    if (loading || subscribing || restoring) return;
+    onRestorePurchases?.();
   };
 
   return (
@@ -229,7 +273,7 @@ export function PremiumModal({
                           </View>
                         ) : null}
                         <View style={styles.planLeft}>
-                          <Text style={styles.planPrice}>{formatPrice(plan.price, plan.currency)}</Text>
+                          <Text style={styles.planPrice}>{formatPriceWithSubscriptionUnit(plan)}</Text>
                           <Text style={styles.planDuration}>
                             {plan.name?.trim() ? plan.name : formatCycleDuration(plan)}
                           </Text>
@@ -257,6 +301,30 @@ export function PremiumModal({
                   {loading ? 'loading...' : subscribing ? 'SUBSCRIBING...' : 'SUBSCRIBE NOW'}
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.restoreBtn, (loading || subscribing || restoring) && styles.subscribeBtnDisabled]}
+                onPress={handleRestorePurchases}
+                activeOpacity={0.8}
+                disabled={loading || subscribing || restoring}
+              >
+                <Text style={styles.restoreBtnText}>
+                  {restoring ? 'RESTORING...' : 'RESTORE PURCHASES'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.legalWrap}>
+                <Text style={styles.legalText}>By subscribing, you agree to our</Text>
+                <View style={styles.legalRow}>
+                  <TouchableOpacity onPress={onPressPrivacy} activeOpacity={0.7}>
+                    <Text style={styles.legalLink}>Privacy Policy</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.legalSep}> • </Text>
+                  <TouchableOpacity onPress={onPressTerms} activeOpacity={0.7}>
+                    <Text style={styles.legalLink}>Terms of Use</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           </LinearGradient>
         </Animated.View>
@@ -496,5 +564,46 @@ const styles = StyleSheet.create({
   },
   subscribeBtnDisabled: {
     opacity: 0.6,
+  },
+  restoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: hp(40),
+    borderRadius: dp(10),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,255,255,0.35)',
+    marginBottom: hp(10),
+  },
+  restoreBtnText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#AEEFFF',
+    letterSpacing: 0.8,
+  },
+  legalWrap: {
+    alignItems: 'center',
+    marginBottom: hp(4),
+  },
+  legalText: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 11,
+    color: COLORS.subtitle,
+    marginBottom: hp(2),
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legalLink: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 11,
+    color: COLORS.accent,
+    textDecorationLine: 'underline',
+  },
+  legalSep: {
+    fontFamily: 'Space Grotesk',
+    fontSize: 11,
+    color: COLORS.subtitle,
   },
 });

@@ -1,0 +1,210 @@
+import { useCallback, useState } from 'react';
+import {
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { setAuthToken } from '../api/request';
+import { useAppStore, useUserStore, type UserInfo } from '../store';
+import { saveAuth } from '../services/authStorage';
+import type { RootStackParamList } from '../routes/types';
+import { dp, hp } from '../utils/scale';
+
+const PRIVACY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
+const TERMS_URL = 'https://www.petsgo.ai/termsService.html';
+const REVIEW_USERNAME = 'frank1223';
+const REVIEW_PASSWORD = '123456';
+const REVIEW_TOKEN =
+  'oL8TR0BBZYtWb19Y2wpTTpefvzf/EmymPZCjdWiUIONRswX+CJ5UzIDl3hTmxvVgJIgg67rzt6mXxjHNkEIgr71WRZNGM/XqAKyRspYwmYF8RCShzSActtyrbpuBD4VI';
+const REVIEW_USER: UserInfo = {
+  id: REVIEW_USERNAME,
+  name: 'Frank',
+};
+
+export function AccountPasswordLoginScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const openLegalPage = useCallback(
+    (url: string, title: RootStackParamList['WebView']['title']) => {
+      navigation.navigate('WebView', { url, title });
+    },
+    [navigation],
+  );
+
+  const handleLogin = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const inputUsername = username.trim();
+      const inputPassword = password.trim();
+      const matched =
+        inputUsername === REVIEW_USERNAME && inputPassword === REVIEW_PASSWORD;
+      if (!matched) {
+        Alert.alert('Login Failed', 'Incorrect username or password.');
+        return;
+      }
+      setAuthToken(REVIEW_TOKEN);
+      useUserStore.getState().login(REVIEW_TOKEN, REVIEW_USER);
+      useAppStore.getState().notifyAuthSessionChanged();
+      await saveAuth(REVIEW_TOKEN, REVIEW_USER);
+      navigation.goBack();
+    } finally {
+      setSubmitting(false);
+    }
+  }, [navigation, password, submitting, username]);
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.content}>
+        <View>
+          <Text style={styles.title}>Account Login</Text>
+          <Text style={styles.subtitle}>Use your account and password to continue</Text>
+
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Email or username"
+            placeholderTextColor="#6D7A91"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            style={styles.input}
+            editable={!submitting}
+          />
+
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#6D7A91"
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+            style={styles.input}
+            editable={!submitting}
+          />
+
+          <Pressable
+            style={[styles.loginButton, submitting ? styles.loginButtonDisabled : null]}
+            onPress={handleLogin}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.loginButtonText}>Log In</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <Text style={styles.footerMuted}>By Continuing, you agree to the</Text>
+          <View style={styles.footerLinks}>
+            <Pressable
+              onPress={() => openLegalPage(PRIVACY_URL, 'Privacy Policy')}
+              disabled={submitting}
+            >
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+            </Pressable>
+            <Text style={styles.footerMuted}> and </Text>
+            <Pressable
+              onPress={() => openLegalPage(TERMS_URL, 'Terms of Service')}
+              disabled={submitting}
+            >
+              <Text style={styles.footerLink}>Terms of Service</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#050A14',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: dp(20),
+    paddingTop: hp(32),
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: dp(28),
+    fontWeight: '700',
+    marginBottom: hp(8),
+  },
+  subtitle: {
+    color: '#3A4A65',
+    fontSize: dp(14),
+    marginBottom: hp(24),
+  },
+  input: {
+    height: hp(48),
+    borderRadius: dp(12),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.2)',
+    backgroundColor: '#09111F',
+    color: '#FFFFFF',
+    paddingHorizontal: dp(14),
+    marginBottom: hp(12),
+    fontSize: dp(15),
+  },
+  loginButton: {
+    height: hp(48),
+    borderRadius: dp(12),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 255, 255, 0.2)',
+    backgroundColor: '#09111F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: hp(8),
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: dp(16),
+    fontWeight: '500',
+  },
+  footer: {
+    alignItems: 'center',
+  },
+  footerMuted: {
+    fontSize: 12,
+    color: '#3A4A65',
+    marginBottom: 2,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLink: {
+    fontSize: 12,
+    color: '#40D3E5',
+    fontWeight: '500',
+    opacity: 0.95,
+  },
+});
