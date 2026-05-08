@@ -83,11 +83,12 @@ export async function getFeedList(params?: {
     } else {
       const r = res as unknown as {
         entry: FeedItem[];
+        list?: FeedItem[];
         pageNum?: number;
         pageSize?: number;
         total?: number;
       };
-      list = r.entry ?? [];
+      list = r.entry ?? r.list ?? [];
       total = r.total;
     }
   } catch {

@@ -116,11 +116,16 @@ function EffectCard({
 interface EffectsTabProps {
   refreshKey?: number;
   authSessionEpoch?: number;
+  authHydrated?: boolean;
 }
 
-export function EffectsTab({ refreshKey, authSessionEpoch = 0 }: EffectsTabProps) {
+export function EffectsTab({
+  refreshKey,
+  authSessionEpoch = 0,
+  authHydrated = false,
+}: EffectsTabProps) {
   const [list, setList] = useState<AppVideoTemplate[]>([]);
-  const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>('idle');
+  const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>(LOADING);
   const listRef = useRef<AppVideoTemplate[]>([]);
   listRef.current = list;
 
@@ -132,7 +137,7 @@ export function EffectsTab({ refreshKey, authSessionEpoch = 0 }: EffectsTabProps
     try {
       const entry = await getOfficialTemplates();
       setList(entry);
-      setStatus('idle');
+      setStatus(entry.length > 0 ? 'idle' : EMPTY);
     } catch {
       if (!silent) {
         setList([]);
@@ -142,8 +147,9 @@ export function EffectsTab({ refreshKey, authSessionEpoch = 0 }: EffectsTabProps
   }, []);
 
   useEffect(() => {
+    if (!authHydrated) return;
     loadData();
-  }, [loadData, refreshKey, authSessionEpoch]);
+  }, [authHydrated, loadData, refreshKey, authSessionEpoch]);
 
   if (status === LOADING) {
     return (

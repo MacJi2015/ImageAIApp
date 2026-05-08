@@ -37,6 +37,7 @@ import {
 import { getTemplateDetail } from '../../api/services/template';
 import { DetailNavGlassIconButton } from './components/DetailNavGlassIconButton';
 import { DETAIL_NAV_LIQUID_GLASS } from './detailNavChrome';
+import { getUgcConsentAccepted } from '../../services/ugcConsentStorage';
 
 type DetailRoute = RouteProp<RootStackParamList, 'Detail'>;
 
@@ -102,6 +103,7 @@ export function DetailsScreen() {
   const openShareModal = useAppStore((s) => s.openShareModal);
   const openLoginModal = useAppStore((s) => s.openLoginModal);
   const openPremiumModal = useAppStore((s) => s.openPremiumModal);
+  const openUgcConsentModal = useAppStore((s) => s.openUgcConsentModal);
   const notifyFeedRefresh = useAppStore((s) => s.notifyFeedRefresh);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const user = useUserStore((s) => s.user);
@@ -127,6 +129,20 @@ export function DetailsScreen() {
     if (isEffect || !isLoggedIn) return;
     viewFeed(id).catch(() => {});
   }, [id, isEffect,isLoggedIn]);
+
+  useEffect(() => {
+    if (isEffect) return;
+    let mounted = true;
+    getUgcConsentAccepted().then((accepted) => {
+      if (!mounted || accepted) return;
+      openUgcConsentModal({
+        onDisagreed: () => navigation.goBack(),
+      });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [isEffect, navigation, openUgcConsentModal]);
 
   const fetchDetail = useCallback(async () => {
     setLoadingDetail(true);
@@ -196,7 +212,7 @@ export function DetailsScreen() {
     }
   }, [detail.liked, fetchDetail, id, isEffect, isLoggedIn, notifyFeedRefresh, openLoginModal]);
 
-  const handleChooseVideo = useCallback(() => {
+  const continueChooseVideo = useCallback(() => {
     if (!isLoggedIn) {
       openLoginModal();
       return;
@@ -208,13 +224,30 @@ export function DetailsScreen() {
     setChooseVideoVisible(true);
   }, [isLoggedIn, openLoginModal, openPremiumModal, remainingQuota]);
 
+  const handleChooseVideo = useCallback(() => {
+    const run = async () => {
+      const accepted = await getUgcConsentAccepted();
+      if (!accepted) {
+        openUgcConsentModal({
+          onAgreed: continueChooseVideo,
+        });
+        return;
+      }
+      continueChooseVideo();
+    };
+    run().catch((error) => {
+      __DEV__ && console.warn('[DetailsScreen] failed to check UGC consent for create', error);
+    });
+  }, [continueChooseVideo, openUgcConsentModal]);
+
   const handleShareFromHeader = useCallback(() => {
     openShareModal({
       url: detail.videoUrl ?? '',
       title: detail.title,
       message: detail.title ?? '',
+      feedbackTargetId: id,
     });
-  }, [openShareModal, detail.videoUrl, detail.title]);
+  }, [openShareModal, detail.videoUrl, detail.title, id]);
 
   const renderHeaderShare = useCallback(
     () => (

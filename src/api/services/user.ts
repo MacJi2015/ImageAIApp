@@ -5,7 +5,7 @@ import { useUserStore } from '../../store/useUserStore';
 import type { UserInfo } from '../../store/useUserStore';
 
 export interface LoginParams {
-  username: string;
+  account: string;
   password: string;
 }
 
@@ -67,7 +67,7 @@ function normalizePremiumExpireAt(raw?: string): string | undefined {
 
 /** 登录 */
 export const login = (params: LoginParams) =>
-  post<LoginResult>('/auth/login', params);
+  post<LoginResult>('app/user/login', params);
 
 /** 获取当前用户信息（旧接口，若后端已切到 profile 可用 getProfile） */
 export const getCurrentUser = () => get<UserInfo>('/user/me');

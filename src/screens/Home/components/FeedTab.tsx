@@ -110,10 +110,12 @@ interface FeedTabProps {
   authSessionEpoch?: number;
   /** 详情点赞等导致 Feed 变更时递增 */
   feedRefreshEpoch?: number;
+  /** App 启动鉴权恢复完成后再触发首轮请求 */
+  authHydrated?: boolean;
 }
 
 export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
-  { refreshKey, authSessionEpoch = 0, feedRefreshEpoch = 0 },
+  { refreshKey, authSessionEpoch = 0, feedRefreshEpoch = 0, authHydrated = false },
   ref,
 ) {
   const navigation = useNavigation<Nav>();
@@ -170,8 +172,9 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
   useImperativeHandle(ref, () => ({ loadMore }), [loadMore]);
 
   useEffect(() => {
+    if (!authHydrated) return;
     refresh();
-  }, [refresh, refreshKey, authSessionEpoch, feedRefreshEpoch]);
+  }, [authHydrated, refresh, refreshKey, authSessionEpoch, feedRefreshEpoch]);
 
   const handleLikePress = useCallback(
     async (item: FeedItem, e?: { stopPropagation?: () => void }) => {
@@ -213,7 +216,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
     [navigation]
   );
 
-  if (loading && list.length === 0) {
+  if ((!authHydrated || loading) && list.length === 0) {
     return (
       <View style={styles.placeholder}>
         <Text style={styles.placeholderText}>Loading...</Text>

@@ -22,11 +22,14 @@ export interface AppVideoTemplate {
  * GET /facial/app/template/official
  */
 export async function getOfficialTemplates(): Promise<AppVideoTemplate[]> {
-  const res = await get<AppVideoTemplate[] | { list: AppVideoTemplate[] }>(
+  const res = await get<
+    AppVideoTemplate[] | { list?: AppVideoTemplate[]; entry?: AppVideoTemplate[] }
+  >(
     'app/template/official',
   );
   if (Array.isArray(res)) return res;
-  return (res as unknown as { entry: AppVideoTemplate[] }).entry ?? [];
+  const payload = res as { list?: AppVideoTemplate[]; entry?: AppVideoTemplate[] };
+  return payload.entry ?? payload.list ?? [];
 }
 
 /**

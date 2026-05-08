@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   LayoutChangeEvent,
@@ -21,6 +21,7 @@ import homeTips from '../../assets/home-tips.png';
 import { dp, hp } from '../../utils/scale';
 import { useAppStore, useUserStore } from '../../store';
 import { getProfile, profileToUserInfo } from '../../api/services/user';
+import { getUgcConsentAccepted } from '../../services/ugcConsentStorage';
 
 const COLORS = { bg: '#050a14', accent: '#00ffff' };
 
@@ -38,6 +39,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
   const feedRefreshEpoch = useAppStore((s) => s.feedRefreshEpoch);
   const setTabBarTranslucent = useAppStore((s) => s.setTabBarTranslucent);
   const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const openUgcConsentModal = useAppStore((s) => s.openUgcConsentModal);
   const isPro = user?.userType === 'Pro' || user?.isPremium === true;
   const [activeTab, setActiveTab] = useState<'effects' | 'feed'>('effects');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -47,10 +49,22 @@ export function HomeScreen(_props?: HomeScreenProps) {
   const [showStickyLogo, setShowStickyLogo] = useState(false);
   const [showStickyTabs, setShowStickyTabs] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [ugcConsentAccepted, setUgcConsentAcceptedState] = useState(false);
   const feedTabRef = useRef<FeedTabRef>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
+
+  useEffect(() => {
+    let mounted = true;
+    getUgcConsentAccepted().then((accepted) => {
+      if (!mounted) return;
+      setUgcConsentAcceptedState(accepted);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -99,6 +113,30 @@ export function HomeScreen(_props?: HomeScreenProps) {
   const handleProBadgePress = useCallback(() => {
     openLoginModal();
   }, [openLoginModal]);
+
+  const handleFeedTabPress = useCallback(() => {
+    const run = async () => {
+      if (ugcConsentAccepted) {
+        setActiveTab('feed');
+        return;
+      }
+      const accepted = await getUgcConsentAccepted();
+      if (accepted) {
+        setUgcConsentAcceptedState(true);
+        setActiveTab('feed');
+        return;
+      }
+      openUgcConsentModal({
+        onAgreed: () => {
+          setUgcConsentAcceptedState(true);
+          setActiveTab('feed');
+        },
+      });
+    };
+    run().catch((error) => {
+      __DEV__ && console.warn('[HomeScreen] failed to check UGC consent', error);
+    });
+  }, [openUgcConsentModal, ugcConsentAccepted]);
 
   useFocusEffect(
     useCallback(() => {
@@ -167,7 +205,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.tabTouchRight}
-          onPress={() => setActiveTab('feed')}
+          onPress={handleFeedTabPress}
           activeOpacity={0.8}
         >
           <Text
@@ -222,7 +260,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.tabTouchRight}
-                onPress={() => setActiveTab('feed')}
+                onPress={handleFeedTabPress}
                 activeOpacity={0.8}
               >
                 <Text
@@ -281,7 +319,11 @@ export function HomeScreen(_props?: HomeScreenProps) {
             ]}
             collapsable={false}
           >
-            <EffectsTab refreshKey={refreshKey} authSessionEpoch={authSessionEpoch} />
+            <EffectsTab
+              refreshKey={refreshKey}
+              authSessionEpoch={authSessionEpoch}
+              authHydrated={authHydrated}
+            />
           </View>
           <View
             pointerEvents={activeTab === 'feed' ? 'auto' : 'none'}
@@ -296,6 +338,7 @@ export function HomeScreen(_props?: HomeScreenProps) {
               refreshKey={refreshKey}
               authSessionEpoch={authSessionEpoch}
               feedRefreshEpoch={feedRefreshEpoch}
+              authHydrated={authHydrated}
             />
           </View>
         </View>

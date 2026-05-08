@@ -4,7 +4,10 @@ import CryptoJS from 'crypto-js';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import firebaseAuth from '@react-native-firebase/auth';
-import { authorize as tikTokAuthorize, Scopes as TikTokScopes } from 'react-native-tiktok';
+import {
+  authorize as tikTokAuthorize,
+  Scopes as TikTokScopes,
+} from 'react-native-tiktok';
 import {
   getAuth,
   signInWithCredential,
@@ -35,11 +38,19 @@ import { ApiError } from '../api/types';
 import { parseAuthCallbackUrl } from '../utils/authDeepLink';
 
 /** 从当前已登录的 Firebase 用户获取 idToken，兼容模拟器下 user 方法未绑定的情况 */
-async function getFirebaseIdToken(auth: ReturnType<typeof getAuth>, user: unknown): Promise<string> {
+async function getFirebaseIdToken(
+  auth: ReturnType<typeof getAuth>,
+  user: unknown,
+): Promise<string> {
   const authModule = typeof firebaseAuth === 'function' ? firebaseAuth() : auth;
   const tryNativeGetIdToken = async (): Promise<string> => {
-    const native = (authModule as { native?: { getIdToken?: (force: boolean) => Promise<string> } })?.native;
-    if (native && typeof native.getIdToken === 'function') return await native.getIdToken(false);
+    const native = (
+      authModule as {
+        native?: { getIdToken?: (force: boolean) => Promise<string> };
+      }
+    )?.native;
+    if (native && typeof native.getIdToken === 'function')
+      return await native.getIdToken(false);
     throw new Error('native.getIdToken not available');
   };
 
@@ -53,10 +64,13 @@ async function getFirebaseIdToken(auth: ReturnType<typeof getAuth>, user: unknow
     } catch {
       // 再试一次：等原生状态同步后用 currentUser 取 token
       await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
-      const currentUser = (authModule as { currentUser?: unknown })?.currentUser;
+      const currentUser = (authModule as { currentUser?: unknown })
+        ?.currentUser;
       if (currentUser) {
         try {
-          return await getIdToken(currentUser as Parameters<typeof getIdToken>[0]);
+          return await getIdToken(
+            currentUser as Parameters<typeof getIdToken>[0],
+          );
         } catch {
           // ignore
         }
@@ -113,7 +127,10 @@ async function withSocialLoginLoading<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** 统一登录收敛：Firebase idToken -> 后端 snsThreePartyLogin -> 本地写入登录态 */
-async function applyFirebaseIdTokenLogin(idToken: string, loginFrom: LoginFromValue): Promise<void> {
+async function applyFirebaseIdTokenLogin(
+  idToken: string,
+  loginFrom: LoginFromValue,
+): Promise<void> {
   await withSocialLoginLoading(async () => {
     const result = await snsThreePartyLogin({ idToken, loginFrom });
     await applyLoginResult(result.token, result.user);
@@ -129,8 +146,11 @@ export async function loginWithApple(): Promise<boolean> {
   }
   try {
     if (__DEV__) console.warn(LOG_TAG, '1. 检查设备是否支持 Apple 登录');
-    const supported = appleAuth.isSupported as boolean | (() => Promise<boolean>);
-    const isSupported = typeof supported === 'function' ? await supported() : Boolean(supported);
+    const supported = appleAuth.isSupported as
+      | boolean
+      | (() => Promise<boolean>);
+    const isSupported =
+      typeof supported === 'function' ? await supported() : Boolean(supported);
     if (!isSupported) {
       if (__DEV__) console.warn(LOG_TAG, '1. 设备不支持');
       Alert.alert('提示', '当前设备不支持 Apple 登录');
@@ -147,7 +167,12 @@ export async function loginWithApple(): Promise<boolean> {
       Alert.alert('登录失败', '未获取到 Apple 凭证');
       return false;
     }
-    if (__DEV__) console.warn(LOG_TAG, '2. Apple 授权成功，identityToken 长度:', identityToken?.length ?? 0);
+    if (__DEV__)
+      console.warn(
+        LOG_TAG,
+        '2. Apple 授权成功，identityToken 长度:',
+        identityToken?.length ?? 0,
+      );
 
     if (__DEV__) console.warn(LOG_TAG, '3. 用 Apple 凭证登录 Firebase...');
     const auth = getAuth();
@@ -157,52 +182,88 @@ export async function loginWithApple(): Promise<boolean> {
 
     if (__DEV__) console.warn(LOG_TAG, '4. 获取 Firebase idToken...');
     const firebaseIdToken = await getFirebaseIdToken(auth, userCredential.user);
-    if (__DEV__) console.warn(LOG_TAG, '4. Firebase idToken 长度:', firebaseIdToken?.length ?? 0);
+    if (__DEV__)
+      console.warn(
+        LOG_TAG,
+        '4. Firebase idToken 长度:',
+        firebaseIdToken?.length ?? 0,
+      );
 
     if (__DEV__) console.warn(LOG_TAG, '5. 调用后端 snsThreePartyLogin...');
     let appleBackendOk = false;
     await withSocialLoginLoading(async () => {
-      const result = await snsThreePartyLogin({ idToken: firebaseIdToken, loginFrom: LoginFrom.Apple });
+      const result = await snsThreePartyLogin({
+        idToken: firebaseIdToken,
+        loginFrom: LoginFrom.Apple,
+      });
       if (__DEV__) console.warn(LOG_TAG, '5. 后端登录成功');
 
       if (result.token == null || result.token === '') {
-        if (__DEV__) console.warn(LOG_TAG, '[监控] 后端未返回 token，无法完成登录');
+        if (__DEV__)
+          console.warn(LOG_TAG, '[监控] 后端未返回 token，无法完成登录');
         Alert.alert('登录失败', '后端未返回登录凭证，请稍后重试或联系客服');
         return;
       }
 
       if (__DEV__) {
-        console.warn(LOG_TAG, '[监控] result.token 类型:', typeof result?.token, 'result.user 类型:', typeof result?.user);
+        console.warn(
+          LOG_TAG,
+          '[监控] result.token 类型:',
+          typeof result?.token,
+          'result.user 类型:',
+          typeof result?.user,
+        );
         console.warn(LOG_TAG, '[监控] setAuthToken 类型:', typeof setAuthToken);
-        console.warn(LOG_TAG, '[监控] useUserStore.getState 类型:', typeof useUserStore.getState);
+        console.warn(
+          LOG_TAG,
+          '[监控] useUserStore.getState 类型:',
+          typeof useUserStore.getState,
+        );
         console.warn(LOG_TAG, '[监控] saveAuth 类型:', typeof saveAuth);
       }
 
-      const stepTry = async (stepName: string, fn: () => void | Promise<void>) => {
+      const stepTry = async (
+        stepName: string,
+        fn: () => void | Promise<void>,
+      ) => {
         try {
           await fn();
         } catch (stepErr) {
-          if (__DEV__) console.warn(LOG_TAG, '[监控] 步骤抛出:', stepName, stepErr);
+          if (__DEV__)
+            console.warn(LOG_TAG, '[监控] 步骤抛出:', stepName, stepErr);
           throw stepErr;
         }
       };
 
       let user: UserInfo;
       await stepTry('0 构建 user', () => {
-        const name = fullName?.givenName && fullName?.familyName
-          ? `${fullName.givenName} ${fullName.familyName}`.trim()
-          : result.user?.name ?? 'User';
-        user = { ...(result.user ?? {}), name: (result.user?.name || name) || 'User' } as UserInfo;
+        const name =
+          fullName?.givenName && fullName?.familyName
+            ? `${fullName.givenName} ${fullName.familyName}`.trim()
+            : result.user?.name ?? 'User';
+        user = {
+          ...(result.user ?? {}),
+          name: result.user?.name || name || 'User',
+        } as UserInfo;
       });
 
-      await stepTry('A applyLoginResult', () => applyLoginResult(result.token, user));
+      await stepTry('A applyLoginResult', () =>
+        applyLoginResult(result.token, user),
+      );
       appleBackendOk = true;
     });
 
     if (__DEV__ && appleBackendOk) console.warn(LOG_TAG, '6. 登录完成');
     return appleBackendOk;
   } catch (e: unknown) {
-    const err = e as { code?: string; message?: string; response?: { data?: unknown }; cause?: unknown; statusCode?: number; data?: unknown };
+    const err = e as {
+      code?: string;
+      message?: string;
+      response?: { data?: unknown };
+      cause?: unknown;
+      statusCode?: number;
+      data?: unknown;
+    };
     if (__DEV__) {
       console.warn(LOG_TAG, '失败:', {
         code: err.code,
@@ -216,7 +277,8 @@ export async function loginWithApple(): Promise<boolean> {
     if (err.code === appleAuth.Error.CANCELED) return false;
     const errMsg = typeof err?.message === 'string' ? err.message : String(e);
     const isFirebaseNetwork =
-      err.code === 'auth/network-request-failed' || errMsg.includes('network-request-failed');
+      err.code === 'auth/network-request-failed' ||
+      errMsg.includes('network-request-failed');
     const isFirebaseAudience =
       String(err?.code) === '1170010001' ||
       errMsg.includes('Firebase') ||
@@ -224,10 +286,10 @@ export async function loginWithApple(): Promise<boolean> {
     const message = isFirebaseNetwork
       ? '无法连接 Firebase 认证服务（网络错误）。Apple 登录已成功，但向 Google/Firebase 校验凭证需要访问外网。\n\n请检查：Wi‑Fi/蜂窝是否正常；是否需切换网络或使用可访问 Google 服务的网络环境后再试。'
       : isFirebaseAudience
-        ? 'App 与后端使用的 Firebase 项目不一致。\n\n请二选一：\n1) 后端改用与 App 相同的 Firebase 项目（imageapp-1553c）校验 token；\n2) 或将 App 的 Firebase 配置改为后端使用的项目（facial-magic）。'
-        : (err.code === appleAuth.Error.UNKNOWN || errMsg.includes('1000'))
-          ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
-          : errMsg;
+      ? 'App 与后端使用的 Firebase 项目不一致。\n\n请二选一：\n1) 后端改用与 App 相同的 Firebase 项目（imageapp-1553c）校验 token；\n2) 或将 App 的 Firebase 配置改为后端使用的项目（facial-magic）。'
+      : err.code === appleAuth.Error.UNKNOWN || errMsg.includes('1000')
+      ? '请尝试：\n1) 在真机上测试（模拟器可能不支持）；\n2) 在 Xcode 中为 Target 添加「Sign in with Apple」能力；\n3) 若用模拟器，可到 appleid.apple.com 的「设备」中移除该模拟器后再试。'
+      : errMsg;
     Alert.alert('Apple 登录失败', message);
     return false;
   }
@@ -237,7 +299,10 @@ export async function loginWithApple(): Promise<boolean> {
 export async function loginWithGoogle(): Promise<boolean> {
   try {
     if (!authConfig.googleWebClientId) {
-      Alert.alert('提示', '请先配置 Google Web Client ID（或 Firebase google-services 中的 client_id）');
+      Alert.alert(
+        '提示',
+        '请先配置 Google Web Client ID（或 Firebase google-services 中的 client_id）',
+      );
       return false;
     }
     if (typeof GoogleSignin.signIn !== 'function') {
@@ -248,13 +313,17 @@ export async function loginWithGoogle(): Promise<boolean> {
       return false;
     }
     if (Platform.OS === 'android') {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
     }
     const signInResult = await GoogleSignin.signIn();
     if (!signInResult || signInResult.type !== 'success') {
       return false;
     }
-    let idToken = signInResult.data?.idToken ?? (signInResult as { idToken?: string }).idToken;
+    let idToken =
+      signInResult.data?.idToken ??
+      (signInResult as { idToken?: string }).idToken;
     if (!idToken && typeof GoogleSignin.getTokens === 'function') {
       try {
         const tokens = await GoogleSignin.getTokens();
@@ -269,14 +338,20 @@ export async function loginWithGoogle(): Promise<boolean> {
     }
     const auth = getAuth();
     if (!auth || typeof auth.signInWithCredential !== 'function') {
-      Alert.alert('Google 登录失败', 'Firebase Auth 未正确初始化，请检查 Firebase 配置与原生链接。');
+      Alert.alert(
+        'Google 登录失败',
+        'Firebase Auth 未正确初始化，请检查 Firebase 配置与原生链接。',
+      );
       return false;
     }
     const googleCredential = GoogleAuthProvider.credential(idToken);
     const userCredential = await signInWithCredential(auth, googleCredential);
     const firebaseUser = userCredential?.user;
     if (!firebaseUser) {
-      Alert.alert('Google 登录失败', '无法获取 Firebase 用户凭证，请重试或检查 Firebase Auth 配置。');
+      Alert.alert(
+        'Google 登录失败',
+        '无法获取 Firebase 用户凭证，请重试或检查 Firebase Auth 配置。',
+      );
       return false;
     }
     const firebaseIdToken = await getFirebaseIdToken(auth, firebaseUser);
@@ -286,7 +361,8 @@ export async function loginWithGoogle(): Promise<boolean> {
     const err = e as { code?: string; message?: string };
     if (err.code === 'SIGN_IN_CANCELLED' || err.code === '12501') return false;
     const msg = err?.message ?? String(e);
-    const isUndefinedNotFunction = typeof msg === 'string' && msg.includes('undefined is not a function');
+    const isUndefinedNotFunction =
+      typeof msg === 'string' && msg.includes('undefined is not a function');
     const displayMessage = isUndefinedNotFunction
       ? '原生模块未正确链接或版本不匹配。请执行：cd ios && pod install，然后重新编译运行。'
       : msg;
@@ -309,7 +385,10 @@ export async function loginWithFacebook(): Promise<boolean> {
       return false;
     }
 
-    const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+    const result = await LoginManager.logInWithPermissions([
+      'public_profile',
+      'email',
+    ]);
     if (result.isCancelled) return false;
 
     const accessTokenData = await AccessToken.getCurrentAccessToken();
@@ -321,15 +400,23 @@ export async function loginWithFacebook(): Promise<boolean> {
 
     const auth = getAuth();
     if (!auth || typeof auth.signInWithCredential !== 'function') {
-      Alert.alert('Facebook 登录失败', 'Firebase Auth 未正确初始化，请检查 Firebase 配置与原生链接。');
+      Alert.alert(
+        'Facebook 登录失败',
+        'Firebase Auth 未正确初始化，请检查 Firebase 配置与原生链接。',
+      );
       return false;
     }
 
-    const facebookCredential = FacebookAuthProvider.credential(accessToken.toString());
+    const facebookCredential = FacebookAuthProvider.credential(
+      accessToken.toString(),
+    );
     const userCredential = await signInWithCredential(auth, facebookCredential);
     const firebaseUser = userCredential?.user;
     if (!firebaseUser) {
-      Alert.alert('Facebook 登录失败', '无法获取 Firebase 用户凭证，请重试或检查 Firebase Auth 配置。');
+      Alert.alert(
+        'Facebook 登录失败',
+        '无法获取 Firebase 用户凭证，请重试或检查 Firebase Auth 配置。',
+      );
       return false;
     }
 
@@ -361,15 +448,26 @@ export async function getInstagramAuthUrl(): Promise<string | null> {
   }
 }
 
-const PKCE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+const PKCE_CHARS =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
 /** 生成 OAuth 2.0 PKCE 的 code_verifier、code_challenge 和 state */
-function generatePKCE(): { code_verifier: string; code_challenge: string; state: string } {
+function generatePKCE(): {
+  code_verifier: string;
+  code_challenge: string;
+  state: string;
+} {
   const randomStr = (len: number) =>
-    Array.from({ length: len }, () => PKCE_CHARS[Math.floor(Math.random() * PKCE_CHARS.length)]).join('');
+    Array.from(
+      { length: len },
+      () => PKCE_CHARS[Math.floor(Math.random() * PKCE_CHARS.length)],
+    ).join('');
   const code_verifier = randomStr(43);
   const hash = CryptoJS.SHA256(code_verifier).toString(CryptoJS.enc.Base64);
-  const code_challenge = hash.replace(/\+/g, '-').replaceAll('/', '_').replaceAll('=', '');
+  const code_challenge = hash
+    .replace(/\+/g, '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
   const state = randomStr(16);
   return { code_verifier, code_challenge, state };
 }
@@ -419,11 +517,17 @@ export async function loginWithXPreferPKCE(): Promise<XSdkLoginResult> {
 }
 
 /** 深链 imageai://auth/x?code=xxx&state=xxx 回调时，用暂存的 code_verifier 兑换并登录；返回是否成功 */
-export async function exchangeXCodeFromDeepLink(code: string, state: string): Promise<boolean> {
+export async function exchangeXCodeFromDeepLink(
+  code: string,
+  state: string,
+): Promise<boolean> {
   const stored = xPkceStateStore.get(state);
   xPkceStateStore.delete(state);
   if (!stored) {
-    if (__DEV__) console.warn('[XLogin] 未找到 state 对应的 code_verifier，可能已过期或未走 PKCE');
+    if (__DEV__)
+      console.warn(
+        '[XLogin] 未找到 state 对应的 code_verifier，可能已过期或未走 PKCE',
+      );
     Alert.alert(
       'X 登录失败（PKCE）',
       '未找到与该次授权对应的 state / code_verifier（可能 App 被系统杀进程、或重复点击）。请关闭浏览器后重新点「使用 X 登录」。',
@@ -441,13 +545,19 @@ export async function exchangeXCodeFromDeepLink(code: string, state: string): Pr
       await applyFirebaseIdTokenLogin(resp.idToken, LoginFrom.Twitter);
       return true;
     }
-    if (__DEV__) console.warn('[XLogin] code 兑换结果缺少 idToken（仅允许统一流程）');
-    Alert.alert('X 登录失败（PKCE）', '后端兑换接口未返回 idToken，请检查接口实现或联系后端。');
+    if (__DEV__)
+      console.warn('[XLogin] code 兑换结果缺少 idToken（仅允许统一流程）');
+    Alert.alert(
+      'X 登录失败（PKCE）',
+      '后端兑换接口未返回 idToken，请检查接口实现或联系后端。',
+    );
     return false;
   } catch (e) {
     if (__DEV__) console.warn('[XLogin] code 兑换失败:', e);
     const msg =
-      e instanceof ApiError ? `[${e.code}] ${e.message}` : (e as Error)?.message ?? String(e);
+      e instanceof ApiError
+        ? `[${e.code}] ${e.message}`
+        : (e as Error)?.message ?? String(e);
     Alert.alert('X 登录失败（PKCE）', msg);
     return false;
   }
@@ -458,7 +568,8 @@ export async function getXAuthUrl(): Promise<string | null> {
   const normalizeUrl = (raw: string): string | null => {
     const value = raw.trim();
     if (!value) return null;
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('http://') || value.startsWith('https://'))
+      return value;
     const base = apiConfig.baseURL?.trim();
     if (!base) return null;
     return `${base.replace(/\/$/, '')}/${value.replace(/^\//, '')}`;
@@ -472,7 +583,11 @@ export async function getXAuthUrl(): Promise<string | null> {
     const normalized = typeof url === 'string' ? normalizeUrl(url) : null;
     if (normalized) return normalized;
   } catch (e) {
-    if (__DEV__) console.warn('[XLogin] 获取授权 URL 接口失败，尝试使用配置的 xAuthorizeUrl', e);
+    if (__DEV__)
+      console.warn(
+        '[XLogin] 获取授权 URL 接口失败，尝试使用配置的 xAuthorizeUrl',
+        e,
+      );
   }
   Alert.alert(
     '提示',
@@ -492,7 +607,9 @@ const X_CLOSED_WITHOUT_CALLBACK_MESSAGE =
  * X 固定 https 授权页：用系统认证会话（iOS ASWebAuthenticationSession / Android Custom Tabs）打开。
  * 回调 scheme 与 authConfig.xRedirectUri 一致时，原生层拦截 `imageai://auth/x?...` 并把完整 URL 交给 JS，无需经外部 Safari。
  */
-export async function loginWithXUsingAuthSession(authorizeUrl: string): Promise<XAuthSessionResult> {
+export async function loginWithXUsingAuthSession(
+  authorizeUrl: string,
+): Promise<XAuthSessionResult> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'fallback';
   const redirectUrl = authConfig.xRedirectUri?.trim();
   if (!redirectUrl) return 'fallback';
@@ -511,11 +628,17 @@ export async function loginWithXUsingAuthSession(authorizeUrl: string): Promise<
       dismissButtonStyle: 'close',
     });
     if (result.type === 'cancel' || result.type === 'dismiss') {
-      Alert.alert(X_CLOSED_WITHOUT_CALLBACK_TITLE, X_CLOSED_WITHOUT_CALLBACK_MESSAGE);
+      Alert.alert(
+        X_CLOSED_WITHOUT_CALLBACK_TITLE,
+        X_CLOSED_WITHOUT_CALLBACK_MESSAGE,
+      );
       return 'aborted';
     }
     if (result.type !== 'success' || !result.url) {
-      Alert.alert(X_CLOSED_WITHOUT_CALLBACK_TITLE, X_CLOSED_WITHOUT_CALLBACK_MESSAGE);
+      Alert.alert(
+        X_CLOSED_WITHOUT_CALLBACK_TITLE,
+        X_CLOSED_WITHOUT_CALLBACK_MESSAGE,
+      );
       return 'aborted';
     }
     const parsed = parseAuthCallbackUrl(result.url);
@@ -588,16 +711,16 @@ function pickAccountLoginUser(response: {
       typeof user.avatar === 'string'
         ? user.avatar
         : typeof user.userAvatar === 'string'
-          ? user.userAvatar
-          : undefined,
+        ? user.userAvatar
+        : undefined,
     email: typeof user.email === 'string' ? user.email : undefined,
     isPremium: typeof user.isPremium === 'boolean' ? user.isPremium : undefined,
     premiumExpireAt:
       typeof user.premiumExpireAt === 'string'
         ? user.premiumExpireAt
         : typeof user.subscriptionEndTime === 'string'
-          ? user.subscriptionEndTime
-          : undefined,
+        ? user.subscriptionEndTime
+        : undefined,
     userType:
       user.userType === 'Free' || user.userType === 'Pro'
         ? user.userType
@@ -606,14 +729,14 @@ function pickAccountLoginUser(response: {
       typeof user.likesAmount === 'number'
         ? user.likesAmount
         : typeof user.totalLikes === 'number'
-          ? user.totalLikes
-          : undefined,
+        ? user.totalLikes
+        : undefined,
     videosAmount:
       typeof user.videosAmount === 'number'
         ? user.videosAmount
         : typeof user.totalVideos === 'number'
-          ? user.totalVideos
-          : undefined,
+        ? user.totalVideos
+        : undefined,
     remainingQuota:
       typeof user.remainingQuota === 'number' ? user.remainingQuota : undefined,
   };
@@ -627,28 +750,31 @@ export async function loginWithAccountPassword(
   const trimmedUsername = username.trim();
   const trimmedPassword = password.trim();
   if (!trimmedUsername || !trimmedPassword) {
-    Alert.alert('提示', '请输入账号和密码');
+    Alert.alert('Notice', 'Please enter your account and password.');
     return false;
   }
   try {
     await withSocialLoginLoading(async () => {
       const response = await loginWithAccountApi({
-        username: trimmedUsername,
+        account: trimmedUsername,
         password: trimmedPassword,
       });
-      const token = typeof response?.token === 'string' ? response.token.trim() : '';
-      if (!token) throw new Error('后端未返回登录凭证');
-      const user = pickAccountLoginUser(response as unknown as {
-        user?: Record<string, unknown>;
-        userProfile?: UserProfile;
-      });
-      if (!user) throw new Error('后端未返回用户信息');
+      const token =
+        typeof response?.token === 'string' ? response.token.trim() : '';
+      if (!token) throw new Error('Login credential was not returned by the server.');
+      const user = pickAccountLoginUser(
+        response as unknown as {
+          user?: Record<string, unknown>;
+          userProfile?: UserProfile;
+        },
+      );
+      if (!user) throw new Error('User information was not returned by the server.');
       await applyLoginResult(token, user);
     });
     return true;
   } catch (e: unknown) {
     const err = e as { message?: string };
-    Alert.alert('登录失败', err?.message ?? String(e));
+    Alert.alert('Login Failed', err?.message ?? String(e));
     return false;
   }
 }
@@ -664,11 +790,16 @@ function isUserCancelledError(e: unknown): boolean {
   );
 }
 
-function requestTikTokOpenSdkAuthCode(): Promise<{ authCode: string; codeVerifier?: string }> {
+function requestTikTokOpenSdkAuthCode(): Promise<{
+  authCode: string;
+  codeVerifier?: string;
+}> {
   const redirectURI = authConfig.tiktokOpenSdkRedirectUri;
   if (!redirectURI) {
     return Promise.reject(
-      new Error('缺少 TikTok OpenSDK redirectURI，请配置 TIKTOK_OPENSDK_REDIRECT_URI'),
+      new Error(
+        '缺少 TikTok OpenSDK redirectURI，请配置 TIKTOK_OPENSDK_REDIRECT_URI',
+      ),
     );
   }
   return new Promise((resolve, reject) => {
@@ -717,7 +848,10 @@ export async function loginWithTikTokPreferSdk(): Promise<TikTokSdkLoginResult> 
       await applyFirebaseIdTokenLogin(sdkResp.idToken, LoginFrom.TikTok);
       return 'success';
     }
-    if (__DEV__) console.warn('[TikTokLogin] OpenSDK 兑换结果缺少 idToken（仅允许统一流程），回退 OAuth');
+    if (__DEV__)
+      console.warn(
+        '[TikTokLogin] OpenSDK 兑换结果缺少 idToken（仅允许统一流程），回退 OAuth',
+      );
     return 'fallback';
   } catch (e) {
     if (isUserCancelledError(e)) return 'cancelled';
@@ -727,13 +861,22 @@ export async function loginWithTikTokPreferSdk(): Promise<TikTokSdkLoginResult> 
 }
 
 /** 使用 OAuth 回调中的 idToken 调用三方登录（Meta/Instagram=7, X(Twitter)=8, TikTok=9）；深链格式 imageai://auth/instagram?token=xxx */
-export async function exchangeWithIdToken(loginFrom: 7 | 8 | 9, idToken: string): Promise<boolean> {
+export async function exchangeWithIdToken(
+  loginFrom: 7 | 8 | 9,
+  idToken: string,
+): Promise<boolean> {
   const providerLabel =
-    loginFrom === 8 ? 'X(Twitter)' : loginFrom === 7 ? 'Instagram/Meta' : 'TikTok';
+    loginFrom === 8
+      ? 'X(Twitter)'
+      : loginFrom === 7
+      ? 'Instagram/Meta'
+      : 'TikTok';
   if (!idToken || idToken.length < 10) {
     Alert.alert(
       `${providerLabel} 登录失败`,
-      `深链里的 token 异常：长度为 ${idToken?.length ?? 0}，可能被系统截断。请改用 firebaseapp.com 授权页并重试。`,
+      `深链里的 token 异常：长度为 ${
+        idToken?.length ?? 0
+      }，可能被系统截断。请改用 firebaseapp.com 授权页并重试。`,
     );
     return false;
   }

@@ -36,7 +36,14 @@ import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { AccountPasswordLoginScreen } from '../screens/AccountPasswordLoginScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
-import { LoginModal, LoginSubmittingOverlay, ShareModal, PremiumModal, ToastOverlay } from '../components';
+import {
+  LoginModal,
+  LoginSubmittingOverlay,
+  ShareModal,
+  PremiumModal,
+  ToastOverlay,
+  UgcConsentModal,
+} from '../components';
 import { useAppStore, useUserStore } from '../store';
 import {
   loginWithApple,
@@ -60,6 +67,7 @@ import {
   purchaseSubscription,
 } from '../api/services/appleSubscription';
 import { getSubscriptionList } from '../api/services/subscription';
+import { setUgcConsentAccepted } from '../services/ugcConsentStorage';
 import type { RootStackParamList } from './types';
 
 const HEADER_BACK_ICON = require('../assets/details/arrow-left.png');
@@ -107,6 +115,8 @@ const SUBSCRIPTION_SKUS = ['com.petsgo.ai.premium.weekly', 'com.petsgo.ai.premiu
 const IOS_BUNDLE_PREFIX = 'com.petsgo.ai.';
 const PREMIUM_PRIVACY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
 const PREMIUM_TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const UGC_PRIVACY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
+const UGC_TERMS_URL = 'https://www.petsgo.ai/termsService.html';
 
 function getFallbackDurationDays(productId?: string | null): number {
   if (!productId) return 7;
@@ -152,6 +162,9 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
   const sharePayload = useAppStore(s => s.sharePayload);
   const showPremiumModal = useAppStore(s => s.showPremiumModal);
   const closePremiumModal = useAppStore(s => s.closePremiumModal);
+  const showUgcConsentModal = useAppStore(s => s.showUgcConsentModal);
+  const ugcConsentCallbacks = useAppStore(s => s.ugcConsentCallbacks);
+  const closeUgcConsentModal = useAppStore(s => s.closeUgcConsentModal);
   const setUser = useUserStore(s => s.setUser);
 
   const {
@@ -533,6 +546,39 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
     }
   }, [closeLoginModal, navigationRef]);
 
+  const handleAgreeUgcConsent = useCallback(async () => {
+    await setUgcConsentAccepted();
+    const callbacks = ugcConsentCallbacks;
+    closeUgcConsentModal();
+    callbacks?.onAgreed?.();
+  }, [closeUgcConsentModal, ugcConsentCallbacks]);
+
+  const handleDisagreeUgcConsent = useCallback(() => {
+    const callbacks = ugcConsentCallbacks;
+    closeUgcConsentModal();
+    callbacks?.onDisagreed?.();
+  }, [closeUgcConsentModal, ugcConsentCallbacks]);
+
+  const handleOpenUgcPrivacy = useCallback(() => {
+    closeUgcConsentModal();
+    setTimeout(() => {
+      navigationRef.current?.navigate('WebView', {
+        url: UGC_PRIVACY_URL,
+        title: 'Privacy Policy',
+      });
+    }, 200);
+  }, [closeUgcConsentModal, navigationRef]);
+
+  const handleOpenUgcTerms = useCallback(() => {
+    closeUgcConsentModal();
+    setTimeout(() => {
+      navigationRef.current?.navigate('WebView', {
+        url: UGC_TERMS_URL,
+        title: 'Terms of Service',
+      });
+    }, 200);
+  }, [closeUgcConsentModal, navigationRef]);
+
   useEffect(() => {
     const onUrl = async (event: { url: string }) => {
       const raw = event.url ?? '';
@@ -735,6 +781,13 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           );
         }
       }}
+    />
+    <UgcConsentModal
+      visible={showUgcConsentModal}
+      onAgree={handleAgreeUgcConsent}
+      onDisagree={handleDisagreeUgcConsent}
+      onPressPrivacy={handleOpenUgcPrivacy}
+      onPressTerms={handleOpenUgcTerms}
     />
     <ToastOverlay />
     </>

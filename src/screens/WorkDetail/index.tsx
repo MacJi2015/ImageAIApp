@@ -125,6 +125,10 @@ export function WorkDetailScreen() {
       url: videoUri ?? '',
       title: 'Share to get +1 free chance',
       message: 'Share to get +1 free chance',
+      feedbackTargetId:
+        typeof item.taskId === 'string' && item.taskId.trim() !== ''
+          ? item.taskId.trim()
+          : item.id ?? undefined,
       /** 我的作品详情：可选同步到社区 Feed（query taskId = 列表任务 ID taskId） */
       showCommunityShareOption: true,
       ...(typeof item.taskId === 'string' && item.taskId.trim() !== ''
@@ -290,7 +294,9 @@ export function WorkDetailScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.deleteModalConfirmBtn, deleting && styles.deleteModalBtnDisabled]}
-                  onPress={() => void confirmDeleteVideo()}
+                  onPress={() => {
+                    confirmDeleteVideo().catch(() => {});
+                  }}
                   activeOpacity={0.85}
                   disabled={deleting}
                 >

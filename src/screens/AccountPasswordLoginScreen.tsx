@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -13,22 +12,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { setAuthToken } from '../api/request';
-import { useAppStore, useUserStore, type UserInfo } from '../store';
-import { saveAuth } from '../services/authStorage';
+import { loginWithAccountPassword } from '../services/thirdPartyAuth';
 import type { RootStackParamList } from '../routes/types';
 import { dp, hp } from '../utils/scale';
 
 const PRIVACY_URL = 'https://www.petsgo.ai/privacyPolicy.html';
 const TERMS_URL = 'https://www.petsgo.ai/termsService.html';
-const REVIEW_USERNAME = 'frank1223';
-const REVIEW_PASSWORD = '123456';
-const REVIEW_TOKEN =
-  'oL8TR0BBZYtWb19Y2wpTTpefvzf/EmymPZCjdWiUIONRswX+CJ5UzIDl3hTmxvVgJIgg67rzt6mXxjHNkEIgr71WRZNGM/XqAKyRspYwmYF8RCShzSActtyrbpuBD4VI';
-const REVIEW_USER: UserInfo = {
-  id: REVIEW_USERNAME,
-  name: 'Frank',
-};
 
 export function AccountPasswordLoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -48,19 +37,8 @@ export function AccountPasswordLoginScreen() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const inputUsername = username.trim();
-      const inputPassword = password.trim();
-      const matched =
-        inputUsername === REVIEW_USERNAME && inputPassword === REVIEW_PASSWORD;
-      if (!matched) {
-        Alert.alert('Login Failed', 'Incorrect username or password.');
-        return;
-      }
-      setAuthToken(REVIEW_TOKEN);
-      useUserStore.getState().login(REVIEW_TOKEN, REVIEW_USER);
-      useAppStore.getState().notifyAuthSessionChanged();
-      await saveAuth(REVIEW_TOKEN, REVIEW_USER);
-      navigation.goBack();
+      const ok = await loginWithAccountPassword(username, password);
+      if (ok) navigation.goBack();
     } finally {
       setSubmitting(false);
     }

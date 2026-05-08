@@ -66,13 +66,11 @@
 		<string>_http._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>用于拍摄头像</string>
+	<string>Allow camera access to take photos for your content.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于连接开发电脑上的 Metro 服务，以便加载和调试应用</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Allow local network access to connect to development services.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于从相册选择头像</string>
+	<string>Allow photo library access to choose photos for your content.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

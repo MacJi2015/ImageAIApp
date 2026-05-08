@@ -63,7 +63,7 @@ export function ChooseVideoModal({
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
 
-  const requestClose = useCallback(() => {
+  const closeWithAnimation = useCallback((afterClose?: () => void) => {
     if (closingRef.current) return;
     closingRef.current = true;
     Animated.timing(panelTranslateY, {
@@ -74,8 +74,13 @@ export function ChooseVideoModal({
     }).start(() => {
       closingRef.current = false;
       onClose();
+      afterClose?.();
     });
   }, [onClose, panelTranslateY]);
+
+  const requestClose = useCallback(() => {
+    closeWithAnimation();
+  }, [closeWithAnimation]);
 
   useEffect(() => {
     if (!visible) return;
@@ -107,10 +112,9 @@ export function ChooseVideoModal({
 
   const handleChooseGallery = () => {
     if (!isLoggedIn) {
-      requestClose();
-      setTimeout(() => {
+      closeWithAnimation(() => {
         openLoginModal();
-      }, 200);
+      });
       return;
     }
     const options: ImageLibraryOptions = { mediaType: 'photo', selectionLimit: 1 };
@@ -122,10 +126,9 @@ export function ChooseVideoModal({
 
   const handleTakePhoto = () => {
     if (!isLoggedIn) {
-      requestClose();
-      setTimeout(() => {
+      closeWithAnimation(() => {
         openLoginModal();
-      }, 200);
+      });
       return;
     }
     const options: CameraOptions = {

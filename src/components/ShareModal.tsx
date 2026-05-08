@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
-// @ts-expect-error react-native-share default export
 import RNShare from 'react-native-share';
 import Clipboard from '@react-native-clipboard/clipboard';
 import type { SharePayload } from '../store/useAppStore';
 import { useAppStore } from '../store';
 import { useUserStore } from '../store/useUserStore';
 import { shareVideoToCommunity } from '../api/services/video';
+import { submitFeedback } from '../api/services/feedback';
+import { isLoginSessionError } from '../api/request';
 import { shareToX as shareToXService } from '../services/shareToSocial';
 import { saveMediaToGallery } from '../utils/media';
 import { dp, hp } from '../utils/scale';
@@ -29,6 +30,7 @@ const shareIcons = {
   system: require('../assets/share/syshare.png'),
   download: require('../assets/share/downvideo.png'),
   copy: require('../assets/share/copyvideo.png'),
+  feedback: require('../assets/share/feedback-icon.png'),
   close: require('../assets/share/close.png'),
 } as const;
 
@@ -53,18 +55,21 @@ export type ShareModalProps = {
   payload?: SharePayload | null;
 };
 
-type ShareActionKey = 'x' | 'system' | 'download' | 'copy_link';
+type ShareActionKey = 'x' | 'system' | 'download' | 'copy_link' | 'feedback';
 type ShareOption = {
   key: ShareActionKey;
   renderIcon: () => React.ReactNode;
 };
+
+const REPORT_FEEDBACK_MESSAGE =
+  'If this post looks inappropriate or violates our rules, please submit feedback. Our team will review it as soon as possible.';
 
 function buildShareOptions(downloading: boolean): ShareOption[] {
   return [
     {
       key: 'x',
       renderIcon: () => (
-        <Image source={shareIcons.x} style={styles.shareIconImage} resizeMode="contain" />
+        <Image source={shareIcons.x} style={[styles.shareIconImage]} resizeMode="contain" />
       ),
     },
     {
@@ -88,6 +93,12 @@ function buildShareOptions(downloading: boolean): ShareOption[] {
       key: 'copy_link',
       renderIcon: () => (
         <Image source={shareIcons.copy} style={styles.shareIconImage} resizeMode="contain" />
+      ),
+    },
+    {
+      key: 'feedback',
+      renderIcon: () => (
+        <Image source={shareIcons.feedback} style={[styles.shareIconImage,{width: dp(30), height: dp(30)}]} resizeMode="contain" />
       ),
     },
   ];
@@ -122,8 +133,13 @@ export function ShareModal({
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
   const showToast = useAppStore(s => s.showToast);
+  const openLoginModal = useAppStore(s => s.openLoginModal);
+  const token = useUserStore(s => s.token);
+  const user = useUserStore(s => s.user);
   const [downloading, setDownloading] = React.useState(false);
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
+  const [reportConfirmVisible, setReportConfirmVisible] = React.useState(false);
+  const [reportSubmitting, setReportSubmitting] = React.useState(false);
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
 
@@ -141,6 +157,8 @@ export function ShareModal({
     if (!visible) return;
     closingRef.current = false;
     setDownloading(false);
+    setReportConfirmVisible(false);
+    setReportSubmitting(false);
     panelTranslateY.setValue(48);
     Animated.timing(panelTranslateY, {
       toValue: 0,
@@ -171,11 +189,9 @@ export function ShareModal({
 
   /** 去掉仅弹窗 UI 使用的字段；勾选状态仅在 showCommunityShareOption 时写入 shareToCommunity */
   const payloadForShare = React.useMemo((): SharePayload => {
-    const {
-      showCommunityShareOption: _omit,
-      communityShareTaskId: _omitTask,
-      ...rest
-    } = sharePayload;
+    const rest = { ...sharePayload };
+    delete rest.showCommunityShareOption;
+    delete rest.communityShareTaskId;
     if (showCommunityOption) {
       return { ...rest, shareToCommunity: alsoShareToCommunity };
     }
@@ -244,119 +260,220 @@ export function ShareModal({
       case 'copy_link':
         copyLink(p);
         return;
+      case 'feedback':
+        setReportConfirmVisible(true);
+        return;
       default:
         fallbackShare(p);
     }
   }, [copyLink, downloadVideo, shareSystem]);
 
+  const handleCancelReport = useCallback(() => {
+    if (reportSubmitting) return;
+    setReportConfirmVisible(false);
+  }, [reportSubmitting]);
+
+  const handleSubmitReport = useCallback(async () => {
+    if (reportSubmitting) return;
+    if (!token) {
+      setReportConfirmVisible(false);
+      openLoginModal();
+      return;
+    }
+    setReportSubmitting(true);
+    try {
+      const targetId = payload?.feedbackTargetId ?? payload?.communityShareTaskId;
+      await submitFeedback({
+        issue: REPORT_FEEDBACK_MESSAGE,
+        email: user?.email ?? undefined,
+        id: targetId,
+      });
+      setReportConfirmVisible(false);
+      showToast('Thanks for your report. We will review it shortly.');
+    } catch (e: unknown) {
+      if (isLoginSessionError(e)) {
+        setReportConfirmVisible(false);
+        return;
+      }
+      const msg = e instanceof Error ? e.message : 'Submit failed, please try again.';
+      Alert.alert('Submit failed', msg);
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [
+    token,
+    openLoginModal,
+    payload?.communityShareTaskId,
+    payload?.feedbackTargetId,
+    reportSubmitting,
+    showToast,
+    user?.email,
+  ]);
+
   const SHARE_OPTIONS = React.useMemo(() => buildShareOptions(downloading), [downloading]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={requestClose}
-    >
-      <View style={styles.backdrop}>
-        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
-        <View style={styles.backdropOverlay} />
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
-        <Animated.View
-          style={[
-            styles.panel,
-            {
-              paddingBottom: insets.bottom + 28,
-              transform: [{ translateY: panelTranslateY }],
-            },
-          ]}
-          onStartShouldSetResponder={() => true}
-        >
-          <View pointerEvents="none" style={styles.panelTopRim} />
-          <View style={styles.header}>
-            <View style={styles.headerLeading}>
-              <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={requestClose}
-                activeOpacity={0.8}
-              >
-                <Image source={shareIcons.close} style={styles.closeIcon} resizeMode="contain" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.headerTitleWrap}>
-              <Text style={styles.title} numberOfLines={1}>
-                Share to
-              </Text>
-            </View>
-            <View style={styles.headerTrailing} />
-          </View>
-
-          <View style={styles.iconsRow}>
-            {SHARE_OPTIONS.map(({ key, renderIcon }) => (
-              <TouchableOpacity
-                key={key}
-                style={styles.iconCircle}
-                activeOpacity={0.8}
-                disabled={downloading && key === 'download'}
-                onPress={() => {
-                  if (downloading && key === 'download') return;
-                  const shouldShareToCommunity =
-                    showCommunityOption &&
-                    alsoShareToCommunity &&
-                    !!useUserStore.getState().token &&
-                    isCommunityTaskId(communityTaskId);
-
-                  const isShareAction = key === 'x' || key === 'system';
-                  const shouldCloseFirst = isShareAction;
-
-                  if (shouldCloseFirst) {
-                    // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
-                    requestClose();
-                    setTimeout(() => {
-                      if (shouldShareToCommunity) {
-                        shareVideoToCommunity(communityTaskId).catch(() => {});
-                      }
-                      runAction(key, payloadForShare).catch(() => {});
-                    }, 280);
-                    return;
-                  }
-
-                  // 下载/复制：先执行动作并展示 Toast，再稍后关闭弹窗，避免“关太快看不见提示”
-                  runAction(key, payloadForShare)
-                    .then(() => {
-                      setTimeout(() => requestClose(), 520);
-                    })
-                    .catch(() => {});
-                }}
-              >
-                {renderIcon()}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {showCommunityOption ? (
-            <TouchableOpacity
-              style={styles.communityRow}
-              activeOpacity={0.85}
-              onPress={() => setAlsoShareToCommunity(v => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: alsoShareToCommunity }}
-              accessibilityLabel="Also share to the PetsGO community"
-            >
-              <View
-                style={[
-                  styles.checkboxOuter,
-                  alsoShareToCommunity ? styles.checkboxOuterOn : styles.checkboxOuterOff,
-                ]}
-              >
-                {alsoShareToCommunity ? <Text style={styles.checkboxMark}>✓</Text> : null}
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={requestClose}
+      >
+        <View style={styles.backdrop}>
+          <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+          <View style={styles.backdropOverlay} />
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={requestClose} />
+          <Animated.View
+            style={[
+              styles.panel,
+              {
+                paddingBottom: insets.bottom + 28,
+                transform: [{ translateY: panelTranslateY }],
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View pointerEvents="none" style={styles.panelTopRim} />
+            <View style={styles.header}>
+              <View style={styles.headerLeading}>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={requestClose}
+                  activeOpacity={0.8}
+                >
+                  <Image source={shareIcons.close} style={styles.closeIcon} resizeMode="contain" />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.communityLabel}>Also share to the PetsGO community</Text>
-            </TouchableOpacity>
-          ) : null}
-        </Animated.View>
-      </View>
-    </Modal>
+              <View style={styles.headerTitleWrap}>
+                <Text style={styles.title} numberOfLines={1}>
+                  Share to
+                </Text>
+              </View>
+              <View style={styles.headerTrailing} />
+            </View>
+
+            <View style={styles.iconsRow}>
+              {SHARE_OPTIONS.map(({ key, renderIcon }) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.iconCircle}
+                  activeOpacity={0.8}
+                  disabled={downloading && key === 'download'}
+                  onPress={() => {
+                    if (downloading && key === 'download') return;
+                    const isShareAction = key === 'x' || key === 'system';
+                    const isFeedbackAction = key === 'feedback';
+                    const shouldCloseFirst = isShareAction;
+                    const shouldShareToCommunity =
+                      isShareAction &&
+                      showCommunityOption &&
+                      alsoShareToCommunity &&
+                      !!useUserStore.getState().token &&
+                      isCommunityTaskId(communityTaskId);
+
+                    if (isFeedbackAction) {
+                      requestClose();
+                      setTimeout(() => {
+                        setReportConfirmVisible(true);
+                      }, 280);
+                      return;
+                    }
+
+                    if (shouldCloseFirst) {
+                      // 先关弹窗，延迟后再调分享，避免原生编辑页被遮住；延迟需足够长让 slide 动画完全结束，否则下拉看文字时会被弹回、遮挡
+                      requestClose();
+                      setTimeout(() => {
+                        if (shouldShareToCommunity) {
+                          shareVideoToCommunity(communityTaskId).catch(() => {});
+                        }
+                        runAction(key, payloadForShare).catch(() => {});
+                      }, 280);
+                      return;
+                    }
+
+                    // 下载/复制：先执行动作并展示 Toast，再稍后关闭弹窗，避免“关太快看不见提示”
+                    runAction(key, payloadForShare)
+                      .then(() => {
+                        setTimeout(() => requestClose(), 520);
+                      })
+                      .catch(() => {});
+                  }}
+                >
+                  {renderIcon()}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {showCommunityOption ? (
+              <TouchableOpacity
+                style={styles.communityRow}
+                activeOpacity={0.85}
+                onPress={() => setAlsoShareToCommunity(v => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: alsoShareToCommunity }}
+                accessibilityLabel="Also share to the PetsGO community"
+              >
+                <View
+                  style={[
+                    styles.checkboxOuter,
+                    alsoShareToCommunity ? styles.checkboxOuterOn : styles.checkboxOuterOff,
+                  ]}
+                >
+                  {alsoShareToCommunity ? <Text style={styles.checkboxMark}>✓</Text> : null}
+                </View>
+                <Text style={styles.communityLabel}>Also share to the PetsGO community</Text>
+              </TouchableOpacity>
+            ) : null}
+          </Animated.View>
+        </View>
+      </Modal>
+      <Modal
+        visible={reportConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelReport}
+      >
+        <View style={styles.reportOverlay}>
+          <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={4} />
+          <View style={styles.backdropOverlay} />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleCancelReport}
+            disabled={reportSubmitting}
+          />
+          <View style={styles.reportCard}>
+            <Text style={styles.reportTitle}>Report this content?</Text>
+            <Text style={styles.reportMessage}>{REPORT_FEEDBACK_MESSAGE}</Text>
+            <View style={styles.reportActions}>
+              <TouchableOpacity
+                style={styles.reportCancelBtn}
+                activeOpacity={0.85}
+                onPress={handleCancelReport}
+                disabled={reportSubmitting}
+              >
+                <Text style={styles.reportCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reportSubmitBtn, reportSubmitting && styles.reportSubmitBtnDisabled]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  handleSubmitReport().catch(() => {});
+                }}
+                disabled={reportSubmitting}
+              >
+                {reportSubmitting ? (
+                  <ActivityIndicator size="small" color="#020410" />
+                ) : (
+                  <Text style={styles.reportSubmitText}>Submit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -439,7 +556,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: dp(16),
+    // paddingHorizontal: dp(16),
   },
   communityRow: {
     flexDirection: 'row',
@@ -502,5 +619,71 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  reportOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: dp(24),
+  },
+  reportCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#050A14',
+    borderRadius: dp(24),
+    borderWidth: 0.8,
+    borderColor: 'rgba(0, 255, 255, 0.18)',
+    paddingHorizontal: dp(18),
+    paddingTop: hp(20),
+    paddingBottom: hp(16),
+  },
+  reportTitle: {
+    color: '#FFFFFF',
+    fontSize: dp(20),
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  reportMessage: {
+    marginTop: hp(10),
+    color: '#8EA1BF',
+    fontSize: dp(13),
+    lineHeight: hp(20),
+    textAlign: 'center',
+  },
+  reportActions: {
+    marginTop: hp(18),
+    flexDirection: 'row',
+    gap: dp(12),
+  },
+  reportCancelBtn: {
+    flex: 1,
+    height: hp(52),
+    borderRadius: dp(12),
+    borderWidth: 0.8,
+    borderColor: 'rgba(0, 255, 255, 0.20)',
+    backgroundColor: '#09111F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitBtn: {
+    flex: 1,
+    height: hp(52),
+    borderRadius: dp(12),
+    backgroundColor: '#1FE1E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitBtnDisabled: {
+    opacity: 0.75,
+  },
+  reportCancelText: {
+    color: '#FFFFFF',
+    fontSize: dp(18),
+    fontWeight: '700',
+  },
+  reportSubmitText: {
+    color: '#020410',
+    fontSize: dp(18),
+    fontWeight: '700',
   },
 });

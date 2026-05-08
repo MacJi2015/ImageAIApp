@@ -9,6 +9,7 @@ import { MyScreen } from '../screens/MyScreen';
 import { ChooseVideoModal } from '../screens/Details/components/ChooseVideoModal';
 import type { MainTabParamList } from './types';
 import { useAppStore, useUserStore } from '../store';
+import { getUgcConsentAccepted } from '../services/ugcConsentStorage';
 
 import homeDefaultIcon from '../assets/home-default-icon.png';
 import homeSelectedIcon from '../assets/home-selected-icon.png';
@@ -105,11 +106,24 @@ export function MainTabs() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [addModalVisible, setAddModalVisible] = React.useState(false);
+  const openUgcConsentModal = useAppStore((s) => s.openUgcConsentModal);
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
 
-  const handleAddTabPress = () => {
-    setAddModalVisible(true);
-  };
+  const handleAddTabPress = React.useCallback(() => {
+    const run = async () => {
+      const accepted = await getUgcConsentAccepted();
+      if (accepted) {
+        setAddModalVisible(true);
+        return;
+      }
+      openUgcConsentModal({
+        onAgreed: () => setAddModalVisible(true),
+      });
+    };
+    run().catch((error) => {
+      __DEV__ && console.warn('[MainTabs] failed to check UGC consent for add tab', error);
+    });
+  }, [openUgcConsentModal]);
 
   const handleImageSelected = (asset: { uri?: string }, uploadedUrl?: string) => {
     setAddModalVisible(false);

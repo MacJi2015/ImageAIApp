@@ -7,13 +7,17 @@ export interface SubmitFeedbackParams {
   issue: string;
   /** 邮箱（选填，用于回复） */
   email?: string;
+  /** 反馈关联的内容 ID（选填） */
+  id?: string | number;
 }
 
 /**
  * 提交用户反馈
  * POST /app/user/submitFeedback，token 放在 header，body 为 { email?, issue }
  */
-export async function submitFeedback(params: SubmitFeedbackParams): Promise<boolean> {
+export async function submitFeedback(
+  params: SubmitFeedbackParams,
+): Promise<boolean> {
   const token = useUserStore.getState().token;
   const res = await post<boolean>('app/user/submitFeedback', params, {
     headers: token ? { token } : {},
