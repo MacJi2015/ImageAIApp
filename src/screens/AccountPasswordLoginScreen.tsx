@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +11,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loginWithAccountPassword } from '../services/thirdPartyAuth';
 import type { RootStackParamList } from '../routes/types';
 import { dp, hp } from '../utils/scale';
@@ -22,11 +20,11 @@ const TERMS_URL = 'https://www.petsgo.ai/termsService.html';
 
 export function AccountPasswordLoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [agreedBeforeLogin, setAgreedBeforeLogin] = useState(false);
+  // 登录前强制勾选已关闭：下方条款链接仅供阅读，点登录即表示知悉
+  // const [agreedBeforeLogin, setAgreedBeforeLogin] = useState(false);
 
   const openLegalPage = useCallback(
     (url: string, title: RootStackParamList['WebView']['title']) => {
@@ -37,10 +35,10 @@ export function AccountPasswordLoginScreen() {
 
   const handleLogin = useCallback(async () => {
     if (submitting) return;
-    if (!agreedBeforeLogin) {
-      Alert.alert('Notice', 'Please agree to the Privacy Policy and Terms of Service first.');
-      return;
-    }
+    // if (!agreedBeforeLogin) {
+    //   Alert.alert('Notice', 'Please agree to the Privacy Policy and Terms of Service first.');
+    //   return;
+    // }
     setSubmitting(true);
     try {
       const ok = await loginWithAccountPassword(username, password);
@@ -48,7 +46,7 @@ export function AccountPasswordLoginScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [agreedBeforeLogin, navigation, password, submitting, username]);
+  }, [navigation, password, submitting, username]);
 
   return (
     <KeyboardAvoidingView
@@ -84,7 +82,8 @@ export function AccountPasswordLoginScreen() {
             editable={!submitting}
           />
 
-          <Pressable
+          {/* 已不要求勾选协议 */}
+          {/* <Pressable
             style={styles.termsCheckRow}
             onPress={() => setAgreedBeforeLogin(v => !v)}
             disabled={submitting}
@@ -117,7 +116,31 @@ export function AccountPasswordLoginScreen() {
                 Terms of Service
               </Text>
             </Text>
-          </Pressable>
+          </Pressable> */}
+
+          <Text style={styles.termsHintMuted}>
+            By continuing, you agree to our{' '}
+            <Text
+              style={styles.termsCheckLink}
+              onPress={() => {
+                if (submitting) return;
+                openLegalPage(PRIVACY_URL, 'Privacy Policy');
+              }}
+            >
+              Privacy Policy
+            </Text>
+            {' and '}
+            <Text
+              style={styles.termsCheckLink}
+              onPress={() => {
+                if (submitting) return;
+                openLegalPage(TERMS_URL, 'Terms of Service');
+              }}
+            >
+              Terms of Service
+            </Text>
+            .
+          </Text>
 
           <Pressable
             style={[styles.loginButton, submitting ? styles.loginButtonDisabled : null]}
@@ -235,6 +258,13 @@ const styles = StyleSheet.create({
     color: '#40D3E5',
     fontSize: dp(12),
     fontWeight: '500',
+  },
+  termsHintMuted: {
+    color: '#8EA1BF',
+    fontSize: dp(12),
+    marginTop: hp(4),
+    marginBottom: hp(8),
+    lineHeight: dp(18),
   },
   loginButtonDisabled: {
     opacity: 0.7,

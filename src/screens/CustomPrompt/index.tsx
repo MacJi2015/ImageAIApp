@@ -114,7 +114,7 @@ export function CustomPromptScreen() {
         templateId,
       });
 
-      (navigation as any).navigate('GenerationInProgress', {
+      (navigation as any).replace('GenerationInProgress', {
         taskId: res.taskId,
         imageUri: currentImageUri,
       });

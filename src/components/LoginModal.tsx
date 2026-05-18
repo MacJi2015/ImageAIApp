@@ -69,9 +69,6 @@ export function LoginModal({
   const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
   const panelTranslateY = useRef(new Animated.Value(hp(48))).current;
   const closingRef = useRef(false);
-  const inlineToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [agreedBeforeLogin, setAgreedBeforeLogin] = React.useState(false);
-  const [inlineToastMessage, setInlineToastMessage] = React.useState<string | null>(null);
 
   const requestClose = useCallback(() => {
     if (closingRef.current) return;
@@ -100,32 +97,10 @@ export function LoginModal({
   }, [panelTranslateY, visible]);
 
   /** 关闭弹窗（含手势关、按钮关）后重置条款勾选 */
-  useEffect(() => {
-    if (visible) return;
-    setAgreedBeforeLogin(false);
-  }, [visible]);
-
-  useEffect(
-    () => () => {
-      if (inlineToastTimerRef.current) {
-        clearTimeout(inlineToastTimerRef.current);
-        inlineToastTimerRef.current = null;
-      }
-    },
-    []
-  );
-
-  const showInlineToast = useCallback((message: string) => {
-    if (inlineToastTimerRef.current) {
-      clearTimeout(inlineToastTimerRef.current);
-      inlineToastTimerRef.current = null;
-    }
-    setInlineToastMessage(message);
-    inlineToastTimerRef.current = setTimeout(() => {
-      setInlineToastMessage(null);
-      inlineToastTimerRef.current = null;
-    }, 1800);
-  }, []);
+  // useEffect(() => {
+  //   if (visible) return;
+  //   setAgreedBeforeLogin(false);
+  // }, [visible]);
 
   const openInnerWebView = useCallback(
     (url: string, title: RootStackParamList['WebView']['title']) => {
@@ -152,16 +127,16 @@ export function LoginModal({
     }, 200);
   }, [onAccountPassword, requestClose]);
 
-  const handleLoginEntry = useCallback(
-    (action?: () => void) => {
-      if (!agreedBeforeLogin) {
-        showInlineToast('Please agree to the Privacy Policy and Terms of Service first.');
-        return;
-      }
-      action?.();
-    },
-    [agreedBeforeLogin, showInlineToast]
-  );
+  // const handleLoginEntry = useCallback(
+  //   (action?: () => void) => {
+  //     if (!agreedBeforeLogin) {
+  //       showInlineToast('Please agree to the Privacy Policy and Terms of Service first.');
+  //       return;
+  //     }
+  //     action?.();
+  //   },
+  //   [agreedBeforeLogin, showInlineToast]
+  // );
 
   const buttons = [
     {
@@ -183,8 +158,6 @@ export function LoginModal({
       key: 'account',
       cta: 'Use account & password',
       textIcon: '@',
-      /** 账号密码在独立页面内已有条款勾选；此处直接进入 */
-      skipAgreementCheck: true,
       onPress: handleOpenAccountPassword,
     },
     // { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
@@ -228,14 +201,12 @@ export function LoginModal({
           </View>
 
           <View style={styles.buttons}>
-            {buttons.map(({ key, cta, iconSource, onPress, textIcon, skipAgreementCheck }) => (
+            {buttons.map(({ key, cta, iconSource, onPress, textIcon }) => (
               <TouchableOpacity
                 key={key}
                 style={styles.button}
                 activeOpacity={0.8}
-                onPress={() =>
-                  skipAgreementCheck ? onPress?.() : handleLoginEntry(onPress)
-                }
+                onPress={() => onPress?.()}
               >
                 <View style={styles.buttonIcon}>
                   {iconSource ? (
@@ -255,7 +226,8 @@ export function LoginModal({
 
           <View style={styles.footer}>
             <View style={styles.footerAgreementRow}>
-              <TouchableOpacity
+              {/* 已不要求勾选；仅靠下列文案表示继续使用即同意 */}
+              {/* <TouchableOpacity
                 style={styles.termsCheckButton}
                 activeOpacity={0.85}
                 onPress={() => setAgreedBeforeLogin(v => !v)}
@@ -266,7 +238,7 @@ export function LoginModal({
                 <View style={[styles.termsCheckCircle, agreedBeforeLogin ? styles.termsCheckCircleOn : styles.termsCheckCircleOff]}>
                   {agreedBeforeLogin ? <Text style={styles.termsCheckMark}>✓</Text> : null}
                 </View>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
               <Text style={styles.footerMuted}>By Continuing, you agree to the</Text>
             </View>
             <View style={styles.footerLinks}>
@@ -280,13 +252,6 @@ export function LoginModal({
             </View>
           </View>
         </Animated.View>
-        {inlineToastMessage ? (
-          <View pointerEvents="none" style={styles.inlineToastLayer}>
-            <View style={styles.inlineToastCard}>
-              <Text style={styles.inlineToastText}>{inlineToastMessage}</Text>
-            </View>
-          </View>
-        ) : null}
         {socialLoginSubmitting ? (
           <View
             style={[StyleSheet.absoluteFillObject, styles.submittingLayer]}
@@ -485,26 +450,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 10, 20, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  inlineToastLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: dp(24),
-  },
-  inlineToastCard: {
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    borderRadius: dp(16),
-    paddingHorizontal: dp(18),
-    paddingVertical: hp(12),
-    maxWidth: '100%',
-  },
-  inlineToastText: {
-    color: '#FFFFFF',
-    fontSize: dp(14),
-    fontWeight: '500',
-    textAlign: 'center',
   },
   submittingCard: {
     minWidth: dp(200),

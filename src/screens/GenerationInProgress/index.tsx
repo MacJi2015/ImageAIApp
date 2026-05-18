@@ -24,27 +24,56 @@ const COLORS = {
   card: '#09111f',
   cardBorder: 'rgba(0,255,255,0.2)',
 };
-const POLL_DURATION_MS = 60 * 1000;
 const POLL_INTERVAL_MS = 3000;
+/** 进度与 Est. Time 的展示窗口（秒）；超过后进度卡 99%、时间卡 1s，仍继续轮询 */
+const DISPLAY_WINDOW_SEC = 60;
+/** 最后阶段起点：0–50s 进度与时间较快变化，50–60s 放慢 */
+const SLOW_PHASE_START_SEC = 50;
+
+/**
+ * 0–50s：0% → 90%；50–60s：90% → 99%（后 10s 单位时间涨幅更小）；>60s 卡 99%
+ */
+function getDisplayProgressPercent(elapsedSec: number): number {
+  const t = Math.max(0, elapsedSec);
+  if (t <= SLOW_PHASE_START_SEC) {
+    return (t / SLOW_PHASE_START_SEC) * 90;
+  }
+  if (t <= DISPLAY_WINDOW_SEC) {
+    const u = (t - SLOW_PHASE_START_SEC) / (DISPLAY_WINDOW_SEC - SLOW_PHASE_START_SEC);
+    return 90 + u * 9;
+  }
+  return 99;
+}
+
+/**
+ * 0–50s：60s → 10s 线性；50–60s：10 → 1 平方缓动（体感更慢）；>60s 固定 1s
+ */
+function getDisplayEstSeconds(elapsedSec: number): number {
+  const t = Math.max(0, elapsedSec);
+  if (t <= SLOW_PHASE_START_SEC) {
+    return Math.max(1, Math.round(60 - t));
+  }
+  if (t <= DISPLAY_WINDOW_SEC) {
+    const u = (t - SLOW_PHASE_START_SEC) / (DISPLAY_WINDOW_SEC - SLOW_PHASE_START_SEC);
+    const est = 10 - 9 * u * u;
+    return Math.max(1, Math.round(est));
+  }
+  return 1;
+}
 
 export function GenerationInProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute<GenerationInProgressRoute>();
   const insets = useSafeAreaInsets();
   const { taskId, imageUri } = route.params;
-  const [remainingSec, setRemainingSec] = useState(60);
+  const [elapsedSec, setElapsedSec] = useState(0);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const oneMinuteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigatedRef = useRef(false);
 
   const cleanupTimers = useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
-    }
-    if (oneMinuteTimerRef.current) {
-      clearTimeout(oneMinuteTimerRef.current);
-      oneMinuteTimerRef.current = null;
     }
   }, []);
 
@@ -66,18 +95,21 @@ export function GenerationInProgressScreen() {
     if (navigatedRef.current) return;
     navigatedRef.current = true;
     cleanupTimers();
-    (navigation as any).navigate('MainTabs', { screen: 'My' });
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { screen: 'My' } }],
+    });
   }, [cleanupTimers, navigation]);
 
-  // 60s 倒计时显示
+  // 已过秒数：驱动进度与 Est. Time
   useEffect(() => {
     const interval = setInterval(() => {
-      setRemainingSec((s) => Math.max(0, s - 1));
+      setElapsedSec((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // 轮询一分钟，到点无论成功失败都跳转「我的」
+  // 持续轮询任务状态；60s 后仍继续请求，不自动跳转「我的」
   useEffect(() => {
     const poll = async () => {
       try {
@@ -97,19 +129,18 @@ export function GenerationInProgressScreen() {
     pollTimerRef.current = setInterval(poll, POLL_INTERVAL_MS);
     poll();
 
-    oneMinuteTimerRef.current = setTimeout(() => {
-      goToMyScreen();
-    }, POLL_DURATION_MS);
-
     return () => {
       cleanupTimers();
     };
-  }, [cleanupTimers, goToMyScreen, resetToGenerateVideo, taskId]);
+  }, [cleanupTimers, resetToGenerateVideo, taskId]);
 
   const handleBack = () => {
     cleanupTimers();
     navigation.goBack();
   };
+
+  const progressPct = Math.min(99, Math.round(getDisplayProgressPercent(elapsedSec)));
+  const estSeconds = getDisplayEstSeconds(elapsedSec);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -128,9 +159,9 @@ export function GenerationInProgressScreen() {
         <Image source={genLoadingGif} style={styles.gif} resizeMode="contain" />
       </View>
 
-      <Text style={styles.statusText}>Brewing effects...</Text>
+      <Text style={styles.statusText}>Brewing effects...{progressPct}%</Text>
       <Text style={styles.timeText}>
-        Est. Time: <Text style={styles.timeValue}>{60 - remainingSec}s</Text>
+        Est. Time: <Text style={styles.timeValue}>{estSeconds}s</Text>
       </Text>
 
       <TouchableOpacity
