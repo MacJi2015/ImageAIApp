@@ -132,12 +132,12 @@ export function HomeScreen(_props?: HomeScreenProps) {
   }, []);
 
   const handleProBadgePress = useCallback(() => {
-    navigation.navigate('GenerationInProgress', {
-      taskId: 'dev-preview-task',
-      imageUri: 'https://picsum.photos/seed/petsgo-preview/400/400',
-      // estimatedTime: 120,
-    });
-  }, [navigation]);
+    // navigation.navigate('GenerationInProgress', {
+    //   taskId: 'dev-preview-task',
+    //   imageUri: 'https://picsum.photos/seed/petsgo-preview/400/400',
+    //   // estimatedTime: 120,
+    // });
+  }, []);
 
   const handleFeedTabPress = useCallback(() => {
     const run = async () => {
