@@ -26,36 +26,46 @@ const COLORS = {
 };
 const POLL_INTERVAL_MS = 3000;
 /** 进度与 Est. Time 的展示窗口（秒）；超过后进度卡 99%、时间卡 1s，仍继续轮询 */
-const DISPLAY_WINDOW_SEC = 60;
-/** 最后阶段起点：0–50s 进度与时间较快变化，50–60s 放慢 */
-const SLOW_PHASE_START_SEC = 50;
+const DISPLAY_WINDOW_SEC = 120;
+/** 最后阶段起点：0–90s 较快，最后 30s 放慢 */
+const SLOW_PHASE_START_SEC = DISPLAY_WINDOW_SEC - 30;
+/** 快阶段进度上限（0–90s 前段涨得快，90s 时约到该值） */
+const PROGRESS_FAST_CAP = 88;
+/** 快阶段曲线指数 <1：开头百分比涨得更快 */
+const PROGRESS_FAST_EASE = 0.58;
+/** 百分比单独节拍（毫秒），与倒计时秒针错开 */
+const PROGRESS_TICK_MS = 2000;
+/** 每次进度节拍在曲线上推进的等效秒数（约 2min 内走完曲线） */
+const PROGRESS_SEC_PER_TICK = 2;
 
 /**
- * 0–50s：0% → 90%；50–60s：90% → 99%（后 10s 单位时间涨幅更小）；>60s 卡 99%
+ * 进度：前 90s 较快（幂次缓动），最后 30s 明显放慢（立方缓动）；>120s 卡 99%
  */
 function getDisplayProgressPercent(elapsedSec: number): number {
   const t = Math.max(0, elapsedSec);
   if (t <= SLOW_PHASE_START_SEC) {
-    return (t / SLOW_PHASE_START_SEC) * 90;
+    const u = t / SLOW_PHASE_START_SEC;
+    return PROGRESS_FAST_CAP * Math.pow(u, PROGRESS_FAST_EASE);
   }
   if (t <= DISPLAY_WINDOW_SEC) {
     const u = (t - SLOW_PHASE_START_SEC) / (DISPLAY_WINDOW_SEC - SLOW_PHASE_START_SEC);
-    return 90 + u * 9;
+    const slowSpan = 99 - PROGRESS_FAST_CAP;
+    return PROGRESS_FAST_CAP + slowSpan * u * u * u;
   }
   return 99;
 }
 
 /**
- * 0–50s：60s → 10s 线性；50–60s：10 → 1 平方缓动（体感更慢）；>60s 固定 1s
+ * 0–90s：120s → 30s 线性；90–120s：30 → 1 平方缓动（最后 30s 体感更慢）；>120s 固定 1s
  */
 function getDisplayEstSeconds(elapsedSec: number): number {
   const t = Math.max(0, elapsedSec);
   if (t <= SLOW_PHASE_START_SEC) {
-    return Math.max(1, Math.round(60 - t));
+    return Math.max(1, Math.round(DISPLAY_WINDOW_SEC - t));
   }
   if (t <= DISPLAY_WINDOW_SEC) {
     const u = (t - SLOW_PHASE_START_SEC) / (DISPLAY_WINDOW_SEC - SLOW_PHASE_START_SEC);
-    const est = 10 - 9 * u * u;
+    const est = 30 - 29 * u * u;
     return Math.max(1, Math.round(est));
   }
   return 1;
@@ -67,6 +77,7 @@ export function GenerationInProgressScreen() {
   const insets = useSafeAreaInsets();
   const { taskId, imageUri } = route.params;
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [progressTicks, setProgressTicks] = useState(0);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigatedRef = useRef(false);
 
@@ -101,7 +112,7 @@ export function GenerationInProgressScreen() {
     });
   }, [cleanupTimers, navigation]);
 
-  // 已过秒数：驱动进度与 Est. Time
+  // 倒计时：每秒更新
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSec((s) => s + 1);
@@ -109,7 +120,15 @@ export function GenerationInProgressScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // 持续轮询任务状态；60s 后仍继续请求，不自动跳转「我的」
+  // 百分比：独立节拍，不与倒计时同秒跳动
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgressTicks((n) => n + 1);
+    }, PROGRESS_TICK_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 持续轮询任务状态；120s 后仍继续请求，不自动跳转「我的」
   useEffect(() => {
     const poll = async () => {
       try {
@@ -139,7 +158,11 @@ export function GenerationInProgressScreen() {
     navigation.goBack();
   };
 
-  const progressPct = Math.min(99, Math.round(getDisplayProgressPercent(elapsedSec)));
+  const progressTimelineSec = Math.min(
+    DISPLAY_WINDOW_SEC,
+    progressTicks * PROGRESS_SEC_PER_TICK,
+  );
+  const progressPct = Math.min(99, Math.round(getDisplayProgressPercent(progressTimelineSec)));
   const estSeconds = getDisplayEstSeconds(elapsedSec);
 
   return (
@@ -221,10 +244,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: dp(16),
-    fontWeight: '400',
+    fontWeight: 400,
     color: COLORS.muted,
     textAlign: 'center',
     marginBottom: hp(12),
+    fontFamily: 'Space Grotesk',
   },
   timeText: {
     fontSize: dp(24),
@@ -232,6 +256,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
     letterSpacing: -0.75,
+    fontFamily: 'Space Grotesk',
   },
   timeValue: {
     color: COLORS.accent,         

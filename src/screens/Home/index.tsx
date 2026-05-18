@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../routes/types';
 import LinearGradient from 'react-native-linear-gradient';
 import { EffectsTab } from './components/EffectsTab';
 import { FeedTab, type FeedTabRef } from './components/FeedTab';
@@ -30,6 +32,7 @@ type HomeScreenProps = {
 };
 
 export function HomeScreen(_props?: HomeScreenProps) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const user = useUserStore((s) => s.user);
   const setUser = useUserStore((s) => s.setUser);
@@ -129,8 +132,12 @@ export function HomeScreen(_props?: HomeScreenProps) {
   }, []);
 
   const handleProBadgePress = useCallback(() => {
-    // openLoginModal();
-  }, []);
+    navigation.navigate('GenerationInProgress', {
+      taskId: 'dev-preview-task',
+      imageUri: 'https://picsum.photos/seed/petsgo-preview/400/400',
+      // estimatedTime: 120,
+    });
+  }, [navigation]);
 
   const handleFeedTabPress = useCallback(() => {
     const run = async () => {

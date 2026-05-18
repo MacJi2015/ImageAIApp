@@ -104,7 +104,7 @@ export function ChooseVideoModal({
       requestClose();
     } catch (e) {
       __DEV__ && console.warn('[ChooseVideoModal] upload failed', e);
-      Alert.alert('上传失败', '请确认已登录后重试');
+      Alert.alert('Upload failed', 'Please make sure you are logged in and try again.');
     } finally {
       setUploading(false);
     }
