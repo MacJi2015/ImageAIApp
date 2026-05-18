@@ -83,7 +83,7 @@ export function CustomPromptScreen() {
       return;
     }
     if (!isFromEffect && !prompt.trim()) {
-      Alert.alert('提示', '请输入 Additional Prompts');
+      Alert.alert('Notice', 'Please enter Additional Prompts');
       return;
     }
 
@@ -93,12 +93,12 @@ export function CustomPromptScreen() {
         const result = await uploadImage(currentImageUri, 'pet');
         petImageUrl = result.url;
       } catch {
-        Alert.alert('提示', '图片上传失败，请重试');
+        Alert.alert('Notice', 'Image upload failed. Please try again.');
         return;
       }
     }
     if (!petImageUrl) {
-      Alert.alert('提示', '图片上传失败，请重试');
+      Alert.alert('Notice', 'Image upload failed. Please try again.');
       return;
     }
 
@@ -119,8 +119,8 @@ export function CustomPromptScreen() {
         imageUri: currentImageUri,
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '生成失败，请重试';
-      Alert.alert('提示', msg);
+      const msg = e instanceof Error ? e.message : 'Generation failed. Please try again.';
+      Alert.alert('Notice', msg);
     } finally {
       setGenerating(false);
     }
@@ -281,7 +281,7 @@ export function CustomPromptScreen() {
         )}
               </View>
 
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, isFromEffect && styles.sectionTitleOptional]}>
                 {isFromEffect ? 'Additional Prompts(Optional)' : '*Additional Prompts(Required)'}
               </Text>
               <TextInput
@@ -321,7 +321,7 @@ export function CustomPromptScreen() {
                 {generating ? (
                   <>
                     <ActivityIndicator size="small" color="#020410" />
-                    <Text style={styles.generateBtnText}>生成中...</Text>
+                    <Text style={styles.generateBtnText}>Generating...</Text>
                   </>
                 ) : (
                   <>
@@ -550,6 +550,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: hp(16)  ,
   },
+  sectionTitleOptional: {
+    color: '#3A4A65',
+  },
   promptInput: {
     backgroundColor: COLORS.inputBg,
     borderRadius: dp(12),
@@ -582,7 +585,7 @@ const styles = StyleSheet.create({
   },
   watermarkText: {
     fontSize: dp(14),
-    color: '#ffffff',
+    color: '#3A4A65',
   },
   generateBtn: {
     flexDirection: 'row',

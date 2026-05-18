@@ -34,7 +34,7 @@ const TEXT_MUTED = '#8b949e';
 const STAT_LABEL_CYAN = '#40D3E5';
 
 /** 会员 CTA：浅米色底 + 深棕字（对齐设计稿胶囊按钮） */
-const PREMIUM_BG = '#efe4d4';
+const PREMIUM_BG = '#FFEFD3';
 const PREMIUM_TEXT = '#2c241c';
 
 /** 统计数字展示，避免接口返回 undefined / 非数字 / 异常字符串时出现 "undefined" */
@@ -473,8 +473,6 @@ export function MyScreen() {
                       styles.gridItemSized,
                     ]}
                     onPress={() =>
-                      item.videoUrl &&
-                      item.status === 'SUCCESS' &&
                       navigation.navigate('WorkDetail', {
                         item,
                       })

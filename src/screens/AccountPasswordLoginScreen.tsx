@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -25,6 +26,7 @@ export function AccountPasswordLoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [agreedBeforeLogin, setAgreedBeforeLogin] = useState(false);
 
   const openLegalPage = useCallback(
     (url: string, title: RootStackParamList['WebView']['title']) => {
@@ -35,6 +37,10 @@ export function AccountPasswordLoginScreen() {
 
   const handleLogin = useCallback(async () => {
     if (submitting) return;
+    if (!agreedBeforeLogin) {
+      Alert.alert('Notice', 'Please agree to the Privacy Policy and Terms of Service first.');
+      return;
+    }
     setSubmitting(true);
     try {
       const ok = await loginWithAccountPassword(username, password);
@@ -42,7 +48,7 @@ export function AccountPasswordLoginScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [navigation, password, submitting, username]);
+  }, [agreedBeforeLogin, navigation, password, submitting, username]);
 
   return (
     <KeyboardAvoidingView
@@ -79,6 +85,41 @@ export function AccountPasswordLoginScreen() {
           />
 
           <Pressable
+            style={styles.termsCheckRow}
+            onPress={() => setAgreedBeforeLogin(v => !v)}
+            disabled={submitting}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: agreedBeforeLogin }}
+            accessibilityLabel="Agree to Privacy Policy and Terms of Service"
+          >
+            <View style={[styles.termsCheckCircle, agreedBeforeLogin ? styles.termsCheckCircleOn : styles.termsCheckCircleOff]}>
+              {agreedBeforeLogin ? <Text style={styles.termsCheckMark}>✓</Text> : null}
+            </View>
+            <Text style={styles.termsCheckLabel}>
+              I agree to{' '}
+              <Text
+                style={styles.termsCheckLink}
+                onPress={() => {
+                  if (submitting) return;
+                  openLegalPage(PRIVACY_URL, 'Privacy Policy');
+                }}
+              >
+                Privacy Policy
+              </Text>
+              {' and '}
+              <Text
+                style={styles.termsCheckLink}
+                onPress={() => {
+                  if (submitting) return;
+                  openLegalPage(TERMS_URL, 'Terms of Service');
+                }}
+              >
+                Terms of Service
+              </Text>
+            </Text>
+          </Pressable>
+
+          <Pressable
             style={[styles.loginButton, submitting ? styles.loginButtonDisabled : null]}
             onPress={handleLogin}
             disabled={submitting}
@@ -91,7 +132,7 @@ export function AccountPasswordLoginScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+        {/* <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <Text style={styles.footerMuted}>By Continuing, you agree to the</Text>
           <View style={styles.footerLinks}>
             <Pressable
@@ -108,7 +149,7 @@ export function AccountPasswordLoginScreen() {
               <Text style={styles.footerLink}>Terms of Service</Text>
             </Pressable>
           </View>
-        </View>
+        </View> */}
       </View>
     </KeyboardAvoidingView>
   );
@@ -156,6 +197,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: hp(8),
+  },
+  termsCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hp(4),
+    marginBottom: hp(4),
+  },
+  termsCheckCircle: {
+    width: dp(18),
+    height: dp(18),
+    borderRadius: dp(9),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: dp(8),
+  },
+  termsCheckCircleOn: {
+    backgroundColor: '#00E8DC',
+  },
+  termsCheckCircleOff: {
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 255, 255, 0.35)',
+    backgroundColor: 'transparent',
+  },
+  termsCheckMark: {
+    color: '#021018',
+    fontSize: dp(11),
+    fontWeight: '700',
+    marginTop: -1,
+  },
+  termsCheckLabel: {
+    color: '#8EA1BF',
+    fontSize: dp(12),
+    flexShrink: 1,
+  },
+  termsCheckLink: {
+    color: '#40D3E5',
+    fontSize: dp(12),
+    fontWeight: '500',
   },
   loginButtonDisabled: {
     opacity: 0.7,

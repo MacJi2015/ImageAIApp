@@ -6,3 +6,10 @@ export type { UserState, UserInfo } from './useUserStore';
 
 export { useImageStore } from './useImageStore';
 export type { ImageState, GeneratedImage } from './useImageStore';
+
+export { useDetailPagerStore } from './useDetailPagerStore';
+export type {
+  DetailPagerItem,
+  DetailPagerSession,
+  DetailPagerSource,
+} from './useDetailPagerStore';

@@ -22,8 +22,6 @@ const LOGIN_ICON_APPLE = require('../assets/login/apply-icon.png');
 const LOGIN_ICON_GOOGLE = require('../assets/login/google-icon.png');
 const LOGIN_ICON_X = require('../assets/login/x-icon.png');
 
-const LOGIN_ICON_SIZE = 24;
-
 // 设计稿配色：深色主题、青绿链接色
 const COLORS = {
   backdrop: 'rgba(0,0,0,0.35)',
@@ -69,14 +67,17 @@ export function LoginModal({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const socialLoginSubmitting = useAppStore(s => s.socialLoginSubmitting);
-  const panelTranslateY = useRef(new Animated.Value(48)).current;
+  const panelTranslateY = useRef(new Animated.Value(hp(48))).current;
   const closingRef = useRef(false);
+  const inlineToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [agreedBeforeLogin, setAgreedBeforeLogin] = React.useState(false);
+  const [inlineToastMessage, setInlineToastMessage] = React.useState<string | null>(null);
 
   const requestClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
     Animated.timing(panelTranslateY, {
-      toValue: 48,
+      toValue: hp(48),
       duration: 180,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
@@ -89,7 +90,7 @@ export function LoginModal({
   useEffect(() => {
     if (!visible) return;
     closingRef.current = false;
-    panelTranslateY.setValue(48);
+    panelTranslateY.setValue(hp(48));
     Animated.timing(panelTranslateY, {
       toValue: 0,
       duration: 220,
@@ -97,6 +98,34 @@ export function LoginModal({
       useNativeDriver: true,
     }).start();
   }, [panelTranslateY, visible]);
+
+  /** 关闭弹窗（含手势关、按钮关）后重置条款勾选 */
+  useEffect(() => {
+    if (visible) return;
+    setAgreedBeforeLogin(false);
+  }, [visible]);
+
+  useEffect(
+    () => () => {
+      if (inlineToastTimerRef.current) {
+        clearTimeout(inlineToastTimerRef.current);
+        inlineToastTimerRef.current = null;
+      }
+    },
+    []
+  );
+
+  const showInlineToast = useCallback((message: string) => {
+    if (inlineToastTimerRef.current) {
+      clearTimeout(inlineToastTimerRef.current);
+      inlineToastTimerRef.current = null;
+    }
+    setInlineToastMessage(message);
+    inlineToastTimerRef.current = setTimeout(() => {
+      setInlineToastMessage(null);
+      inlineToastTimerRef.current = null;
+    }, 1800);
+  }, []);
 
   const openInnerWebView = useCallback(
     (url: string, title: RootStackParamList['WebView']['title']) => {
@@ -123,6 +152,17 @@ export function LoginModal({
     }, 200);
   }, [onAccountPassword, requestClose]);
 
+  const handleLoginEntry = useCallback(
+    (action?: () => void) => {
+      if (!agreedBeforeLogin) {
+        showInlineToast('Please agree to the Privacy Policy and Terms of Service first.');
+        return;
+      }
+      action?.();
+    },
+    [agreedBeforeLogin, showInlineToast]
+  );
+
   const buttons = [
     {
       key: 'apple',
@@ -143,6 +183,8 @@ export function LoginModal({
       key: 'account',
       cta: 'Use account & password',
       textIcon: '@',
+      /** 账号密码在独立页面内已有条款勾选；此处直接进入 */
+      skipAgreementCheck: true,
       onPress: handleOpenAccountPassword,
     },
     // { key: 'tiktok', label: 'TikTok', Icon: TikTokIcon, onPress: onTikTok },
@@ -164,7 +206,7 @@ export function LoginModal({
           style={[
             styles.panel,
             {
-              paddingBottom: insets.bottom + 24,
+              paddingBottom: insets.bottom + hp(24),
               transform: [{ translateY: panelTranslateY }],
             },
           ]}
@@ -186,12 +228,14 @@ export function LoginModal({
           </View>
 
           <View style={styles.buttons}>
-            {buttons.map(({ key, cta, iconSource, onPress, textIcon }) => (
+            {buttons.map(({ key, cta, iconSource, onPress, textIcon, skipAgreementCheck }) => (
               <TouchableOpacity
                 key={key}
                 style={styles.button}
                 activeOpacity={0.8}
-                onPress={onPress}
+                onPress={() =>
+                  skipAgreementCheck ? onPress?.() : handleLoginEntry(onPress)
+                }
               >
                 <View style={styles.buttonIcon}>
                   {iconSource ? (
@@ -210,7 +254,21 @@ export function LoginModal({
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerMuted}>By Continuing, you agree to the</Text>
+            <View style={styles.footerAgreementRow}>
+              <TouchableOpacity
+                style={styles.termsCheckButton}
+                activeOpacity={0.85}
+                onPress={() => setAgreedBeforeLogin(v => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: agreedBeforeLogin }}
+                accessibilityLabel="Agree to Privacy Policy and Terms of Service"
+              >
+                <View style={[styles.termsCheckCircle, agreedBeforeLogin ? styles.termsCheckCircleOn : styles.termsCheckCircleOff]}>
+                  {agreedBeforeLogin ? <Text style={styles.termsCheckMark}>✓</Text> : null}
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.footerMuted}>By Continuing, you agree to the</Text>
+            </View>
             <View style={styles.footerLinks}>
               <TouchableOpacity onPress={handlePrivacy} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Privacy Policy</Text>
@@ -222,6 +280,13 @@ export function LoginModal({
             </View>
           </View>
         </Animated.View>
+        {inlineToastMessage ? (
+          <View pointerEvents="none" style={styles.inlineToastLayer}>
+            <View style={styles.inlineToastCard}>
+              <Text style={styles.inlineToastText}>{inlineToastMessage}</Text>
+            </View>
+          </View>
+        ) : null}
         {socialLoginSubmitting ? (
           <View
             style={[StyleSheet.absoluteFillObject, styles.submittingLayer]}
@@ -257,22 +322,22 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: dp(32),
     borderTopRightRadius: dp(32),
     width: '100%',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: dp(20),
+    paddingTop: hp(20),
     overflow: 'hidden',
     borderWidth: 0,
     // iOS shadow (让外层看起来更“干净”，不再像描边)
     shadowColor: '#000',
     shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: -8 },
+    shadowRadius: dp(18),
+    shadowOffset: { width: 0, height: -hp(8) },
     elevation: 6,
   },
   panelTopRim: {
     position: 'absolute',
-    left: 0.5,
-    right: 0.5,
-    top: -0.5,
+    left: dp(0.5),
+    right: dp(0.5),
+    top: -hp(0.5),
     height: hp(32),
     borderTopLeftRadius: dp(32),
     borderTopRightRadius: dp(32),
@@ -295,9 +360,9 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     zIndex: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: dp(32),
+    height: dp(32),
+    borderRadius: dp(16),
     backgroundColor: COLORS.closeBtnBg,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -343,19 +408,21 @@ const styles = StyleSheet.create({
   buttonIcon: {
     position: 'absolute',
     left: dp(12),
-    width: LOGIN_ICON_SIZE,
-    height: LOGIN_ICON_SIZE,
+    width: dp(24),
+    height: hp(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   loginProviderIcon: {
-    width: LOGIN_ICON_SIZE,
-    height: LOGIN_ICON_SIZE,
+    width: dp(24),
+    height: hp(24),
   },
   buttonIconText: {
-    fontSize: dp(16),
+    /** 略小于 dp(24) 图标区，与 Apple/Google 图标观感一致 */
+    fontSize: dp(15),
     fontWeight: '600',
     color: COLORS.buttonText,
+    textAlign: 'center',
   },
   buttonText: {
     fontSize: dp(16),
@@ -365,10 +432,41 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
   },
+  footerAgreementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: hp(4),
+  },
+  termsCheckButton: {
+    marginRight: dp(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsCheckCircle: {
+    width: dp(18),
+    height: dp(18),
+    borderRadius: Math.min(dp(9), dp(9)),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsCheckCircleOn: {
+    backgroundColor: '#00E8DC',
+  },
+  termsCheckCircleOff: {
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 255, 255, 0.35)',
+  },
+  termsCheckMark: {
+    color: '#021018',
+    fontSize: dp(11),
+    fontWeight: '700',
+    marginTop: -hp(1),
+  },
   footerMuted: {
-    fontSize: 12,
+    fontSize: dp(12),
     color: COLORS.footerMuted,
-    marginBottom: 2,
+    marginBottom: hp(2),
   },
   footerLinks: {
     flexDirection: 'row',
@@ -377,7 +475,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footerLink: {
-    fontSize: 12,
+    fontSize: dp(12),
     color: COLORS.link,
     fontWeight: '500',
     opacity: 0.95,
@@ -388,17 +486,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  inlineToastLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: dp(24),
+  },
+  inlineToastCard: {
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    borderRadius: dp(16),
+    paddingHorizontal: dp(18),
+    paddingVertical: hp(12),
+    maxWidth: '100%',
+  },
+  inlineToastText: {
+    color: '#FFFFFF',
+    fontSize: dp(14),
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   submittingCard: {
-    minWidth: 200,
-    paddingVertical: 28,
-    paddingHorizontal: 32,
-    borderRadius: 16,
+    minWidth: dp(200),
+    paddingVertical: hp(28),
+    paddingHorizontal: dp(32),
+    borderRadius: dp(16),
     backgroundColor: '#1a2332',
     alignItems: 'center',
-    gap: 16,
+    gap: hp(16),
   },
   submittingText: {
     color: '#e6edf3',
-    fontSize: 15,
+    fontSize: dp(15),
   },
 });

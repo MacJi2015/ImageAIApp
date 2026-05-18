@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import PlayBtnIcon from '../../../assets/details/paly-btn.svg';
@@ -29,11 +36,13 @@ export function DetailVideoPlayer({
   isActive = true,
 }: DetailVideoPlayerProps) {
   const [playing, setPlaying] = useState(true);
+  const [isVideoLoading, setIsVideoLoading] = useState(!!videoUri);
   const hasVideo = !!videoUri;
 
   useEffect(() => {
     // 进入页面后默认自动播放；离开页面时强制暂停
     setPlaying(true);
+    setIsVideoLoading(!!videoUri);
     return () => {
       setPlaying(false);
     };
@@ -51,16 +60,25 @@ export function DetailVideoPlayer({
             posterResizeMode="cover"
             paused={!playing || !isActive}
             repeat
+            onLoadStart={() => setIsVideoLoading(true)}
+            onLoad={() => setIsVideoLoading(false)}
+            onReadyForDisplay={() => setIsVideoLoading(false)}
             onError={(e) => {
+              setIsVideoLoading(false);
               __DEV__ && console.warn('[DetailVideoPlayer] video error', e);
             }}
           />
+          {isVideoLoading ? (
+            <View style={styles.loadingOverlay} pointerEvents="none">
+              <ActivityIndicator size="large" color="#00ffff" />
+            </View>
+          ) : null}
           <TouchableOpacity
             style={styles.playOverlay}
             onPress={() => setPlaying((prev) => !prev)}
             activeOpacity={0.9}
           >
-            {!playing && <PlayBtnIcon width={60} height={60} />}
+            {!playing && !isVideoLoading ? <PlayBtnIcon width={60} height={60} /> : null}
           </TouchableOpacity>
         </>
       ) : (
@@ -90,6 +108,12 @@ const styles = StyleSheet.create({
   poster: {
     width: '100%',
     height: '100%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(5, 10, 20, 0.35)',
   },
   playOverlay: {
     position: 'absolute',

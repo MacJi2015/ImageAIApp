@@ -42,20 +42,22 @@ export function WorkDetailScreen() {
   const route = useRoute<WorkDetailRoute>();
   const insets = useSafeAreaInsets();
   const openShareModal = useAppStore((s) => s.openShareModal);
+  const showToast = useAppStore((s) => s.showToast);
   const { item } = route.params;
+  const isSuccess = item.status === 'SUCCESS';
   const imageUri = item.thumbnailUrl ?? item.petImageUrl ?? item.videoUrl ?? '';
-  const videoUri = item.videoUrl;
+  const videoUri = isSuccess ? item.videoUrl : undefined;
   const [promptVisible, setPromptVisible] = React.useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const promptSheetTranslateY = useRef(new Animated.Value(48)).current;
+  const promptSheetTranslateY = useRef(new Animated.Value(44)).current;
   const deleteCardScale = useRef(new Animated.Value(0.95)).current;
   const deleteCardOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!promptVisible) return;
-    promptSheetTranslateY.setValue(48);
+    promptSheetTranslateY.setValue(44);
     Animated.timing(promptSheetTranslateY, {
       toValue: 0,
       duration: 220,
@@ -86,7 +88,7 @@ export function WorkDetailScreen() {
 
   const closePromptModal = useCallback(() => {
     Animated.timing(promptSheetTranslateY, {
-      toValue: 48,
+      toValue: 44,
       duration: 180,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
@@ -120,7 +122,21 @@ export function WorkDetailScreen() {
     return new Date().toISOString().slice(0, 10);
   }, [item.createdTime]);
 
+  const unavailableActionMessage = useMemo(() => {
+    if (item.status === 'FAILED') {
+      return 'Generation failed. Cannot share or download.';
+    }
+    if (item.status === 'PROCESSING' || item.status === 'PENDING') {
+      return 'Video is still generating. Please try again later.';
+    }
+    return 'Video is not available for sharing or download.';
+  }, [item.status]);
+
   const handleShare = () => {
+    if (!isSuccess || !videoUri) {
+      showToast(unavailableActionMessage);
+      return;
+    }
     openShareModal({
       url: videoUri ?? '',
       title: 'Share to get +1 free chance',
@@ -166,6 +182,10 @@ export function WorkDetailScreen() {
   };
 
   const handleSaveToGallery = () => {
+    if (!isSuccess || !videoUri) {
+      showToast(unavailableActionMessage);
+      return;
+    }
     if (saving) return;
     const save = async () => {
       setSaving(true);
@@ -472,7 +492,7 @@ const styles = StyleSheet.create({
   },
   deleteModalCancelBtn: {
     flex: 1,
-    height: hp(48),
+    height: hp(44),
     borderRadius: dp(12),
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.14)',
@@ -487,7 +507,7 @@ const styles = StyleSheet.create({
   },
   deleteModalConfirmBtn: {
     flex: 1,
-    height: hp(48),
+    height: hp(44),
     borderRadius: dp(12),
     backgroundColor: COLORS.accent,
     alignItems: 'center',
@@ -575,6 +595,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     paddingVertical: hp(10),
+    height: hp(44),
     borderRadius: dp(12),
     backgroundColor: COLORS.accent,
     alignItems: 'center',
@@ -589,12 +610,14 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: dp(16),
-    fontWeight: '700',
+    fontWeight: 700,
     color: '#020410',
+    fontFamily: "Space Grotesk",
   },
   primaryBtnSub: {
     fontSize: dp(10),
     color: '#020410',
+    fontFamily: "Space Grotesk",
   },
   bottomRow: {
     flexDirection: 'row',
@@ -602,7 +625,7 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     width: dp(131),
-    height: hp(48),
+    height: hp(44),
     borderRadius: dp(12),
     borderWidth: 0.5,
     borderColor: 'rgba(0,255,255,0.2)',
@@ -615,18 +638,20 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     fontSize: dp(16),
-    fontWeight: '700',
+    fontWeight: 700,
     color: '#3a4a65',
+    fontFamily: "Space Grotesk",
   },
   secondaryBtn: {
     flex: 1,
-    height: hp(48),
+    height: hp(44),
     borderRadius: dp(12),
     borderWidth: 0.5,
     borderColor: 'rgba(0,255,255,0.2)',
     backgroundColor: COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
+    fontFamily: "Space Grotesk",
   },
   secondaryBtnDisabled: {
     opacity: 0.7,
@@ -639,7 +664,8 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: dp(16),
-    fontWeight: '700',
+    fontWeight: 700,
+    fontFamily: "Space Grotesk",
     color: '#ffffff',
   },
 });

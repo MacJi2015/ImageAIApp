@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -24,7 +25,8 @@ import {
   unlikeFeed,
   type FeedItem,
 } from '../../../api/services/feed';
-import { useAppStore, useUserStore } from '../../../store';
+import { useAppStore, useDetailPagerStore, useUserStore } from '../../../store';
+import { feedItemsToPagerItems } from '../../Details/utils/detailPagerMappers';
 import likeDefaultIcon from '../../../assets/like-default-icon.png';
 import likeSelectedIcon from '../../../assets/like-selected-icon.png';
 import headNan from '../../../assets/head-nan.png';
@@ -89,7 +91,7 @@ function FeedCard({
         pointerEvents="none"
       />
       <View style={styles.cardAvatar}>
-        <Image source={avatarSource} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={avatarSource} style={styles.cardAvatarImage} resizeMode="contain" />
       </View>
       <Text style={styles.cardUsername} numberOfLines={1}>
         {displayName}
@@ -120,6 +122,8 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
 ) {
   const navigation = useNavigation<Nav>();
   const openLoginModal = useAppStore((s) => s.openLoginModal);
+  const initDetailSession = useDetailPagerStore((s) => s.initSession);
+  const hiddenModeratedFeedIds = useAppStore((s) => s.hiddenModeratedFeedIds);
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const [list, setList] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -194,8 +198,24 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
     [isLoggedIn, openLoginModal, refresh]
   );
 
+  const hiddenIdSet = useMemo(() => new Set(hiddenModeratedFeedIds), [hiddenModeratedFeedIds]);
+  const visibleList = useMemo(
+    () => list.filter(item => !hiddenIdSet.has(String(item.feedId))),
+    [hiddenIdSet, list]
+  );
+
   const handleCardPress = useCallback(
     (item: FeedItem) => {
+      const initialIndex = visibleList.findIndex((v) => v.feedId === item.feedId);
+      initDetailSession({
+        source: 'feed',
+        items: feedItemsToPagerItems(visibleList),
+        initialIndex: initialIndex >= 0 ? initialIndex : 0,
+        pageNum,
+        pageSize: PAGE_SIZE,
+        hasMore,
+        loop: false,
+      });
       navigation.navigate('Detail', {
         id: item.feedId,
         source: 'feed',
@@ -213,10 +233,10 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
         },
       });
     },
-    [navigation]
+    [hasMore, initDetailSession, navigation, pageNum, visibleList]
   );
 
-  if ((!authHydrated || loading) && list.length === 0) {
+  if ((!authHydrated || loading) && visibleList.length === 0) {
     return (
       <View style={styles.placeholder}>
         <Text style={styles.placeholderText}>Loading...</Text>
@@ -227,7 +247,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
   return (
     <View style={styles.cardsContainer}>
       <View style={styles.cardsGrid}>
-        {list.map((item) => (
+        {visibleList.map((item) => (
           <FeedCard
             key={item.feedId}
             item={item}
@@ -241,7 +261,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
           <Text style={styles.loadMoreText}>Loading...</Text>
         </View>
       )}
-      {list.length === 0 && !loading && (
+      {visibleList.length === 0 && !loading && (
         <View style={styles.emptyState}>
           <Image source={emptyImg} style={styles.emptyStateIcon} resizeMode="contain" />
           <Text style={styles.emptyStateText}>Hmm, something's off.</Text>
@@ -256,6 +276,7 @@ export const FeedTab = forwardRef<FeedTabRef, FeedTabProps>(function FeedTab(
 
 const styles = StyleSheet.create({
   cardsContainer: {
+    alignSelf: 'stretch',
     width: '100%',
     paddingHorizontal: dp(16),
     paddingBottom: hp(120),
@@ -264,6 +285,8 @@ const styles = StyleSheet.create({
   cardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignContent: 'flex-start',
     columnGap: dp(7),
     rowGap: hp(7),
   },
@@ -340,6 +363,12 @@ const styles = StyleSheet.create({
     height: dp(20),
     borderRadius: dp(10),
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   cardUsername: {
     position: 'absolute',

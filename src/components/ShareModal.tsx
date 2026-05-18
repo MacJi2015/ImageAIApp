@@ -18,8 +18,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import type { SharePayload } from '../store/useAppStore';
 import { useAppStore } from '../store';
 import { useUserStore } from '../store/useUserStore';
+import { reportFeed, reportTemplate } from '../api/services/feed';
 import { shareVideoToCommunity } from '../api/services/video';
-import { submitFeedback } from '../api/services/feedback';
 import { isLoginSessionError } from '../api/request';
 import { shareToX as shareToXService } from '../services/shareToSocial';
 import { saveMediaToGallery } from '../utils/media';
@@ -61,11 +61,17 @@ type ShareOption = {
   renderIcon: () => React.ReactNode;
 };
 
-const REPORT_FEEDBACK_MESSAGE =
-  'If this post looks inappropriate or violates our rules, please submit feedback. Our team will review it as soon as possible.';
+type ReportContext = {
+  targetId: string;
+  targetType: 'feed' | 'template';
+  onModerationDone?: () => void;
+};
 
-function buildShareOptions(downloading: boolean): ShareOption[] {
-  return [
+const REPORT_FEEDBACK_MESSAGE =
+  'If this content is inappropriate, we will report it and block this user. Their content will be removed from your Feed immediately.';
+
+function buildShareOptions(downloading: boolean, includeFeedback: boolean): ShareOption[] {
+  const options: ShareOption[] = [
     {
       key: 'x',
       renderIcon: () => (
@@ -95,13 +101,20 @@ function buildShareOptions(downloading: boolean): ShareOption[] {
         <Image source={shareIcons.copy} style={styles.shareIconImage} resizeMode="contain" />
       ),
     },
-    {
+  ];
+  if (includeFeedback) {
+    options.push({
       key: 'feedback',
       renderIcon: () => (
-        <Image source={shareIcons.feedback} style={[styles.shareIconImage,{width: dp(30), height: dp(30)}]} resizeMode="contain" />
+        <Image
+          source={shareIcons.feedback}
+          style={[styles.shareIconImage, { width: dp(30), height: dp(30) }]}
+          resizeMode="contain"
+        />
       ),
-    },
-  ];
+    });
+  }
+  return options;
 }
 
 /** 无 payload 时随机使用的默认分享文案 */
@@ -126,6 +139,11 @@ function isCommunityTaskId(s: unknown): s is string {
   return typeof s === 'string' && s.trim().length > 0;
 }
 
+function toNonEmptyString(value: string | number | undefined): string {
+  if (value == null) return '';
+  return String(value).trim();
+}
+
 export function ShareModal({
   visible,
   onClose,
@@ -135,17 +153,22 @@ export function ShareModal({
   const showToast = useAppStore(s => s.showToast);
   const openLoginModal = useAppStore(s => s.openLoginModal);
   const token = useUserStore(s => s.token);
-  const user = useUserStore(s => s.user);
   const [downloading, setDownloading] = React.useState(false);
   const [alsoShareToCommunity, setAlsoShareToCommunity] = React.useState(true);
   const [reportConfirmVisible, setReportConfirmVisible] = React.useState(false);
   const [reportSubmitting, setReportSubmitting] = React.useState(false);
+  const [reportContext, setReportContext] = React.useState<ReportContext | null>(null);
   const panelTranslateY = useRef(new Animated.Value(48)).current;
   const closingRef = useRef(false);
 
   const communityTaskId = (payload?.communityShareTaskId ?? '').trim();
   const showCommunityOption =
     payload?.showCommunityShareOption === true && isCommunityTaskId(communityTaskId);
+  const moderationTargetId = toNonEmptyString(payload?.feedbackTargetId);
+  const moderationTargetType = payload?.reportTargetType;
+  const canReportAndBlock =
+    (moderationTargetType === 'feed' || moderationTargetType === 'template') &&
+    moderationTargetId.length > 0;
 
   useEffect(() => {
     if (visible && showCommunityOption) {
@@ -159,6 +182,7 @@ export function ShareModal({
     setDownloading(false);
     setReportConfirmVisible(false);
     setReportSubmitting(false);
+    setReportContext(null);
     panelTranslateY.setValue(48);
     Animated.timing(panelTranslateY, {
       toValue: 0,
@@ -192,6 +216,9 @@ export function ShareModal({
     const rest = { ...sharePayload };
     delete rest.showCommunityShareOption;
     delete rest.communityShareTaskId;
+    delete rest.feedbackTargetId;
+    delete rest.reportTargetType;
+    delete rest.onModerationDone;
     if (showCommunityOption) {
       return { ...rest, shareToCommunity: alsoShareToCommunity };
     }
@@ -271,28 +298,45 @@ export function ShareModal({
   const handleCancelReport = useCallback(() => {
     if (reportSubmitting) return;
     setReportConfirmVisible(false);
+    setReportContext(null);
   }, [reportSubmitting]);
 
   const handleSubmitReport = useCallback(async () => {
     if (reportSubmitting) return;
     if (!token) {
       setReportConfirmVisible(false);
+      setReportContext(null);
       openLoginModal();
+      return;
+    }
+    const context = reportContext ?? (
+      canReportAndBlock && moderationTargetType
+        ? {
+            targetId: moderationTargetId,
+            targetType: moderationTargetType,
+            onModerationDone: payload?.onModerationDone,
+          }
+        : null
+    );
+    if (!context) {
+      Alert.alert('Notice', 'This content cannot be reported right now.');
       return;
     }
     setReportSubmitting(true);
     try {
-      const targetId = payload?.feedbackTargetId ?? payload?.communityShareTaskId;
-      await submitFeedback({
-        issue: REPORT_FEEDBACK_MESSAGE,
-        email: user?.email ?? undefined,
-        id: targetId,
-      });
+      if (context.targetType === 'feed') {
+        await reportFeed(context.targetId);
+      } else {
+        await reportTemplate(context.targetId);
+      }
       setReportConfirmVisible(false);
-      showToast('Thanks for your report. We will review it shortly.');
+      setReportContext(null);
+      context.onModerationDone?.();
+      showToast('Reported and blocked successfully.');
     } catch (e: unknown) {
       if (isLoginSessionError(e)) {
         setReportConfirmVisible(false);
+        setReportContext(null);
         return;
       }
       const msg = e instanceof Error ? e.message : 'Submit failed, please try again.';
@@ -301,16 +345,21 @@ export function ShareModal({
       setReportSubmitting(false);
     }
   }, [
+    canReportAndBlock,
+    moderationTargetId,
+    moderationTargetType,
+    reportContext,
     token,
     openLoginModal,
-    payload?.communityShareTaskId,
-    payload?.feedbackTargetId,
+    payload,
     reportSubmitting,
     showToast,
-    user?.email,
   ]);
 
-  const SHARE_OPTIONS = React.useMemo(() => buildShareOptions(downloading), [downloading]);
+  const SHARE_OPTIONS = React.useMemo(
+    () => buildShareOptions(downloading, canReportAndBlock),
+    [canReportAndBlock, downloading]
+  );
 
   return (
     <>
@@ -373,6 +422,15 @@ export function ShareModal({
                       isCommunityTaskId(communityTaskId);
 
                     if (isFeedbackAction) {
+                      if (canReportAndBlock && moderationTargetType) {
+                        setReportContext({
+                          targetId: moderationTargetId,
+                          targetType: moderationTargetType,
+                          onModerationDone: payload?.onModerationDone,
+                        });
+                      } else {
+                        setReportContext(null);
+                      }
                       requestClose();
                       setTimeout(() => {
                         setReportConfirmVisible(true);
@@ -444,7 +502,7 @@ export function ShareModal({
             disabled={reportSubmitting}
           />
           <View style={styles.reportCard}>
-            <Text style={styles.reportTitle}>Report this content?</Text>
+            <Text style={styles.reportTitle}>Report and block this user?</Text>
             <Text style={styles.reportMessage}>{REPORT_FEEDBACK_MESSAGE}</Text>
             <View style={styles.reportActions}>
               <TouchableOpacity
@@ -466,7 +524,7 @@ export function ShareModal({
                 {reportSubmitting ? (
                   <ActivityIndicator size="small" color="#020410" />
                 ) : (
-                  <Text style={styles.reportSubmitText}>Submit</Text>
+                  <Text style={styles.reportSubmitText}>Report & Block</Text>
                 )}
               </TouchableOpacity>
             </View>

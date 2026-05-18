@@ -7,7 +7,7 @@ type LoginSubmittingOverlayProps = {
   message?: string;
 };
 
-export function LoginSubmittingOverlay({ visible, message = '登录中…' }: LoginSubmittingOverlayProps) {
+export function LoginSubmittingOverlay({ visible, message = 'Logging in...' }: LoginSubmittingOverlayProps) {
   const cardScale = useRef(new Animated.Value(0.95)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
 

@@ -74,8 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    backgroundColor: 'rgba(0,0,0,0.78)',
-    borderRadius: 18,
+    backgroundColor: '#050A14',
     paddingHorizontal: 28,
     paddingVertical: 18,
     minWidth: 260,
@@ -83,8 +82,8 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: 400,
     fontFamily: 'Space Grotesk',
     textAlign: 'center',
   },

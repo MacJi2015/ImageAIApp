@@ -557,8 +557,8 @@ const styles = StyleSheet.create({
   },
   subscribeBtnText: {
     fontFamily: 'Space Grotesk',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: 700,
     color: COLORS.buttonText,
     letterSpacing: 1.15,
   },
@@ -576,8 +576,8 @@ const styles = StyleSheet.create({
   },
   restoreBtnText: {
     fontFamily: 'Space Grotesk',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: 700,
     color: '#AEEFFF',
     letterSpacing: 0.8,
   },

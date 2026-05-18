@@ -7,6 +7,10 @@ export interface SharePayload {
   message?: string;
   /** 反馈/举报目标内容 ID（如 feed id / taskId） */
   feedbackTargetId?: string | number;
+  /** 举报目标类型：feed 视频 / 模版视频 */
+  reportTargetType?: 'feed' | 'template';
+  /** 举报/屏蔽成功后的回调（用于页面返回与列表刷新） */
+  onModerationDone?: () => void;
   /** 为 true 时弹窗显示「同时分享到社区」行；需同时传 communityShareTaskId（任务 ID / taskId） */
   showCommunityShareOption?: boolean;
   /**
@@ -66,6 +70,10 @@ export interface AppState {
   /** Feed 数据变更（详情点赞等）后递增，用于触发 Home/FeedTab 刷新 */
   feedRefreshEpoch: number;
   notifyFeedRefresh: () => void;
+  /** 本地立即隐藏的 Feed ID（举报/屏蔽后用于即时从列表移除） */
+  hiddenModeratedFeedIds: string[];
+  hideModeratedFeedId: (feedId: string) => void;
+  clearHiddenModeratedFeedIds: () => void;
 
   /** 全局轻提示（Toast） */
   toastMessage: string | null;
@@ -115,6 +123,14 @@ export const useAppStore = create<AppState>(set => ({
   setTabBarTranslucent: value => set({ tabBarTranslucent: value }),
   feedRefreshEpoch: 0,
   notifyFeedRefresh: () => set(state => ({ feedRefreshEpoch: state.feedRefreshEpoch + 1 })),
+  hiddenModeratedFeedIds: [],
+  hideModeratedFeedId: (feedId: string) =>
+    set(state => {
+      const id = feedId.trim();
+      if (!id || state.hiddenModeratedFeedIds.includes(id)) return state;
+      return { hiddenModeratedFeedIds: [...state.hiddenModeratedFeedIds, id] };
+    }),
+  clearHiddenModeratedFeedIds: () => set({ hiddenModeratedFeedIds: [] }),
 
   toastMessage: null,
   toastEpoch: 0,

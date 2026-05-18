@@ -72,6 +72,24 @@ export function HomeScreen(_props?: HomeScreenProps) {
     setTimeout(() => setRefreshing(false), 400);
   }, []);
 
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollYRef.current = 0;
+    setShowStickyLogo(false);
+    setShowStickyTabs(false);
+    setHasScrolled(false);
+    setTabBarTranslucent(false);
+  }, [setTabBarTranslucent]);
+
+  const isFirstTabRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstTabRenderRef.current) {
+      isFirstTabRenderRef.current = false;
+      return;
+    }
+    scrollToTop();
+  }, [activeTab, scrollToTop]);
+
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
@@ -111,8 +129,8 @@ export function HomeScreen(_props?: HomeScreenProps) {
   }, []);
 
   const handleProBadgePress = useCallback(() => {
-    openLoginModal();
-  }, [openLoginModal]);
+    // openLoginModal();
+  }, []);
 
   const handleFeedTabPress = useCallback(() => {
     const run = async () => {

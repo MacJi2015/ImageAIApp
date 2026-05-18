@@ -13,6 +13,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../routes/types';
 import { getOfficialTemplates, type AppVideoTemplate } from '../../../api/services/template';
+import { useDetailPagerStore } from '../../../store';
+import { templatesToPagerItems } from '../../Details/utils/detailPagerMappers';
 import { formatPreviewCount } from '../../../utils';
 import { dp, hp } from '../../../utils/scale';
 import ascIcon from '../../../assets/asc-icon.png';
@@ -39,12 +41,13 @@ const EMPTY = 'empty';
 function EffectCard({
   template,
   cornerIcon,
+  onPress,
 }: {
   template: AppVideoTemplate;
   index: number;
   cornerIcon: ImageSourcePropType;
+  onPress: () => void;
 }) {
-  const navigation = useNavigation<Nav>();
   const [imageLoaded, setImageLoaded] = useState(false);
   const imageUri =
     template.coverImageUrl || 'https://picsum.photos/seed/feed3/172/224';
@@ -53,22 +56,7 @@ function EffectCard({
     <TouchableOpacity
       style={styles.effectCard}
       activeOpacity={0.9}
-      onPress={() =>
-        navigation.navigate('Detail', {
-          id: template.templateId,
-          source: 'effect',
-          initialData: {
-            title: template.templateName,
-            videoUrl: template.previewVideoUrl,
-            thumbnailUrl: template.coverImageUrl,
-            likeCount: 0,
-            viewCount: template.viewCount ?? 0,
-            liked: false,
-            templateIdForPrompt: template.templateId,
-            templateThumbnailUrlForPrompt: template.coverImageUrl,
-          },
-        })
-      }
+      onPress={onPress}
     >
       <View style={styles.effectCardImageWrap}>
         <Image source={preGoodsImg} style={styles.effectCardImagePreloadPlaceholder} resizeMode="contain" />
@@ -124,6 +112,8 @@ export function EffectsTab({
   authSessionEpoch = 0,
   authHydrated = false,
 }: EffectsTabProps) {
+  const navigation = useNavigation<Nav>();
+  const initDetailSession = useDetailPagerStore((s) => s.initSession);
   const [list, setList] = useState<AppVideoTemplate[]>([]);
   const [status, setStatus] = useState<'idle' | typeof LOADING | typeof EMPTY>(LOADING);
   const listRef = useRef<AppVideoTemplate[]>([]);
@@ -180,7 +170,32 @@ export function EffectsTab({
             template={t}
             index={i}
             cornerIcon={t.templateType === 'dog' ? dogIcon : cartIcon}
-         
+            onPress={() => {
+              const pagerItems = templatesToPagerItems(list);
+              initDetailSession({
+                source: 'effect',
+                items: pagerItems,
+                initialIndex: i,
+                pageNum: 1,
+                pageSize: list.length,
+                hasMore: false,
+                loop: true,
+              });
+              navigation.navigate('Detail', {
+                id: t.templateId,
+                source: 'effect',
+                initialData: {
+                  title: t.templateName,
+                  videoUrl: t.previewVideoUrl,
+                  thumbnailUrl: t.coverImageUrl,
+                  likeCount: 0,
+                  viewCount: t.viewCount ?? 0,
+                  liked: false,
+                  templateIdForPrompt: t.templateId,
+                  templateThumbnailUrlForPrompt: t.coverImageUrl,
+                },
+              });
+            }}
           />
         ))}
       </View>
@@ -190,6 +205,8 @@ export function EffectsTab({
 
 const styles = StyleSheet.create({
   effectsContainer: {
+    alignSelf: 'stretch',
+    width: '100%',
     paddingHorizontal: dp(16),
     paddingTop: hp(7),
     paddingBottom: hp(120),
@@ -197,6 +214,8 @@ const styles = StyleSheet.create({
   effectsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignContent: 'flex-start',
     columnGap: dp(7),
     rowGap: hp(7),
   },

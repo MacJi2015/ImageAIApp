@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: dp(343),
+    // height: hp(48),
     paddingVertical: hp(12),
     paddingHorizontal: dp(16),
     borderRadius: dp(12),
@@ -192,12 +193,12 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: dp(16),
-    fontWeight: '700',
+    fontWeight: 700,
     color: '#020410',
   },
   primaryBtnSub: {
     fontSize: dp(12),
-    fontWeight: '400',
+    fontWeight: 400,
     color: '#020410',
   },
   secondaryBtn: {

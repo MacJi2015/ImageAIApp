@@ -154,3 +154,19 @@ export async function deleteVideo(id: number): Promise<boolean> {
   const res = await post(`app/user/deleteVideo`, undefined, { params: { id } });
   return (res as unknown as { entry?: boolean }).entry ?? false;
 }
+
+/**
+ * 举报并屏蔽：Feed 视频
+ * POST /facial/app/feed/report/feed/{feedId}
+ */
+export async function reportFeed(feedId: string): Promise<boolean> {
+  return post<boolean>(`app/feed/report/feed/${feedId}`);
+}
+
+/**
+ * 举报并屏蔽：官方模版视频
+ * POST /facial/app/feed/report/template/{templateId}
+ */
+export async function reportTemplate(templateId: string): Promise<boolean> {
+  return post<boolean>(`app/feed/report/template/${templateId}`);
+}

@@ -648,6 +648,7 @@ export function RootNavigator({ navigationRef }: RootNavigatorProps) {
           title: '',
             /** 液体玻璃 iOS：仅图标；否则毛玻璃圆底 + 同资源箭头 */
           headerLeft: DETAIL_NAV_LIQUID_GLASS ? StackHeaderBack : DetailHeaderGlassBack,
+          // headerLeft: DetailHeaderGlassBack,
           headerTintColor: '#fff',
           headerTitleStyle: { color: '#fff' },
           headerTransparent: true,
